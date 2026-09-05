@@ -1,0 +1,156 @@
+import { supabase } from '@/lib/supabase';
+import { normalizeInviteCode } from '@/domain/invite-code';
+import type { Family, FamilyMember } from '@/types/domain';
+import { toFamily, toLedger, type FamilyRow, type LedgerRow } from '@/types/db';
+import type { ProfileRow } from '@/types/db';
+import type { FamilyMemberRow } from '@/types/db';
+
+export interface FamilyWithLedger {
+  family: Family;
+  ledgerId: string | null;
+}
+
+export const familyService = {
+  /** 创建家庭：家庭 + 创建者成员记录 + 家庭账本 */
+  async createFamily(name: string, userId: string): Promise<FamilyWithLedger> {
+    const { data: familyRow, error: familyError } = await supabase
+      .from('families')
+      .insert({ name, owner_id: userId })
+      .select('*')
+      .single();
+    if (familyError || !familyRow) throw new Error('创建家庭失败');
+
+    const family = toFamily(familyRow as FamilyRow);
+
+    const { error: memberError } = await supabase
+      .from('family_members')
+      .insert({ family_id: family.id, user_id: userId, role: 'owner' });
+    if (memberError) throw new Error('创建家庭失败');
+
+    const { data: ledgerRow, error: ledgerError } = await supabase
+      .from('ledgers')
+      .insert({ name, type: 'family', owner_id: userId, family_id: family.id })
+      .select('*')
+      .single();
+    if (ledgerError || !ledgerRow) throw new Error('创建家庭账本失败');
+
+    return { family, ledgerId: toLedger(ledgerRow as LedgerRow).id };
+  },
+
+  /** 凭邀请码加入家庭 */
+  async joinFamily(code: string): Promise<FamilyWithLedger> {
+    const { data: familyId, error } = await supabase.rpc('join_family', {
+      p_code: normalizeInviteCode(code),
+    });
+    if (error) throw new Error(error.message);
+
+    const { data: familyRow, error: familyError } = await supabase
+      .from('families')
+      .select('*')
+      .eq('id', familyId)
+      .maybeSingle();
+    if (familyError || !familyRow) throw new Error('加载家庭信息失败');
+    const family = toFamily(familyRow as FamilyRow);
+
+    const { data: ledgerRow } = await supabase
+      .from('ledgers')
+      .select('*')
+      .eq('family_id', family.id)
+      .maybeSingle();
+
+    return { family, ledgerId: ledgerRow ? toLedger(ledgerRow as LedgerRow).id : null };
+  },
+
+  /** 我加入的所有家庭及其家庭账本 */
+  async listMyFamilies(): Promise<FamilyWithLedger[]> {
+    const { data: memberRows, error: memberError } = await supabase
+      .from('family_members')
+      .select('family_id')
+      .eq('user_id', (await supabase.auth.getUser()).data.user?.id ?? '');
+    if (memberError) throw new Error('加载家庭失败');
+    const familyIds = (memberRows as { family_id: string }[]).map((r) => r.family_id);
+    if (familyIds.length === 0) return [];
+
+    const { data: familyRows, error: familyError } = await supabase
+      .from('families')
+      .select('*')
+      .in('id', familyIds);
+    if (familyError) throw new Error('加载家庭失败');
+
+    const { data: ledgerRows } = await supabase
+      .from('ledgers')
+      .select('*')
+      .in('family_id', familyIds);
+
+    const ledgerByFamily = new Map(
+      ((ledgerRows ?? []) as LedgerRow[]).map((row) => [row.family_id, row]),
+    );
+
+    return (familyRows as FamilyRow[]).map((row) => ({
+      family: toFamily(row),
+      ledgerId: ledgerByFamily.has(row.id)
+        ? toLedger(ledgerByFamily.get(row.id) as LedgerRow).id
+        : null,
+    }));
+  },
+
+  async listMembers(familyId: string): Promise<FamilyMember[]> {
+    const { data: memberRows, error } = await supabase
+      .from('family_members')
+      .select('*')
+      .eq('family_id', familyId)
+      .order('joined_at', { ascending: true });
+    if (error) throw new Error('加载成员失败');
+
+    const userIds = (memberRows as FamilyMemberRow[]).map((r) => r.user_id);
+    const profilesById = new Map<string, ProfileRow>();
+    if (userIds.length > 0) {
+      const { data: profileRows } = await supabase
+        .from('profiles')
+        .select('id, nickname, avatar_url')
+        .in('id', userIds);
+      for (const row of (profileRows ?? []) as ProfileRow[]) profilesById.set(row.id, row);
+    }
+
+    return (memberRows as FamilyMemberRow[]).map((row) => ({
+      familyId: row.family_id,
+      userId: row.user_id,
+      role: row.role === 'owner' ? ('owner' as const) : ('member' as const),
+      nickname: profilesById.get(row.user_id)?.nickname ?? '成员',
+      avatarUrl: profilesById.get(row.user_id)?.avatar_url ?? null,
+      joinedAt: row.joined_at,
+    }));
+  },
+
+  async leaveFamily(familyId: string, userId: string): Promise<void> {
+    const { data: familyRow } = await supabase
+      .from('families')
+      .select('*')
+      .eq('id', familyId)
+      .single();
+    if (familyRow && (familyRow as FamilyRow).owner_id === userId) {
+      throw new Error('家庭创建者不能退出，可解散家庭');
+    }
+    const { error } = await supabase
+      .from('family_members')
+      .delete()
+      .eq('family_id', familyId)
+      .eq('user_id', userId);
+    if (error) throw new Error('退出家庭失败');
+  },
+
+  async removeMember(familyId: string, targetUserId: string, ownerId: string): Promise<void> {
+    if (targetUserId === ownerId) throw new Error('不能移除家庭创建者');
+    const { error } = await supabase
+      .from('family_members')
+      .delete()
+      .eq('family_id', familyId)
+      .eq('user_id', targetUserId);
+    if (error) throw new Error('移除成员失败');
+  },
+
+  async disbandFamily(familyId: string): Promise<void> {
+    const { error } = await supabase.from('families').delete().eq('id', familyId);
+    if (error) throw new Error('解散家庭失败');
+  },
+};

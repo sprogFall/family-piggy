@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "家庭记账",
+    "slug": "family-piggy",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.familypiggy.app"
+    },
+    "android": {
+      "package": "com.familypiggy.app"
+    },
+    "extra": {
+      "supabaseUrl": "YOUR_SUPABASE_URL",
+      "supabaseAnonKey": "YOUR_SUPABASE_ANON_KEY"
+    }
+  }
+}
