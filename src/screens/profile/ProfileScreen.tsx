@@ -1,12 +1,15 @@
+import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { MenuItem } from '@/components/MenuItem';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { avatarService } from '@/services/avatar.service';
+import { getErrorMessage } from '@/lib/errors';
 import type { RootStackParamList, TabParamList } from '@/navigation/types';
 import { useAuthStore } from '@/stores/auth.store';
 import { colors, fontSize, radius, space } from '@/theme';
@@ -21,6 +24,7 @@ export const ProfileScreen = ({ navigation }: Props) => {
   const session = useAuthStore((state) => state.session);
   const refreshProfile = useAuthStore((state) => state.refreshProfile);
   const signOut = useAuthStore((state) => state.signOut);
+  const [uploading, setUploading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -29,6 +33,30 @@ export const ProfileScreen = ({ navigation }: Props) => {
   );
 
   const email = session?.user.email ?? '';
+
+  const pickAvatar = async () => {
+    const userId = session?.user.id;
+    if (!userId) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.6,
+    });
+    if (result.canceled || result.assets.length === 0) return;
+    const asset = result.assets[0];
+
+    setUploading(true);
+    try {
+      await avatarService.upload(userId, asset.uri, asset.mimeType ?? 'image/jpeg');
+      await refreshProfile();
+      Alert.alert('头像已更新');
+    } catch (error) {
+      Alert.alert('上传失败', getErrorMessage(error));
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const confirmSignOut = () => {
     Alert.alert('退出登录', '确定退出当前账号吗？', [
@@ -40,11 +68,22 @@ export const ProfileScreen = ({ navigation }: Props) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {(profile?.nickname ?? '记').slice(0, 1)}
-          </Text>
-        </View>
+        <Pressable onPress={() => void pickAvatar()} disabled={uploading}>
+          {profile?.avatarUrl ? (
+            <Image source={{ uri: profile.avatarUrl }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{(profile?.nickname ?? '记').slice(0, 1)}</Text>
+            </View>
+          )}
+          <View style={styles.cameraBadge}>
+            {uploading ? (
+              <ActivityIndicator size="small" color={colors.white} />
+            ) : (
+              <Text style={styles.cameraText}>改</Text>
+            )}
+          </View>
+        </Pressable>
         <View style={styles.userMeta}>
           <Text style={styles.nickname}>{profile?.nickname ?? '未登录'}</Text>
           <Text style={styles.userId} numberOfLines={1}>
@@ -59,6 +98,11 @@ export const ProfileScreen = ({ navigation }: Props) => {
           label="家庭管理"
           hint="创建 / 加入家庭"
           onPress={() => navigation.navigate('FamilyHub')}
+        />
+        <MenuItem
+          icon="wallet-outline"
+          label="预算设置"
+          onPress={() => navigation.navigate('Budget')}
         />
         <MenuItem
           icon="grid-outline"
@@ -110,6 +154,21 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: fontSize.xl,
     fontWeight: '600',
+  },
+  cameraBadge: {
+    alignItems: 'center',
+    backgroundColor: colors.primaryDark,
+    borderRadius: radius.round,
+    bottom: -2,
+    height: 22,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: -2,
+    width: 22,
+  },
+  cameraText: {
+    color: colors.white,
+    fontSize: 10,
   },
   container: {
     backgroundColor: colors.bg,

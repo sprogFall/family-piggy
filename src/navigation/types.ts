@@ -13,8 +13,10 @@ export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   Tabs: NavigatorScreenParams<TabParamList>;
-  AddTransaction: undefined;
+  /** 传 transactionId 进入编辑模式，否则为记一笔 */
+  AddTransaction: { transactionId?: string } | undefined;
   CategoryManager: undefined;
+  Budget: undefined;
   Export: undefined;
   Import: undefined;
   FamilyHub: undefined;

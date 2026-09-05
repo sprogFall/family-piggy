@@ -80,7 +80,12 @@ export const BillsScreen = ({ navigation }: Props) => {
           <EmptyState icon="receipt-outline" message="本月暂无账单，点击下方 + 记一笔" />
         ) : (
           groups.map((group) => (
-            <DaySection key={group.key} group={group} categories={categories} />
+            <DaySection
+              key={group.key}
+              group={group}
+              categories={categories}
+              onRowPress={(tx) => navigation.navigate('AddTransaction', { transactionId: tx.id })}
+            />
           ))
         )}
       </ScrollView>

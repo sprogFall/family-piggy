@@ -68,7 +68,11 @@ src/
 - 新表必须启用 RLS 并编写策略，家庭共享数据以 `family_members` 为权限边界
 - 需要实时同步的表须加入 `supabase_realtime` publication
 
-## 7. 提交规范
+## 7. 提交与环境变量规范
 
 - 提交信息使用 `feat / fix / refactor / test / docs / chore` 前缀，一次提交一个完整意图
-- 禁止提交密钥；Supabase URL / AnonKey 通过 `app.json` 的 `extra` 或环境变量注入
+- **禁止提交任何真实密钥 / 连接信息**：Supabase 连接信息一律通过 `EXPO_PUBLIC_*` 环境变量注入
+  - 本地：`.env`（参考 `.env.example`，`.env` 已被 gitignore，不入库）
+  - CI / 云打包：GitHub Secrets（`SUPABASE_URL` / `SUPABASE_ANON_KEY` / `EXPO_TOKEN` / `EAS_PROJECT_ID`）→ EAS secrets
+  - `app.config.js` 只做环境变量读取，不承载真实值；`src/lib/supabase.ts` 直接读取 `process.env.EXPO_PUBLIC_*`
+- 新增环境变量时必须同步更新 `.env.example` 与 README 的 Secrets 表

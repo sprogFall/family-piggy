@@ -399,3 +399,41 @@ begin
     alter publication supabase_realtime add table public.transactions;
   end if;
 end $$;
+
+-- ----------------------------------------------------------------------------
+-- 预算与头像（v0.2 增量，可重复执行）
+-- ----------------------------------------------------------------------------
+
+-- 账本月度预算（单位：分，0 表示未设置）
+alter table public.ledgers
+  add column if not exists monthly_budget bigint not null default 0;
+
+-- 头像存储桶：公开读，仅本人可写自己目录（avatars/<uid>/...）
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
+on conflict (id) do nothing;
+
+drop policy if exists avatars_public_read on storage.objects;
+create policy avatars_public_read on storage.objects
+  for select using (bucket_id = 'avatars');
+
+drop policy if exists avatars_owner_insert on storage.objects;
+create policy avatars_owner_insert on storage.objects
+  for insert with check (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists avatars_owner_update on storage.objects;
+create policy avatars_owner_update on storage.objects
+  for update using (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists avatars_owner_delete on storage.objects;
+create policy avatars_owner_delete on storage.objects
+  for delete using (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );

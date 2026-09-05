@@ -2,18 +2,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import RNDateTimePicker from '@react-native-community/datetimepicker';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AmountKeypad } from '@/components/ui/AmountKeypad';
 import { CategoryGrid } from '@/components/ui/CategoryGrid';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { dateLabelOf } from '@/domain/dates';
-import { parseAmountToCents } from '@/domain/money';
+import { formatCents, parseAmountToCents } from '@/domain/money';
 import { useActiveLedger, useActiveCategories } from '@/hooks/useActiveLedgerData';
 import type { RootStackParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
-import { useTransactionStore } from '@/stores/transaction.store';
+import { selectTransactionById, useTransactionStore } from '@/stores/transaction.store';
 import type { TxKind } from '@/types/domain';
 import { colors, fontSize, radius, space } from '@/theme';
 
@@ -24,12 +24,19 @@ const KIND_TABS = [
   { key: 'income' as const, label: '收入' },
 ];
 
-export const AddTransactionScreen = ({ navigation }: Props) => {
-  const [kind, setKind] = useState<TxKind>('expense');
-  const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [amount, setAmount] = useState('');
-  const [note, setNote] = useState('');
-  const [date, setDate] = useState(new Date());
+export const AddTransactionScreen = ({ navigation, route }: Props) => {
+  /** 编辑模式：从账单列表携带 transactionId 进入 */
+  const editing = useTransactionStore((state) =>
+    selectTransactionById(state, route.params?.transactionId),
+  );
+
+  const [kind, setKind] = useState<TxKind>(editing?.kind ?? 'expense');
+  const [categoryId, setCategoryId] = useState<string | null>(editing?.categoryId ?? null);
+  const [amount, setAmount] = useState(
+    editing ? formatCents(editing.amount, { thousands: false }) : '',
+  );
+  const [note, setNote] = useState(editing?.note ?? '');
+  const [date, setDate] = useState(editing ? new Date(editing.occurredAt) : new Date());
   const [showPicker, setShowPicker] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -37,12 +44,24 @@ export const AddTransactionScreen = ({ navigation }: Props) => {
   const categories = useActiveCategories();
   const loadCategories = useCategoryStore((state) => state.load);
   const addTransaction = useTransactionStore((state) => state.add);
+  const updateTransaction = useTransactionStore((state) => state.update);
+  const removeTransaction = useTransactionStore((state) => state.remove);
 
   useFocusEffect(
     useCallback(() => {
       if (ledger) void loadCategories(ledger.id);
     }, [ledger?.id]),
   );
+
+  // 带 transactionId 进入但流水不在缓存中（如跨月编辑）：直接返回
+  useEffect(() => {
+    if (route.params?.transactionId && !editing) {
+      Alert.alert('提示', '账单不存在或已删除');
+      navigation.goBack();
+    }
+    // 仅在挂载时判断一次
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const kindCategories = categories.filter((category) => category.kind === kind);
 
@@ -67,21 +86,50 @@ export const AddTransactionScreen = ({ navigation }: Props) => {
     }
     setSubmitting(true);
     try {
-      await addTransaction({
-        ledgerId: ledger.id,
-        categoryId,
-        kind,
-        amount: cents,
-        note: note.trim() === '' ? null : note.trim(),
-        occurredAt: date.toISOString(),
-      });
-      Alert.alert('记账成功');
+      if (editing) {
+        await updateTransaction(editing.id, ledger.id, {
+          categoryId,
+          kind,
+          amount: cents,
+          note: note.trim() === '' ? null : note.trim(),
+          occurredAt: date.toISOString(),
+        });
+        Alert.alert('已保存');
+      } else {
+        await addTransaction({
+          ledgerId: ledger.id,
+          categoryId,
+          kind,
+          amount: cents,
+          note: note.trim() === '' ? null : note.trim(),
+          occurredAt: date.toISOString(),
+        });
+        Alert.alert('记账成功');
+      }
       navigation.goBack();
     } catch (error) {
-      Alert.alert('记账失败', error instanceof Error ? error.message : '请稍后再试');
+      Alert.alert(editing ? '保存失败' : '记账失败', error instanceof Error ? error.message : '请稍后再试');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const confirmRemove = () => {
+    if (!editing || !ledger) return;
+    Alert.alert('删除账单', '删除后不可恢复，确定删除吗？', [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '删除',
+        style: 'destructive',
+        onPress: () => {
+          void removeTransaction(editing.id, ledger.id)
+            .then(() => navigation.goBack())
+            .catch((error: unknown) =>
+              Alert.alert('删除失败', error instanceof Error ? error.message : '请稍后再试'),
+            );
+        },
+      },
+    ]);
   };
 
   return (
@@ -90,8 +138,14 @@ export const AddTransactionScreen = ({ navigation }: Props) => {
         <Pressable hitSlop={12} onPress={() => navigation.goBack()}>
           <Ionicons name="close" size={26} color={colors.text} />
         </Pressable>
-        <Text style={styles.title}>记一笔</Text>
-        <View style={{ width: 26 }} />
+        <Text style={styles.title}>{editing ? '编辑账单' : '记一笔'}</Text>
+        {editing ? (
+          <Pressable hitSlop={12} onPress={confirmRemove}>
+            <Ionicons name="trash-outline" size={22} color={colors.danger} />
+          </Pressable>
+        ) : (
+          <View style={{ width: 26 }} />
+        )}
       </View>
 
       <View style={styles.tabsCard}>
@@ -147,6 +201,7 @@ export const AddTransactionScreen = ({ navigation }: Props) => {
           onChange={setAmount}
           onSubmit={() => void submit()}
           submitDisabled={submitting}
+          submitLabel={editing ? '保存' : '完成'}
         />
       </View>
     </View>

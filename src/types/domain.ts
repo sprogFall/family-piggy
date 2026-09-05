@@ -38,6 +38,8 @@ export interface Ledger {
   type: LedgerType;
   ownerId: string;
   familyId: string | null;
+  /** 月度预算（分），0 表示未设置 */
+  monthlyBudget: number;
   createdAt: string;
 }
 

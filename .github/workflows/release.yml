@@ -1,0 +1,58 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: release-build
+  cancel-in-progress: false
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 质量门禁（类型检查 + 测试）
+        run: |
+          npm run typecheck
+          npm test -- --ci
+
+      - name: 注入 Supabase 环境变量到 EAS
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
+        run: |
+          printf 'EXPO_PUBLIC_SUPABASE_URL=%s\nEXPO_PUBLIC_SUPABASE_ANON_KEY=%s\n' \
+            "$SUPABASE_URL" "$SUPABASE_ANON_KEY" > .env.eas
+          npx eas-cli@latest secret:push --file .env.eas --force --non-interactive
+          rm .env.eas
+
+      - name: EAS 打包 Android APK（preview）
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
+        run: npx eas-cli@latest build --platform android --profile preview --non-interactive --json > build.json
+
+      - name: 下载 APK 产物
+        run: |
+          URL=$(node -e "const builds=require('./build.json'); console.log(builds[0].artifacts.buildUrl)")
+          echo "APK: $URL"
+          curl -L "$URL" -o app-release.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: app-release.apk

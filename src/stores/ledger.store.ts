@@ -15,6 +15,7 @@ interface LedgerState {
   members: Record<string, FamilyMember[]>;
   load: () => Promise<void>;
   setActive: (id: string) => void;
+  setBudget: (ledgerId: string, monthlyBudget: number) => Promise<void>;
   createPersonalLedger: (name: string) => Promise<void>;
   createFamily: (name: string) => Promise<void>;
   joinFamily: (code: string) => Promise<void>;
@@ -57,6 +58,15 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
   },
 
   setActive: (id) => set({ activeLedgerId: id }),
+
+  setBudget: async (ledgerId, monthlyBudget) => {
+    await ledgerService.updateBudget(ledgerId, monthlyBudget);
+    set({
+      ledgers: get().ledgers.map((ledger) =>
+        ledger.id === ledgerId ? { ...ledger, monthlyBudget } : ledger,
+      ),
+    });
+  },
 
   createPersonalLedger: async (name) => {
     await ledgerService.createLedger({

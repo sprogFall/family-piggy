@@ -155,3 +155,16 @@ export const selectMonthTransactions = (
   ledgerId: string | null | undefined,
   month: MonthRef,
 ): Transaction[] => selectMonthBucket(state, ledgerId, month)?.transactions ?? [];
+
+/** 在所有已加载月份桶中查找流水（编辑入口来自账单列表，桶必然已加载） */
+export const selectTransactionById = (
+  state: TransactionState,
+  id: string | null | undefined,
+): Transaction | undefined => {
+  if (!id) return undefined;
+  for (const bucket of Object.values(state.buckets)) {
+    const found = bucket.transactions.find((tx) => tx.id === id);
+    if (found) return found;
+  }
+  return undefined;
+};

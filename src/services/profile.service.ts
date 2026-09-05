@@ -20,4 +20,12 @@ export const profileService = {
       .eq('id', userId);
     if (error) throw new Error('修改昵称失败');
   },
+
+  async updateAvatarUrl(userId: string, avatarUrl: string): Promise<void> {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', userId);
+    if (error) throw new Error('更新头像失败');
+  },
 };

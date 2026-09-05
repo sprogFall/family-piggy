@@ -8,6 +8,11 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 
 jest.mock('@react-native-community/datetimepicker', () => 'DateTimePicker');
 
+jest.mock('expo-image-picker', () => ({
+  MediaTypeOptions: { Images: 'Images' },
+  launchImageLibraryAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
+}));
+
 jest.mock('expo-document-picker', () => ({
   getDocumentAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
 }));
@@ -36,14 +41,9 @@ jest.mock('xlsx', () => ({
   read: jest.fn(),
 }));
 
-jest.mock('expo-constants', () => ({
-  __esModule: true,
-  default: {
-    expoConfig: {
-      extra: { supabaseUrl: 'https://test.supabase.co', supabaseAnonKey: 'test-anon-key' },
-    },
-  },
-}));
+// Supabase 连接信息：与运行时一致，通过 EXPO_PUBLIC_* 环境变量注入
+process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
+process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
 
 // 图标组件测试环境 stub：避免加载字体文件
 jest.mock('@expo/vector-icons', () => {
@@ -83,6 +83,7 @@ jest.mock('@/lib/supabase', () => {
       rpc: jest.fn(),
       channel: jest.fn(() => makeChannel()),
       removeChannel: jest.fn(),
+      storage: { from: jest.fn() },
     },
   };
 });

@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { formatCents } from '@/domain/money';
 import type { DayGroup } from '@/domain/statement';
-import type { Category } from '@/types/domain';
+import type { Category, Transaction } from '@/types/domain';
 import { colors, fontSize, space } from '@/theme';
 
 import { TransactionRow } from './TransactionRow';
@@ -10,9 +10,10 @@ import { TransactionRow } from './TransactionRow';
 interface Props {
   group: DayGroup;
   categories: Category[];
+  onRowPress?: (transaction: Transaction) => void;
 }
 
-export const DaySection = ({ group, categories }: Props) => {
+export const DaySection = ({ group, categories, onRowPress }: Props) => {
   const categoryById = new Map(categories.map((c) => [c.id, c]));
   return (
     <View style={styles.section}>
@@ -36,6 +37,7 @@ export const DaySection = ({ group, categories }: Props) => {
             categoryName={category?.name ?? '未知分类'}
             iconKey={category?.icon ?? 'ellipsis-horizontal'}
             showTime
+            onPress={() => onRowPress?.(tx)}
           />
         );
       })}

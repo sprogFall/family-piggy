@@ -35,6 +35,7 @@ export interface LedgerRow {
   type: 'personal' | 'family';
   owner_id: string;
   family_id: string | null;
+  monthly_budget: number | string;
   created_at: string;
 }
 
@@ -79,6 +80,7 @@ export const toLedger = (row: LedgerRow): Ledger => ({
   type: row.type,
   ownerId: row.owner_id,
   familyId: row.family_id,
+  monthlyBudget: Number(row.monthly_budget ?? 0),
   createdAt: row.created_at,
 });
 

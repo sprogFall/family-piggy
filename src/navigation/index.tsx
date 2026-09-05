@@ -9,6 +9,7 @@ import { AboutScreen } from '@/screens/about/AboutScreen';
 import { AddTransactionScreen } from '@/screens/add/AddTransactionScreen';
 import { BillsScreen } from '@/screens/bills/BillsScreen';
 import { CategoryManagerScreen } from '@/screens/category/CategoryManagerScreen';
+import { BudgetScreen } from '@/screens/budget/BudgetScreen';
 import { ExportScreen } from '@/screens/export/ExportScreen';
 import { FamilyCreateScreen } from '@/screens/family/FamilyCreateScreen';
 import { FamilyDetailScreen } from '@/screens/family/FamilyDetailScreen';
@@ -105,6 +106,7 @@ export const MainNavigator = () => (
       options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
     />
     <RootStack.Screen name="CategoryManager" component={CategoryManagerScreen} />
+    <RootStack.Screen name="Budget" component={BudgetScreen} />
     <RootStack.Screen name="Export" component={ExportScreen} />
     <RootStack.Screen name="Import" component={ImportScreen} />
     <RootStack.Screen name="FamilyHub" component={FamilyHubScreen} />

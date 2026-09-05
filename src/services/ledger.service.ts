@@ -39,4 +39,12 @@ export const ledgerService = {
     const { error } = await supabase.from('ledgers').delete().eq('id', id);
     if (error) throw new Error('删除账本失败');
   },
+
+  async updateBudget(id: string, monthlyBudget: number): Promise<void> {
+    const { error } = await supabase
+      .from('ledgers')
+      .update({ monthly_budget: monthlyBudget })
+      .eq('id', id);
+    if (error) throw new Error('保存预算失败');
+  },
 };

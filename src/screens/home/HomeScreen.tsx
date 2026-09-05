@@ -90,6 +90,8 @@ export const HomeScreen = ({ navigation }: Props) => {
               expense={summary.expense}
               income={summary.income}
               balance={summary.balance}
+              budget={ledger.monthlyBudget}
+              onPressBudget={() => navigation.navigate('Budget')}
             />
 
             <View style={styles.card}>

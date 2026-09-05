@@ -3,6 +3,7 @@ jest.mock('@/services/ledger.service', () => ({
     listLedgers: jest.fn(),
     createLedger: jest.fn(),
     removeLedger: jest.fn(),
+    updateBudget: jest.fn(),
   },
 }));
 
@@ -34,6 +35,7 @@ const ledger = (id: string, overrides: Partial<Ledger> = {}): Ledger => ({
   type: 'personal',
   ownerId: 'u1',
   familyId: null,
+  monthlyBudget: 0,
   createdAt: '2024-01-01T00:00:00Z',
   ...overrides,
 });
@@ -106,5 +108,16 @@ describe('useLedgerStore', () => {
     const state = useLedgerStore.getState();
     expect(selectActiveLedger({ ...state, ledgers: [ledger('l1')], activeLedgerId: null })).toEqual(ledger('l1'));
     expect(selectActiveLedger({ ...state, ledgers: [], activeLedgerId: null })).toBeNull();
+  });
+
+  it('setBudget 落库并同步本地账本', async () => {
+    ledgerMock.listLedgers.mockResolvedValue([ledger('l1')]);
+    familyMock.listMyFamilies.mockResolvedValue([]);
+    await useLedgerStore.getState().load();
+
+    await useLedgerStore.getState().setBudget('l1', 200000);
+
+    expect(ledgerMock.updateBudget).toHaveBeenCalledWith('l1', 200000);
+    expect(useLedgerStore.getState().ledgers[0].monthlyBudget).toBe(200000);
   });
 });

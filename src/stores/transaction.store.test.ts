@@ -16,7 +16,11 @@ jest.mock('@/stores/auth.store', () => ({
 import { transactionService } from '@/services/transaction.service';
 import type { Transaction } from '@/types/domain';
 
-import { selectMonthTransactions, useTransactionStore } from './transaction.store';
+import {
+  selectMonthTransactions,
+  selectTransactionById,
+  useTransactionStore,
+} from './transaction.store';
 
 const txMock = transactionService as jest.Mocked<typeof transactionService>;
 
@@ -120,5 +124,14 @@ describe('useTransactionStore', () => {
     useTransactionStore.setState({ buckets: { 'l1::2024-05': { status: 'ready', transactions: [] } } });
     useTransactionStore.getState().reset();
     expect(useTransactionStore.getState().buckets).toEqual({});
+  });
+
+  it('selectTransactionById 跨桶查找，未找到/无 id 返回 undefined', async () => {
+    txMock.listMonth.mockResolvedValue([tx('t1', 20)]);
+    await useTransactionStore.getState().loadMonth('l1', MAY);
+
+    expect(selectTransactionById(useTransactionStore.getState(), 't1')?.id).toBe('t1');
+    expect(selectTransactionById(useTransactionStore.getState(), 'missing')).toBeUndefined();
+    expect(selectTransactionById(useTransactionStore.getState(), null)).toBeUndefined();
   });
 });
