@@ -15,7 +15,7 @@
 ### 1. 配置 Supabase
 
 1. 在 [supabase.com](https://supabase.com) 创建项目；
-2. 打开 Dashboard → SQL Editor，整体执行 `supabase/schema.sql`（可重复执行）；
+2. 打开 Dashboard → SQL Editor，整体执行 `supabase/schema.sql`（幂等脚本，可重复执行；每张表和字段均带中文注释）；
 3. 复制 `.env.example` 为 `.env`，填入项目 URL 与 Anon Key：
 
 ```bash
@@ -26,7 +26,7 @@ EAS_PROJECT_ID=            # 执行 npx eas-cli init 后回填
 
 > Supabase 信息一律通过 `EXPO_PUBLIC_*` 环境变量注入（由 `app.config.js` 与 `src/lib/supabase.ts` 读取），**仓库中不提交任何真实连接信息**；`.env` 已被 `.gitignore` 忽略，仅提交 `.env.example` 模板。
 
-数据库脚本包含：用户资料/家庭/家庭成员/账本/分类/流水六张表、RLS 行级安全策略、注册自动建档（资料 + 个人账本 + 默认分类）、新账本自动播种默认分类、邀请码生成与 `join_family` RPC、流水表 Realtime 发布、账本月度预算列、头像存储桶与策略。
+数据库脚本包含：用户资料/家庭/家庭成员/账本/分类/流水六张表（含月度预算列）、RLS 行级安全策略、注册自动建档（资料 + 个人账本 + 默认分类）、新账本自动播种默认分类、邀请码生成与 `join_family` RPC、流水表 Realtime 发布、头像存储桶与策略，并为所有表和字段写了中文注释。
 
 ### 2. 启动
 

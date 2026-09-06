@@ -1,84 +1,23 @@
 -- ============================================================================
--- family-piggy Supabase 初始化脚本（可重复执行）
--- 用法：在 Supabase Dashboard -> SQL Editor 中整体执行一次
+-- family-piggy Supabase 初始化脚本（幂等版，可重复执行）
+--
+-- 用法：在 Supabase Dashboard -> SQL Editor 中整体执行，可重复执行。
+-- 注释说明：
+--   * 列定义后的 `--` 行内注释：仅供阅读本 SQL 文件（不会写入数据库）；
+--   * 每张表后的 COMMENT ON：写入数据库元数据（Dashboard / 数据库工具可见）。
+-- 上线后的结构变更请另建增量迁移脚本（supabase/migrations/）。
 -- ============================================================================
 
+-- ----------------------------------------------------------------------------
+-- 1. 扩展
+-- ----------------------------------------------------------------------------
 create extension if not exists pgcrypto;
 
 -- ----------------------------------------------------------------------------
--- 基础表
+-- 2. 前置函数（建表依赖：邀请码默认值）
 -- ----------------------------------------------------------------------------
 
--- 用户资料（注册触发器自动创建）
-create table if not exists public.profiles (
-  id          uuid primary key references auth.users (id) on delete cascade,
-  nickname    text        not null,
-  avatar_url  text,
-  created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
-);
-
--- 家庭
-create table if not exists public.families (
-  id          uuid primary key default gen_random_uuid(),
-  name        text        not null,
-  owner_id    uuid        not null references auth.users (id) on delete cascade,
-  invite_code text        not null unique,
-  created_at  timestamptz not null default now()
-);
-
--- 家庭成员
-create table if not exists public.family_members (
-  family_id uuid        not null references public.families (id) on delete cascade,
-  user_id   uuid        not null references auth.users (id) on delete cascade,
-  role      text        not null default 'member' check (role in ('owner', 'member')),
-  joined_at timestamptz not null default now(),
-  primary key (family_id, user_id)
-);
-
--- 账本（personal: family_id 为空；family: family_id 必填）
-create table if not exists public.ledgers (
-  id         uuid primary key default gen_random_uuid(),
-  name       text        not null,
-  type       text        not null check (type in ('personal', 'family')),
-  owner_id   uuid        not null references auth.users (id) on delete cascade,
-  family_id  uuid        references public.families (id) on delete cascade,
-  created_at timestamptz not null default now()
-);
-
--- 分类（属于账本；新账本创建时由触发器播种默认分类）
-create table if not exists public.categories (
-  id         uuid primary key default gen_random_uuid(),
-  ledger_id  uuid        not null references public.ledgers (id) on delete cascade,
-  name       text        not null,
-  icon       text        not null default 'ellipsis-horizontal',
-  kind       text        not null check (kind in ('expense', 'income')),
-  sort_order int         not null default 0,
-  created_at timestamptz not null default now()
-);
-
--- 流水（amount 单位：分，正整数）
-create table if not exists public.transactions (
-  id          uuid primary key default gen_random_uuid(),
-  ledger_id   uuid        not null references public.ledgers (id) on delete cascade,
-  category_id uuid        not null references public.categories (id),
-  kind        text        not null check (kind in ('expense', 'income')),
-  amount      bigint      not null check (amount > 0),
-  note        text,
-  occurred_at timestamptz not null default now(),
-  created_by  uuid        not null references auth.users (id),
-  created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
-);
-
-create index if not exists idx_transactions_ledger_time on public.transactions (ledger_id, occurred_at desc);
-create index if not exists idx_categories_ledger on public.categories (ledger_id, kind, sort_order);
-create index if not exists idx_family_members_user on public.family_members (user_id);
-
--- ----------------------------------------------------------------------------
--- 邀请码
--- ----------------------------------------------------------------------------
-
+-- 生成 8 位邀请码（剔除易混淆字符 0/1/I/O）
 create or replace function public.generate_invite_code()
 returns text
 language sql
@@ -88,14 +27,131 @@ as $$
   ) from generate_series(1, 8);
 $$;
 
-alter table public.families
-  alter column invite_code set default public.generate_invite_code();
-
 -- ----------------------------------------------------------------------------
--- 工具函数
+-- 3. 表结构（行内注释仅供阅读文件；元数据注释紧跟各表之后）
 -- ----------------------------------------------------------------------------
 
--- 当前用户是否可访问某账本（本人个人账本 / 所在家庭的账本）
+-- 用户资料（注册触发器自动创建）
+create table if not exists public.profiles (
+  id          uuid primary key references auth.users (id) on delete cascade, -- 用户 ID，关联 auth.users
+  nickname    text        not null,                                          -- 昵称
+  avatar_url  text,                                                          -- 头像 URL（公开访问地址，未设置为 NULL）
+  created_at  timestamptz not null default now(),                            -- 创建时间
+  updated_at  timestamptz not null default now()                             -- 更新时间
+);
+
+comment on table public.profiles is '用户资料（注册成功后由触发器自动创建）';
+comment on column public.profiles.id         is '用户 ID，关联 auth.users';
+comment on column public.profiles.nickname   is '昵称';
+comment on column public.profiles.avatar_url is '头像 URL（Supabase Storage 公开访问地址，未设置时为 NULL）';
+comment on column public.profiles.created_at is '创建时间';
+comment on column public.profiles.updated_at is '更新时间';
+
+-- 家庭
+create table if not exists public.families (
+  id          uuid primary key default gen_random_uuid(),                    -- 家庭 ID
+  name        text        not null,                                          -- 家庭名称
+  owner_id    uuid        not null references auth.users (id) on delete cascade, -- 家庭创建者用户 ID
+  invite_code text        not null unique default public.generate_invite_code(), -- 8 位邀请码（剔除 0/1/I/O）
+  created_at  timestamptz not null default now()                             -- 创建时间
+);
+
+comment on table public.families is '家庭（多人共同记账的分组）';
+comment on column public.families.id          is '家庭 ID';
+comment on column public.families.name        is '家庭名称';
+comment on column public.families.owner_id    is '家庭创建者用户 ID';
+comment on column public.families.invite_code is '8 位邀请码（他人凭此加入家庭，已剔除易混淆的 0/1/I/O 字符）';
+comment on column public.families.created_at  is '创建时间';
+
+-- 家庭成员
+create table if not exists public.family_members (
+  family_id uuid        not null references public.families (id) on delete cascade, -- 家庭 ID
+  user_id   uuid        not null references auth.users (id) on delete cascade,      -- 成员用户 ID
+  role      text        not null default 'member' check (role in ('owner', 'member')), -- 角色：owner=创建者，member=普通成员
+  joined_at timestamptz not null default now()                                     -- 加入时间
+);
+
+comment on table public.family_members is '家庭成员关系（家庭-用户 多对多）';
+comment on column public.family_members.family_id is '家庭 ID';
+comment on column public.family_members.user_id   is '成员用户 ID';
+comment on column public.family_members.role      is '角色：owner=创建者，member=普通成员';
+comment on column public.family_members.joined_at is '加入时间';
+
+-- 账本（personal：family_id 为空；family：family_id 必填）
+create table if not exists public.ledgers (
+  id             uuid primary key default gen_random_uuid(),                 -- 账本 ID
+  name           text        not null,                                       -- 账本名称
+  type           text        not null check (type in ('personal', 'family')),-- 类型：personal=个人，family=家庭
+  owner_id       uuid        not null references auth.users (id) on delete cascade, -- 创建者用户 ID
+  family_id      uuid        references public.families (id) on delete cascade, -- 所属家庭 ID（个人账本为 NULL）
+  monthly_budget bigint      not null default 0,                             -- 月度预算（单位：分，0 表示未设置）
+  created_at     timestamptz not null default now()                          -- 创建时间
+);
+
+comment on table public.ledgers is '账本（个人账本 / 家庭账本）';
+comment on column public.ledgers.id             is '账本 ID';
+comment on column public.ledgers.name           is '账本名称';
+comment on column public.ledgers.type           is '账本类型：personal=个人，family=家庭';
+comment on column public.ledgers.owner_id       is '创建者用户 ID';
+comment on column public.ledgers.family_id      is '所属家庭 ID（个人账本为 NULL）';
+comment on column public.ledgers.monthly_budget is '月度预算（单位：分，0 表示未设置）';
+comment on column public.ledgers.created_at     is '创建时间';
+
+-- 分类（属于账本，新建账本时由触发器播种默认分类）
+create table if not exists public.categories (
+  id         uuid primary key default gen_random_uuid(),                     -- 分类 ID
+  ledger_id  uuid        not null references public.ledgers (id) on delete cascade, -- 所属账本 ID
+  name       text        not null,                                           -- 分类名称
+  icon       text        not null default 'ellipsis-horizontal',             -- 图标 key（App 内映射为 Ionicons 图标与配色）
+  kind       text        not null check (kind in ('expense', 'income')),     -- 类型：expense=支出，income=收入
+  sort_order int         not null default 0,                                 -- 排序序号（同类型内升序展示）
+  created_at timestamptz not null default now()                              -- 创建时间
+);
+
+comment on table public.categories is '记账分类（属于账本，账本创建时自动播种默认分类）';
+comment on column public.categories.id         is '分类 ID';
+comment on column public.categories.ledger_id  is '所属账本 ID';
+comment on column public.categories.name       is '分类名称';
+comment on column public.categories.icon       is '图标 key（App 内映射为 Ionicons 图标与配色）';
+comment on column public.categories.kind       is '分类类型：expense=支出，income=收入';
+comment on column public.categories.sort_order is '排序序号（同类型内升序展示）';
+comment on column public.categories.created_at is '创建时间';
+
+-- 流水（amount 单位：分，正整数）
+create table if not exists public.transactions (
+  id          uuid primary key default gen_random_uuid(),                    -- 流水 ID
+  ledger_id   uuid        not null references public.ledgers (id) on delete cascade, -- 所属账本 ID
+  category_id uuid        not null references public.categories (id),        -- 分类 ID
+  kind        text        not null check (kind in ('expense', 'income')),    -- 类型：expense=支出，income=收入
+  amount      bigint      not null check (amount > 0),                       -- 金额（单位：分，正整数，避免浮点误差）
+  note        text,                                                          -- 备注（可空）
+  occurred_at timestamptz not null default now(),                            -- 发生时间
+  created_by  uuid        not null references auth.users (id),               -- 记录人用户 ID（家庭账本中可区分谁记的）
+  created_at  timestamptz not null default now(),                            -- 创建时间
+  updated_at  timestamptz not null default now()                             -- 更新时间
+);
+
+create index if not exists idx_transactions_ledger_time on public.transactions (ledger_id, occurred_at desc);
+create index if not exists idx_categories_ledger on public.categories (ledger_id, kind, sort_order);
+create index if not exists idx_family_members_user on public.family_members (user_id);
+
+comment on table public.transactions is '收支流水';
+comment on column public.transactions.id          is '流水 ID';
+comment on column public.transactions.ledger_id   is '所属账本 ID';
+comment on column public.transactions.category_id is '分类 ID';
+comment on column public.transactions.kind        is '类型：expense=支出，income=收入';
+comment on column public.transactions.amount      is '金额（单位：分，正整数，避免浮点误差）';
+comment on column public.transactions.note        is '备注（可空）';
+comment on column public.transactions.occurred_at is '发生时间';
+comment on column public.transactions.created_by  is '记录人用户 ID（家庭账本中可区分谁记的）';
+comment on column public.transactions.created_at  is '创建时间';
+comment on column public.transactions.updated_at  is '更新时间';
+
+-- ----------------------------------------------------------------------------
+-- 4. 函数与触发器
+-- ----------------------------------------------------------------------------
+
+-- 当前用户是否可访问某账本（本人个人账本 / 所在家庭的账本），RLS 策略复用
 create or replace function public.can_access_ledger(p_ledger_id uuid)
 returns boolean
 language sql
@@ -118,7 +174,7 @@ as $$
   );
 $$;
 
--- 更新 updated_at
+-- 更新 updated_at 通用触发器
 create or replace function public.touch_updated_at()
 returns trigger
 language plpgsql
@@ -134,10 +190,7 @@ create trigger trg_touch_transactions
   before update on public.transactions
   for each row execute function public.touch_updated_at();
 
--- ----------------------------------------------------------------------------
--- 默认分类播种（每个新账本自动注入）
--- ----------------------------------------------------------------------------
-
+-- 为新账本播种默认分类（与 App 内 src/domain 默认分类一致）
 create or replace function public.seed_default_categories(p_ledger_id uuid)
 returns void
 language sql
@@ -163,7 +216,7 @@ as $$
     (p_ledger_id, '其他', 'ellipsis-horizontal', 'income',  8);
 $$;
 
--- 新账本 -> 播种默认分类
+-- 新账本创建后自动播种默认分类
 create or replace function public.handle_ledger_created()
 returns trigger
 language plpgsql
@@ -180,10 +233,7 @@ create trigger trg_ledger_created
   after insert on public.ledgers
   for each row execute function public.handle_ledger_created();
 
--- ----------------------------------------------------------------------------
--- 新用户初始化：profile + 默认个人账本（触发器再播种分类）
--- ----------------------------------------------------------------------------
-
+-- 新用户注册：创建资料 + 默认个人账本（账本触发器再播种分类）
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -208,10 +258,7 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- ----------------------------------------------------------------------------
--- 加入家庭（凭邀请码，绕过 RLS 校验邀请码有效性）
--- ----------------------------------------------------------------------------
-
+-- 凭邀请码加入家庭（security definer 绕过 RLS 校验邀请码有效性）
 create or replace function public.join_family(p_code text)
 returns uuid
 language plpgsql
@@ -248,7 +295,7 @@ end;
 $$;
 
 -- ----------------------------------------------------------------------------
--- RLS 策略
+-- 5. 行级安全（RLS）
 -- ----------------------------------------------------------------------------
 
 alter table public.profiles        enable row level security;
@@ -258,7 +305,7 @@ alter table public.ledgers         enable row level security;
 alter table public.categories      enable row level security;
 alter table public.transactions    enable row level security;
 
--- profiles：本人可读写；同家庭成员可读
+-- 用户资料：本人可读写；同家庭成员可读
 drop policy if exists profiles_select on public.profiles;
 create policy profiles_select on public.profiles for select
   using (
@@ -275,7 +322,7 @@ drop policy if exists profiles_update on public.profiles;
 create policy profiles_update on public.profiles for update
   using (id = auth.uid());
 
--- families：成员可读，创建者可写
+-- 家庭：成员可读，创建者可写
 drop policy if exists families_select on public.families;
 create policy families_select on public.families for select
   using (
@@ -298,7 +345,7 @@ drop policy if exists families_delete on public.families;
 create policy families_delete on public.families for delete
   using (owner_id = auth.uid());
 
--- family_members：本人及同家庭者可读；可加入/退出；家庭创建者可移除成员
+-- 家庭成员：本人及同家庭者可读；可加入/退出；家庭创建者可移除成员
 drop policy if exists family_members_select on public.family_members;
 create policy family_members_select on public.family_members for select
   using (
@@ -323,7 +370,7 @@ create policy family_members_delete on public.family_members for delete
     )
   );
 
--- ledgers：可见即可读，本人可写
+-- 账本：可见即可读，本人可写
 drop policy if exists ledgers_select on public.ledgers;
 create policy ledgers_select on public.ledgers for select
   using (public.can_access_ledger(id));
@@ -340,7 +387,7 @@ drop policy if exists ledgers_delete on public.ledgers;
 create policy ledgers_delete on public.ledgers for delete
   using (owner_id = auth.uid());
 
--- categories：可见账本内全员可读写
+-- 分类：可见账本内全员可读写
 drop policy if exists categories_select on public.categories;
 create policy categories_select on public.categories for select
   using (public.can_access_ledger(ledger_id));
@@ -357,7 +404,7 @@ drop policy if exists categories_delete on public.categories;
 create policy categories_delete on public.categories for delete
   using (public.can_access_ledger(ledger_id));
 
--- transactions：可见账本内可读可记；仅创建者或账本创建者可改删
+-- 流水：可见账本内可读可记；仅创建者或账本创建者可改删
 drop policy if exists transactions_select on public.transactions;
 create policy transactions_select on public.transactions for select
   using (public.can_access_ledger(ledger_id));
@@ -387,9 +434,8 @@ create policy transactions_delete on public.transactions for delete
   );
 
 -- ----------------------------------------------------------------------------
--- Realtime：流水实时同步
+-- 6. Realtime：流水实时同步
 -- ----------------------------------------------------------------------------
-
 do $$
 begin
   if not exists (
@@ -401,14 +447,8 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------------------
--- 预算与头像（v0.2 增量，可重复执行）
+-- 7. 头像存储桶：公开读，仅本人可写自己目录（avatars/<uid>/...）
 -- ----------------------------------------------------------------------------
-
--- 账本月度预算（单位：分，0 表示未设置）
-alter table public.ledgers
-  add column if not exists monthly_budget bigint not null default 0;
-
--- 头像存储桶：公开读，仅本人可写自己目录（avatars/<uid>/...）
 insert into storage.buckets (id, name, public)
 values ('avatars', 'avatars', true)
 on conflict (id) do nothing;

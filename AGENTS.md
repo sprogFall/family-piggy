@@ -64,7 +64,7 @@ src/
 
 ## 6. Supabase 约定
 
-- 所有表结构、函数、触发器、RLS 策略变更统一写入 `supabase/schema.sql`（可重复执行）
+- `supabase/schema.sql` 为**幂等初始化脚本**（可重复执行），包含双层中文注释：列定义行内 `--` 注释（便于阅读文件）+ `COMMENT ON` 元数据注释（便于数据库工具查看）
 - 新表必须启用 RLS 并编写策略，家庭共享数据以 `family_members` 为权限边界
 - 需要实时同步的表须加入 `supabase_realtime` publication
 
