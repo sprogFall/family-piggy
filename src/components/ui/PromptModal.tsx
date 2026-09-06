@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { showAlert } from '@/lib/alert';
 import { colors, fontSize, radius, space } from '@/theme';
 
 import { PrimaryButton } from './PrimaryButton';
@@ -49,7 +50,7 @@ export const PromptModal = ({
               onPress={() => {
                 const trimmed = value.trim();
                 if (!trimmed) {
-                  Alert.alert('提示', '请输入内容');
+                  showAlert('提示', '请输入内容');
                   return;
                 }
                 onSubmit(trimmed);

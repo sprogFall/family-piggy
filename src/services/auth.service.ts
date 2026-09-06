@@ -10,6 +10,11 @@ const mapAuthError = (message: string): string => {
   return message;
 };
 
+/** signUp 结果：项目开启邮箱确认时不会返回会话，需验证邮箱后才能登录 */
+export interface SignUpResult {
+  needsEmailConfirmation: boolean;
+}
+
 export const authService = {
   async getSession(): Promise<Session | null> {
     const { data } = await supabase.auth.getSession();
@@ -21,13 +26,14 @@ export const authService = {
     if (error) throw new Error(mapAuthError(error.message));
   },
 
-  async signUp(email: string, password: string, nickname: string): Promise<void> {
-    const { error } = await supabase.auth.signUp({
+  async signUp(email: string, password: string, nickname: string): Promise<SignUpResult> {
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { nickname } },
     });
     if (error) throw new Error(mapAuthError(error.message));
+    return { needsEmailConfirmation: !data.session };
   },
 
   async signOut(): Promise<void> {

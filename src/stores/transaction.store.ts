@@ -150,11 +150,17 @@ export const selectMonthBucket = (
 ): MonthBucket | undefined =>
   ledgerId ? state.buckets[bucketKey(ledgerId, month)] : undefined;
 
+/** 未加载/无账本时返回模块级空数组：zustand v5 的 useSyncExternalStore 要求快照引用稳定，否则无限重渲染 */
+const EMPTY_TRANSACTIONS: Transaction[] = [];
+
 export const selectMonthTransactions = (
   state: TransactionState,
   ledgerId: string | null | undefined,
   month: MonthRef,
-): Transaction[] => selectMonthBucket(state, ledgerId, month)?.transactions ?? [];
+): Transaction[] =>
+  ledgerId
+    ? (selectMonthBucket(state, ledgerId, month)?.transactions ?? EMPTY_TRANSACTIONS)
+    : EMPTY_TRANSACTIONS;
 
 /** 在所有已加载月份桶中查找流水（编辑入口来自账单列表，桶必然已加载） */
 export const selectTransactionById = (

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import { showAlert } from '@/lib/alert';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { TextField } from '@/components/ui/TextField';
@@ -34,12 +35,16 @@ export const RegisterScreen = ({ navigation }: Props) => {
 
     setLoading(true);
     try {
-      await signUp(email.trim(), password, nickname.trim());
-      Alert.alert('注册成功', '欢迎加入，开始记账吧', [
-        { text: '好的', onPress: () => navigation.goBack() },
-      ]);
+      const result = await signUp(email.trim(), password, nickname.trim());
+      showAlert(
+        '注册成功',
+        result.needsEmailConfirmation
+          ? '验证邮件已发送至你的邮箱，完成验证后即可登录'
+          : '欢迎加入，开始记账吧',
+        [{ text: '好的', onPress: () => navigation.goBack() }],
+      );
     } catch (error) {
-      Alert.alert('注册失败', getErrorMessage(error));
+      showAlert('注册失败', getErrorMessage(error));
     } finally {
       setLoading(false);
     }

@@ -24,7 +24,7 @@ import { ledgerService } from '@/services/ledger.service';
 import { useAuthStore } from '@/stores/auth.store';
 import type { Ledger } from '@/types/domain';
 
-import { selectActiveLedger, useLedgerStore } from './ledger.store';
+import { selectActiveLedger, selectMembers, useLedgerStore } from './ledger.store';
 
 const ledgerMock = ledgerService as jest.Mocked<typeof ledgerService>;
 const familyMock = familyService as jest.Mocked<typeof familyService>;
@@ -108,6 +108,11 @@ describe('useLedgerStore', () => {
     const state = useLedgerStore.getState();
     expect(selectActiveLedger({ ...state, ledgers: [ledger('l1')], activeLedgerId: null })).toEqual(ledger('l1'));
     expect(selectActiveLedger({ ...state, ledgers: [], activeLedgerId: null })).toBeNull();
+  });
+
+  it('selectMembers 未加载时返回稳定引用（zustand v5 快照稳定性）', () => {
+    const state = useLedgerStore.getState();
+    expect(selectMembers(state, 'f1')).toBe(selectMembers(state, 'f1'));
   });
 
   it('setBudget 落库并同步本地账本', async () => {

@@ -134,4 +134,14 @@ describe('useTransactionStore', () => {
     expect(selectTransactionById(useTransactionStore.getState(), 'missing')).toBeUndefined();
     expect(selectTransactionById(useTransactionStore.getState(), null)).toBeUndefined();
   });
+
+  it('selectMonthTransactions 未加载/无账本时返回稳定引用（zustand v5 快照稳定性）', () => {
+    const state = useTransactionStore.getState();
+    expect(selectMonthTransactions(state, 'l1', MAY)).toBe(
+      selectMonthTransactions(state, 'l1', MAY),
+    );
+    expect(selectMonthTransactions(state, null, MAY)).toBe(
+      selectMonthTransactions(state, undefined, MAY),
+    );
+  });
 });

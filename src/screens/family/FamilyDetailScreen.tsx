@@ -1,14 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
 import { EmptyState } from '@/components/EmptyState';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { showAlert } from '@/lib/alert';
 import { useAuthStore } from '@/stores/auth.store';
 import type { RootStackParamList } from '@/navigation/types';
-import { useLedgerStore } from '@/stores/ledger.store';
+import { selectMembers, useLedgerStore } from '@/stores/ledger.store';
 import { colors, fontSize, radius, space } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FamilyDetail'>;
@@ -18,7 +19,7 @@ export const FamilyDetailScreen = ({ navigation, route }: Props) => {
   const family = useLedgerStore((state) =>
     state.families.find((item) => item.family.id === familyId)?.family,
   );
-  const members = useLedgerStore((state) => state.members[familyId] ?? []);
+  const members = useLedgerStore((state) => selectMembers(state, familyId));
   const loadMembers = useLedgerStore((state) => state.loadMembers);
   const removeMember = useLedgerStore((state) => state.removeMember);
   const leaveFamily = useLedgerStore((state) => state.leaveFamily);
@@ -29,7 +30,7 @@ export const FamilyDetailScreen = ({ navigation, route }: Props) => {
 
   useEffect(() => {
     void loadMembers(familyId).catch((error) =>
-      Alert.alert('加载失败', error instanceof Error ? error.message : '请稍后再试'),
+      showAlert('加载失败', error instanceof Error ? error.message : '请稍后再试'),
     );
   }, [familyId, loadMembers]);
 
@@ -51,7 +52,7 @@ export const FamilyDetailScreen = ({ navigation, route }: Props) => {
   };
 
   const confirmLeave = () => {
-    Alert.alert('退出家庭', '退出后将无法继续在家庭账本记账', [
+    showAlert('退出家庭', '退出后将无法继续在家庭账本记账', [
       { text: '取消', style: 'cancel' },
       {
         text: '退出',
@@ -60,7 +61,7 @@ export const FamilyDetailScreen = ({ navigation, route }: Props) => {
           setBusy(true);
           void leaveFamily(familyId)
             .then(() => navigation.popToTop())
-            .catch((error) => Alert.alert('操作失败', error.message))
+            .catch((error) => showAlert('操作失败', error.message))
             .finally(() => setBusy(false));
         },
       },
@@ -68,7 +69,7 @@ export const FamilyDetailScreen = ({ navigation, route }: Props) => {
   };
 
   const confirmDisband = () => {
-    Alert.alert('解散家庭', '解散后家庭账本与全部流水将被删除，无法恢复！', [
+    showAlert('解散家庭', '解散后家庭账本与全部流水将被删除，无法恢复！', [
       { text: '取消', style: 'cancel' },
       {
         text: '解散',
@@ -77,7 +78,7 @@ export const FamilyDetailScreen = ({ navigation, route }: Props) => {
           setBusy(true);
           void disbandFamily(familyId)
             .then(() => navigation.popToTop())
-            .catch((error) => Alert.alert('操作失败', error.message))
+            .catch((error) => showAlert('操作失败', error.message))
             .finally(() => setBusy(false));
         },
       },
@@ -115,14 +116,14 @@ export const FamilyDetailScreen = ({ navigation, route }: Props) => {
                   <Pressable
                     hitSlop={8}
                     onPress={() =>
-                      Alert.alert('移除成员', `确定将「${member.nickname}」移出家庭吗？`, [
+                      showAlert('移除成员', `确定将「${member.nickname}」移出家庭吗？`, [
                         { text: '取消', style: 'cancel' },
                         {
                           text: '移除',
                           style: 'destructive',
                           onPress: () =>
                             void removeMember(familyId, member.userId).catch((error) =>
-                              Alert.alert('操作失败', error.message),
+                              showAlert('操作失败', error.message),
                             ),
                         },
                       ])

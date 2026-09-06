@@ -16,7 +16,7 @@ import { breakdownWithOther, monthSummary } from '@/domain/statement';
 import { useActiveLedger, useCategoryOf } from '@/hooks/useActiveLedgerData';
 import type { RootStackParamList, TabParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
-import { useTransactionStore } from '@/stores/transaction.store';
+import { selectMonthTransactions, useTransactionStore } from '@/stores/transaction.store';
 import type { TxKind } from '@/types/domain';
 import { CHART_PALETTE, colors, fontSize, radius, space } from '@/theme';
 
@@ -37,7 +37,7 @@ export const StatsScreen = (_props: Props) => {
   const ledger = useActiveLedger();
   const categoryOf = useCategoryOf();
   const transactions = useTransactionStore((state) =>
-    ledger ? (state.buckets[`${ledger.id}::${monthKey(month)}`]?.transactions ?? []) : [],
+    selectMonthTransactions(state, ledger?.id, month),
   );
   const loadMonth = useTransactionStore((state) => state.loadMonth);
 

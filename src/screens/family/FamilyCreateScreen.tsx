@@ -1,11 +1,12 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/ui/AppHeader';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { TextField } from '@/components/ui/TextField';
 import { validateFamilyName } from '@/domain/validation';
+import { showAlert } from '@/lib/alert';
 import { getErrorMessage } from '@/lib/errors';
 import type { RootStackParamList } from '@/navigation/types';
 import { useLedgerStore } from '@/stores/ledger.store';
@@ -21,17 +22,17 @@ export const FamilyCreateScreen = ({ navigation }: Props) => {
   const handleSubmit = async () => {
     const error = validateFamilyName(name);
     if (error) {
-      Alert.alert('提示', error);
+      showAlert('提示', error);
       return;
     }
     setLoading(true);
     try {
       await createFamily(name.trim());
-      Alert.alert('创建成功', '已自动创建家庭账本，可邀请成员加入', [
+      showAlert('创建成功', '已自动创建家庭账本，可邀请成员加入', [
         { text: '好的', onPress: () => navigation.popToTop() },
       ]);
     } catch (caught) {
-      Alert.alert('创建失败', getErrorMessage(caught));
+      showAlert('创建失败', getErrorMessage(caught));
     } finally {
       setLoading(false);
     }

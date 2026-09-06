@@ -1,12 +1,13 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/ui/AppHeader';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { TextField } from '@/components/ui/TextField';
 import { formatCents, parseAmountToCents } from '@/domain/money';
 import { useActiveLedger } from '@/hooks/useActiveLedgerData';
+import { showAlert } from '@/lib/alert';
 import type { RootStackParamList } from '@/navigation/types';
 import { useLedgerStore } from '@/stores/ledger.store';
 import { colors, fontSize, space } from '@/theme';
@@ -35,24 +36,24 @@ export const BudgetScreen = ({ navigation }: Props) => {
   const handleSave = async () => {
     const cents = parseAmountToCents(amount);
     if (cents === null) {
-      Alert.alert('提示', '请输入正确的预算金额');
+      showAlert('提示', '请输入正确的预算金额');
       return;
     }
     setSaving(true);
     try {
       await setBudget(ledger.id, cents);
-      Alert.alert('已保存', `本月预算 ${formatCents(cents)} 元`, [
+      showAlert('已保存', `本月预算 ${formatCents(cents)} 元`, [
         { text: '好的', onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
-      Alert.alert('保存失败', error instanceof Error ? error.message : '请稍后再试');
+      showAlert('保存失败', error instanceof Error ? error.message : '请稍后再试');
     } finally {
       setSaving(false);
     }
   };
 
   const handleClear = () => {
-    Alert.alert('清除预算', '确定清除本月预算吗？', [
+    showAlert('清除预算', '确定清除本月预算吗？', [
       { text: '取消', style: 'cancel' },
       {
         text: '清除',
@@ -61,7 +62,7 @@ export const BudgetScreen = ({ navigation }: Props) => {
           void setBudget(ledger.id, 0)
             .then(() => navigation.goBack())
             .catch((error: unknown) =>
-              Alert.alert('操作失败', error instanceof Error ? error.message : '请稍后再试'),
+              showAlert('操作失败', error instanceof Error ? error.message : '请稍后再试'),
             );
         },
       },

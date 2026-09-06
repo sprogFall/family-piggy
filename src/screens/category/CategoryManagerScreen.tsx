@@ -2,13 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { validateCategoryName } from '@/domain/validation';
 import { useActiveLedger, useActiveCategories } from '@/hooks/useActiveLedgerData';
+import { showAlert } from '@/lib/alert';
 import type { RootStackParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
 import type { Category, TxKind } from '@/types/domain';
@@ -46,7 +47,7 @@ export const CategoryManagerScreen = ({ navigation }: Props) => {
 
   const openCreate = () => {
     if (!ledger) {
-      Alert.alert('提示', '请先选择账本');
+      showAlert('提示', '请先选择账本');
       return;
     }
     setEditing({ category: null, kind });
@@ -56,7 +57,7 @@ export const CategoryManagerScreen = ({ navigation }: Props) => {
     if (!editing || !ledger) return;
     const nameError = validateCategoryName(name);
     if (nameError) {
-      Alert.alert('提示', nameError);
+      showAlert('提示', nameError);
       return;
     }
     try {
@@ -74,13 +75,13 @@ export const CategoryManagerScreen = ({ navigation }: Props) => {
       }
       setEditing(null);
     } catch (error) {
-      Alert.alert('保存失败', error instanceof Error ? error.message : '请稍后再试');
+      showAlert('保存失败', error instanceof Error ? error.message : '请稍后再试');
     }
   };
 
   const handleDelete = (category: Category) => {
     if (!ledger) return;
-    Alert.alert('删除分类', `确定删除「${category.name}」吗？`, [
+    showAlert('删除分类', `确定删除「${category.name}」吗？`, [
       { text: '取消', style: 'cancel' },
       {
         text: '删除',

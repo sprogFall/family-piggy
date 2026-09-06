@@ -3,12 +3,13 @@ import * as FileSystem from 'expo-file-system';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { AppHeader } from '@/components/ui/AppHeader';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { useActiveLedger } from '@/hooks/useActiveLedgerData';
+import { showAlert } from '@/lib/alert';
 import { getErrorMessage } from '@/lib/errors';
 import type { RootStackParamList } from '@/navigation/types';
 import {
@@ -54,7 +55,7 @@ export const ImportScreen = ({ navigation }: Props) => {
       setFileName(asset.name ?? '未命名文件');
       setPreview(parsed);
     } catch (error) {
-      Alert.alert('读取失败', getErrorMessage(error));
+      showAlert('读取失败', getErrorMessage(error));
     }
   };
 
@@ -63,11 +64,11 @@ export const ImportScreen = ({ navigation }: Props) => {
     setImporting(true);
     try {
       const count = await importDrafts(ledger.id, preview.drafts, userId);
-      Alert.alert('导入成功', `共导入 ${count} 笔账单`, [
+      showAlert('导入成功', `共导入 ${count} 笔账单`, [
         { text: '好的', onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
-      Alert.alert('导入失败', getErrorMessage(error));
+      showAlert('导入失败', getErrorMessage(error));
     } finally {
       setImporting(false);
     }

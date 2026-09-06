@@ -59,7 +59,11 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
   reset: () => set({ byLedger: {} }),
 }));
 
+/** 未加载/无账本时返回模块级空数组：zustand v5 的 useSyncExternalStore 要求快照引用稳定，否则无限重渲染 */
+const EMPTY_CATEGORIES: Category[] = [];
+
 export const selectCategories = (
   state: CategoryState,
   ledgerId: string | null | undefined,
-): Category[] => (ledgerId ? (state.byLedger[ledgerId] ?? []) : []);
+): Category[] =>
+  ledgerId ? (state.byLedger[ledgerId] ?? EMPTY_CATEGORIES) : EMPTY_CATEGORIES;

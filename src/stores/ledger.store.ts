@@ -125,3 +125,9 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
 
 export const selectActiveLedger = (state: LedgerState): Ledger | null =>
   state.ledgers.find((l) => l.id === state.activeLedgerId) ?? state.ledgers[0] ?? null;
+
+/** 未加载/无成员时返回模块级空数组：zustand v5 的 useSyncExternalStore 要求快照引用稳定，否则无限重渲染 */
+const EMPTY_MEMBERS: FamilyMember[] = [];
+
+export const selectMembers = (state: LedgerState, familyId: string): FamilyMember[] =>
+  state.members[familyId] ?? EMPTY_MEMBERS;

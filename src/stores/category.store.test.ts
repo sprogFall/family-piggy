@@ -67,4 +67,10 @@ describe('useCategoryStore', () => {
     await useCategoryStore.getState().remove('c1', 'l1');
     expect(selectCategories(useCategoryStore.getState(), 'l1').map((c) => c.id)).toEqual(['c2']);
   });
+
+  it('selectCategories 未加载/无账本时返回稳定引用（zustand v5 快照稳定性）', () => {
+    const state = useCategoryStore.getState();
+    expect(selectCategories(state, 'l1')).toBe(selectCategories(state, 'l1'));
+    expect(selectCategories(state, null)).toBe(selectCategories(state, undefined));
+  });
 });

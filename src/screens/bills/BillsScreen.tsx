@@ -18,7 +18,7 @@ import { useActiveLedger, useActiveCategories } from '@/hooks/useActiveLedgerDat
 import type { RootStackParamList, TabParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
 import { useLedgerStore } from '@/stores/ledger.store';
-import { useTransactionStore } from '@/stores/transaction.store';
+import { selectMonthTransactions, useTransactionStore } from '@/stores/transaction.store';
 import { colors, fontSize, space } from '@/theme';
 
 type Props = CompositeScreenProps<
@@ -34,7 +34,7 @@ export const BillsScreen = ({ navigation }: Props) => {
   const ledger = useActiveLedger();
   const categories = useActiveCategories();
   const transactions = useTransactionStore((state) =>
-    ledger ? (state.buckets[`${ledger.id}::${monthKey(month)}`]?.transactions ?? []) : [],
+    selectMonthTransactions(state, ledger?.id, month),
   );
 
   const loadMonth = useTransactionStore((state) => state.loadMonth);

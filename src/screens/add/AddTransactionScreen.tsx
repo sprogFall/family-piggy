@@ -3,7 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import RNDateTimePicker from '@react-native-community/datetimepicker';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AmountKeypad } from '@/components/ui/AmountKeypad';
 import { CategoryGrid } from '@/components/ui/CategoryGrid';
@@ -11,6 +11,7 @@ import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { dateLabelOf } from '@/domain/dates';
 import { formatCents, parseAmountToCents } from '@/domain/money';
 import { useActiveLedger, useActiveCategories } from '@/hooks/useActiveLedgerData';
+import { showAlert } from '@/lib/alert';
 import type { RootStackParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
 import { selectTransactionById, useTransactionStore } from '@/stores/transaction.store';
@@ -56,7 +57,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   // 带 transactionId 进入但流水不在缓存中（如跨月编辑）：直接返回
   useEffect(() => {
     if (route.params?.transactionId && !editing) {
-      Alert.alert('提示', '账单不存在或已删除');
+      showAlert('提示', '账单不存在或已删除');
       navigation.goBack();
     }
     // 仅在挂载时判断一次
@@ -73,15 +74,15 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   const submit = async () => {
     const cents = parseAmountToCents(amount);
     if (!ledger) {
-      Alert.alert('提示', '请先选择账本');
+      showAlert('提示', '请先选择账本');
       return;
     }
     if (!categoryId) {
-      Alert.alert('提示', '请选择分类');
+      showAlert('提示', '请选择分类');
       return;
     }
     if (cents === null) {
-      Alert.alert('提示', '请输入正确的金额');
+      showAlert('提示', '请输入正确的金额');
       return;
     }
     setSubmitting(true);
@@ -94,7 +95,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
           note: note.trim() === '' ? null : note.trim(),
           occurredAt: date.toISOString(),
         });
-        Alert.alert('已保存');
+        showAlert('已保存');
       } else {
         await addTransaction({
           ledgerId: ledger.id,
@@ -104,11 +105,11 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
           note: note.trim() === '' ? null : note.trim(),
           occurredAt: date.toISOString(),
         });
-        Alert.alert('记账成功');
+        showAlert('记账成功');
       }
       navigation.goBack();
     } catch (error) {
-      Alert.alert(editing ? '保存失败' : '记账失败', error instanceof Error ? error.message : '请稍后再试');
+      showAlert(editing ? '保存失败' : '记账失败', error instanceof Error ? error.message : '请稍后再试');
     } finally {
       setSubmitting(false);
     }
@@ -116,7 +117,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
 
   const confirmRemove = () => {
     if (!editing || !ledger) return;
-    Alert.alert('删除账单', '删除后不可恢复，确定删除吗？', [
+    showAlert('删除账单', '删除后不可恢复，确定删除吗？', [
       { text: '取消', style: 'cancel' },
       {
         text: '删除',
@@ -125,7 +126,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
           void removeTransaction(editing.id, ledger.id)
             .then(() => navigation.goBack())
             .catch((error: unknown) =>
-              Alert.alert('删除失败', error instanceof Error ? error.message : '请稍后再试'),
+              showAlert('删除失败', error instanceof Error ? error.message : '请稍后再试'),
             );
         },
       },

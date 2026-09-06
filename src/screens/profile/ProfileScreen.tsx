@@ -4,10 +4,11 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { MenuItem } from '@/components/MenuItem';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { showAlert } from '@/lib/alert';
 import { avatarService } from '@/services/avatar.service';
 import { getErrorMessage } from '@/lib/errors';
 import type { RootStackParamList, TabParamList } from '@/navigation/types';
@@ -50,16 +51,16 @@ export const ProfileScreen = ({ navigation }: Props) => {
     try {
       await avatarService.upload(userId, asset.uri, asset.mimeType ?? 'image/jpeg');
       await refreshProfile();
-      Alert.alert('头像已更新');
+      showAlert('头像已更新');
     } catch (error) {
-      Alert.alert('上传失败', getErrorMessage(error));
+      showAlert('上传失败', getErrorMessage(error));
     } finally {
       setUploading(false);
     }
   };
 
   const confirmSignOut = () => {
-    Alert.alert('退出登录', '确定退出当前账号吗？', [
+    showAlert('退出登录', '确定退出当前账号吗？', [
       { text: '取消', style: 'cancel' },
       { text: '退出', style: 'destructive', onPress: () => void signOut() },
     ]);

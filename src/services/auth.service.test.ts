@@ -30,6 +30,20 @@ describe('authService', () => {
     });
   });
 
+  it('signUp 返回会话时无需邮箱验证', async () => {
+    authMock.signUp.mockResolvedValue({ data: { session: { user: { id: 'u1' } } }, error: null });
+    await expect(authService.signUp('a@b.co', '123456', '小明')).resolves.toEqual({
+      needsEmailConfirmation: false,
+    });
+  });
+
+  it('signUp 未返回会话时标记需要邮箱验证', async () => {
+    authMock.signUp.mockResolvedValue({ data: { session: null }, error: null });
+    await expect(authService.signUp('a@b.co', '123456', '小明')).resolves.toEqual({
+      needsEmailConfirmation: true,
+    });
+  });
+
   it('signUp 邮箱已注册映射文案', async () => {
     authMock.signUp.mockResolvedValue({
       data: {},

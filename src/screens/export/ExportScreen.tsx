@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { AppHeader } from '@/components/ui/AppHeader';
@@ -9,8 +9,9 @@ import { MonthPickerSheet } from '@/components/ui/MonthPickerSheet';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { currentMonth, monthKey, monthLabel, type MonthRef } from '@/domain/dates';
 import { useActiveLedger, useCategoryOf } from '@/hooks/useActiveLedgerData';
+import { showAlert } from '@/lib/alert';
 import type { RootStackParamList } from '@/navigation/types';
-import { useTransactionStore } from '@/stores/transaction.store';
+import { selectMonthTransactions, useTransactionStore } from '@/stores/transaction.store';
 import { colors, fontSize, radius, space } from '@/theme';
 import {
   EXPORT_FORMAT_LABEL,
@@ -29,7 +30,7 @@ export const ExportScreen = ({ navigation }: Props) => {
   const ledger = useActiveLedger();
   const categoryOf = useCategoryOf();
   const transactions = useTransactionStore((state) =>
-    ledger ? (state.buckets[`${ledger.id}::${monthKey(month)}`]?.transactions ?? []) : [],
+    selectMonthTransactions(state, ledger?.id, month),
   );
   const loadMonth = useTransactionStore((state) => state.loadMonth);
 
@@ -43,7 +44,7 @@ export const ExportScreen = ({ navigation }: Props) => {
 
   const handleExport = async () => {
     if (!ledger) {
-      Alert.alert('提示', '请先选择账本');
+      showAlert('提示', '请先选择账本');
       return;
     }
     setExporting(true);
@@ -53,9 +54,9 @@ export const ExportScreen = ({ navigation }: Props) => {
         month,
         format,
       });
-      Alert.alert('导出成功', '文件已生成，可在系统分享面板中选择保存位置');
+      showAlert('导出成功', '文件已生成，可在系统分享面板中选择保存位置');
     } catch (error) {
-      Alert.alert('导出失败', error instanceof Error ? error.message : '请稍后再试');
+      showAlert('导出失败', error instanceof Error ? error.message : '请稍后再试');
     } finally {
       setExporting(false);
     }

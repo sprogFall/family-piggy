@@ -157,6 +157,7 @@ returns boolean
 language sql
 security definer
 stable
+set search_path = public
 as $$
   select exists (
     select 1 from public.ledgers l
@@ -171,6 +172,50 @@ as $$
           )
         )
       )
+  );
+$$;
+
+-- 当前用户是否为某家庭的成员（security definer 绕过 RLS，避免策略相互递归导致 500）
+create or replace function public.is_family_member(p_family_id uuid)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.family_members
+    where family_id = p_family_id and user_id = auth.uid()
+  );
+$$;
+
+-- 当前用户是否为某家庭的创建者（security definer 绕过 RLS，避免策略相互递归导致 500）
+create or replace function public.is_family_owner(p_family_id uuid)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.families
+    where id = p_family_id and owner_id = auth.uid()
+  );
+$$;
+
+-- 当前用户与目标用户是否同属一个家庭（security definer 绕过 RLS，避免策略相互递归导致 500）
+create or replace function public.shares_family(p_user_id uuid)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.family_members mine
+    join public.family_members theirs on mine.family_id = theirs.family_id
+    where mine.user_id = auth.uid() and theirs.user_id = p_user_id
   );
 $$;
 
@@ -195,6 +240,7 @@ create or replace function public.seed_default_categories(p_ledger_id uuid)
 returns void
 language sql
 security definer
+set search_path = public
 as $$
   insert into public.categories (ledger_id, name, icon, kind, sort_order) values
     (p_ledger_id, '餐饮', 'restaurant',          'expense', 1),
@@ -221,6 +267,7 @@ create or replace function public.handle_ledger_created()
 returns trigger
 language plpgsql
 security definer
+set search_path = public
 as $$
 begin
   perform public.seed_default_categories(new.id);
@@ -238,6 +285,7 @@ create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
+set search_path = public
 as $$
 begin
   insert into public.profiles (id, nickname)
@@ -263,6 +311,7 @@ create or replace function public.join_family(p_code text)
 returns uuid
 language plpgsql
 security definer
+set search_path = public
 as $$
 declare
   v_family_id uuid;
@@ -306,16 +355,13 @@ alter table public.categories      enable row level security;
 alter table public.transactions    enable row level security;
 
 -- 用户资料：本人可读写；同家庭成员可读
+-- 注意：策略内严禁直接/间接查询本表或互相引用的表（会触发 42P17 无限递归，PostgREST 返回 500），
+--       跨表判断一律走 security definer 辅助函数（shares_family / is_family_member / is_family_owner）。
 drop policy if exists profiles_select on public.profiles;
 create policy profiles_select on public.profiles for select
   using (
     id = auth.uid()
-    or exists (
-      select 1
-      from public.family_members mine
-      join public.family_members theirs on mine.family_id = theirs.family_id
-      where mine.user_id = auth.uid() and theirs.user_id = profiles.id
-    )
+    or public.shares_family(profiles.id)
   );
 
 drop policy if exists profiles_update on public.profiles;
@@ -327,10 +373,7 @@ drop policy if exists families_select on public.families;
 create policy families_select on public.families for select
   using (
     owner_id = auth.uid()
-    or exists (
-      select 1 from public.family_members m
-      where m.family_id = families.id and m.user_id = auth.uid()
-    )
+    or public.is_family_member(families.id)
   );
 
 drop policy if exists families_insert on public.families;
@@ -345,15 +388,12 @@ drop policy if exists families_delete on public.families;
 create policy families_delete on public.families for delete
   using (owner_id = auth.uid());
 
--- 家庭成员：本人及同家庭者可读；可加入/退出；家庭创建者可移除成员
+-- 家庭成员：本人及所在家庭全员可读；可加入/退出；家庭创建者可移除成员
 drop policy if exists family_members_select on public.family_members;
 create policy family_members_select on public.family_members for select
   using (
     user_id = auth.uid()
-    or exists (
-      select 1 from public.family_members m
-      where m.family_id = family_members.family_id and m.user_id = auth.uid()
-    )
+    or public.is_family_member(family_members.family_id)
   );
 
 drop policy if exists family_members_insert on public.family_members;
@@ -364,10 +404,7 @@ drop policy if exists family_members_delete on public.family_members;
 create policy family_members_delete on public.family_members for delete
   using (
     user_id = auth.uid()
-    or exists (
-      select 1 from public.families f
-      where f.id = family_members.family_id and f.owner_id = auth.uid()
-    )
+    or public.is_family_owner(family_members.family_id)
   );
 
 -- 账本：可见即可读，本人可写

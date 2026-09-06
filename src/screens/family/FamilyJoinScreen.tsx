@@ -1,11 +1,12 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/ui/AppHeader';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { TextField } from '@/components/ui/TextField';
 import { isValidInviteCode } from '@/domain/invite-code';
+import { showAlert } from '@/lib/alert';
 import { getErrorMessage } from '@/lib/errors';
 import type { RootStackParamList } from '@/navigation/types';
 import { useLedgerStore } from '@/stores/ledger.store';
@@ -20,17 +21,17 @@ export const FamilyJoinScreen = ({ navigation }: Props) => {
 
   const handleSubmit = async () => {
     if (!isValidInviteCode(code)) {
-      Alert.alert('提示', '请输入 8 位邀请码');
+      showAlert('提示', '请输入 8 位邀请码');
       return;
     }
     setLoading(true);
     try {
       await joinFamily(code);
-      Alert.alert('加入成功', '已切换到家庭账本', [
+      showAlert('加入成功', '已切换到家庭账本', [
         { text: '好的', onPress: () => navigation.popToTop() },
       ]);
     } catch (caught) {
-      Alert.alert('加入失败', getErrorMessage(caught));
+      showAlert('加入失败', getErrorMessage(caught));
     } finally {
       setLoading(false);
     }

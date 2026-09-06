@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { AppHeader } from '@/components/ui/AppHeader';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { TextField } from '@/components/ui/TextField';
 import { validateEmail, validatePassword } from '@/domain/validation';
+import { showAlert } from '@/lib/alert';
 import { getErrorMessage } from '@/lib/errors';
 import type { RootStackParamList } from '@/navigation/types';
 import { useAuthStore } from '@/stores/auth.store';
@@ -32,7 +33,7 @@ export const LoginScreen = ({ navigation }: Props) => {
     try {
       await signIn(email.trim(), password);
     } catch (error) {
-      Alert.alert('登录失败', getErrorMessage(error));
+      showAlert('登录失败', getErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -69,11 +70,11 @@ export const LoginScreen = ({ navigation }: Props) => {
           </View>
 
           <View style={styles.links}>
-            <Pressable onPress={() => Alert.alert('提示', '请联系管理员重置密码')}>
+            <Pressable onPress={() => showAlert('提示', '请联系管理员重置密码')}>
               <Text style={styles.linkText}>忘记密码</Text>
             </Pressable>
             <Text style={styles.divider}>|</Text>
-            <Pressable onPress={() => Alert.alert('提示', '即将开放，敬请期待')}>
+            <Pressable onPress={() => showAlert('提示', '即将开放，敬请期待')}>
               <Text style={styles.linkText}>短信验证码登录</Text>
             </Pressable>
           </View>

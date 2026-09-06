@@ -1,9 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { MenuItem } from '@/components/MenuItem';
 import { AppHeader } from '@/components/ui/AppHeader';
+import { showAlert } from '@/lib/alert';
 import type { RootStackParamList } from '@/navigation/types';
 import { colors, space } from '@/theme';
 
@@ -17,19 +18,19 @@ export const SettingsScreen = ({ navigation }: Props) => (
         icon="cloud-upload-outline"
         label="数据备份"
         hint="云端自动同步"
-        onPress={() => Alert.alert('提示', '账单数据已实时同步至云端，无需手动备份')}
+        onPress={() => showAlert('提示', '账单数据已实时同步至云端，无需手动备份')}
       />
       <MenuItem
         icon="trash-outline"
         label="清除本地缓存"
         onPress={() =>
-          Alert.alert('清除缓存', '将清除本地登录态与缓存，需要重新登录', [
+          showAlert('清除缓存', '将清除本地登录态与缓存，需要重新登录', [
             { text: '取消', style: 'cancel' },
             {
               text: '清除',
               style: 'destructive',
               onPress: () => {
-                void AsyncStorage.clear().then(() => Alert.alert('已清除', '请重新登录'));
+                void AsyncStorage.clear().then(() => showAlert('已清除', '请重新登录'));
               },
             },
           ])
