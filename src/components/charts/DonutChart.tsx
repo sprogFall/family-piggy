@@ -1,7 +1,7 @@
 import { Path, Svg } from 'react-native-svg';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { arcPath, donutArcs } from '@/domain/charts';
+import { arcPath, donutArcs, donutCenterBox } from '@/domain/charts';
 import { colors, fontSize } from '@/theme';
 
 export interface DonutSegment {
@@ -27,6 +27,7 @@ export const DonutChart = ({
   const active = segments.filter((segment) => segment.value > 0);
   const arcs = donutArcs(active.map((segment) => segment.value));
   const radius = size / 2;
+  const center = donutCenterBox(size, thickness);
   return (
     <View style={{ width: size, height: size }}>
       <Svg width={size} height={size}>
@@ -38,7 +39,13 @@ export const DonutChart = ({
           />
         ))}
       </Svg>
-      <View style={[styles.center, { width: size - thickness * 2.4, height: size - thickness * 2.4 }]}>
+      <View
+        testID="donut-center"
+        style={[
+          styles.center,
+          { height: center.size, left: center.offset, top: center.offset, width: center.size },
+        ]}
+      >
         <Text style={styles.centerLabel} numberOfLines={1}>
           {centerLabel ?? ''}
         </Text>
@@ -51,7 +58,6 @@ export const DonutChart = ({
 const styles = StyleSheet.create({
   center: {
     alignItems: 'center',
-    alignSelf: 'center',
     justifyContent: 'center',
     position: 'absolute',
   },

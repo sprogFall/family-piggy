@@ -27,6 +27,28 @@ export const donutArcs = (values: number[]): Arc[] => {
   return arcs;
 };
 
+/** 中心文案容器与内孔边缘的留白，按环壁厚的比例计算 */
+const CENTER_BOX_INSET_RATIO = 0.2;
+
+export interface DonutCenterBox {
+  /** 文案容器边长 */
+  size: number;
+  /** 容器相对整图左上角的偏移（上下左右一致，保证严格居中） */
+  offset: number;
+}
+
+/**
+ * 环形图中心文案容器的边长与偏移。
+ * 容器必须由组件显式设置 left / top：绝对定位元素若省略偏移量会退回静态位置
+ * （容器顶部），导致文案明显偏上。
+ */
+export const donutCenterBox = (size: number, thickness: number): DonutCenterBox => {
+  const innerDiameter = size - thickness * 2;
+  const inset = thickness * CENTER_BOX_INSET_RATIO;
+  const box = innerDiameter - inset * 2;
+  return { size: box, offset: (size - box) / 2 };
+};
+
 export const polar = (
   cx: number,
   cy: number,

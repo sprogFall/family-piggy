@@ -1,4 +1,4 @@
-import { arcPath, donutArcs, lineGeometry, polar } from './charts';
+import { arcPath, donutArcs, donutCenterBox, lineGeometry, polar } from './charts';
 
 describe('donutArcs', () => {
   it('按比例分配角度', () => {
@@ -37,6 +37,22 @@ describe('arcPath', () => {
   it('整圆拆成两段路径', () => {
     const path = arcPath(100, 100, 80, 58, 0, 359.99);
     expect(path.match(/M /g)?.length).toBe(2);
+  });
+});
+
+describe('donutCenterBox', () => {
+  it('容器小于内孔且上下左右留白相等（居中）', () => {
+    const box = donutCenterBox(140, 22);
+    expect(box.size).toBeCloseTo(87.2, 5);
+    expect(box.offset).toBeCloseTo(26.4, 5);
+    // 上下/左右留白相等，容器正好居中于整图
+    expect(box.offset * 2 + box.size).toBeCloseTo(140, 5);
+  });
+
+  it('容器不大于内孔直径（文字不压环）', () => {
+    const box = donutCenterBox(140, 22);
+    expect(box.size).toBeLessThan(140 - 22 * 2);
+    expect(box.offset).toBeGreaterThan(0);
   });
 });
 
