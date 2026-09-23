@@ -15,6 +15,8 @@ export const colors = {
   expense: '#1A1A1A',
   danger: '#FA5151',
   white: '#FFFFFF',
+  /** 浮窗（Toast）背景 */
+  toastBg: 'rgba(26,26,26,0.86)',
 } as const;
 
 /** 折线 / 占比图调色板 */

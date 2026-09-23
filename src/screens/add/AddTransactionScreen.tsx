@@ -14,6 +14,7 @@ import { useActiveLedger, useActiveCategories } from '@/hooks/useActiveLedgerDat
 import { showAlert } from '@/lib/alert';
 import type { RootStackParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
+import { useToastStore } from '@/stores/toast.store';
 import { selectTransactionById, useTransactionStore } from '@/stores/transaction.store';
 import type { TxKind } from '@/types/domain';
 import { colors, fontSize, radius, space } from '@/theme';
@@ -47,6 +48,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   const addTransaction = useTransactionStore((state) => state.add);
   const updateTransaction = useTransactionStore((state) => state.update);
   const removeTransaction = useTransactionStore((state) => state.remove);
+  const showToast = useToastStore((state) => state.show);
 
   useFocusEffect(
     useCallback(() => {
@@ -95,7 +97,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
           note: note.trim() === '' ? null : note.trim(),
           occurredAt: date.toISOString(),
         });
-        showAlert('已保存');
+        showToast('已保存');
       } else {
         await addTransaction({
           ledgerId: ledger.id,
@@ -105,7 +107,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
           note: note.trim() === '' ? null : note.trim(),
           occurredAt: date.toISOString(),
         });
-        showAlert('记账成功');
+        showToast('记账成功');
       }
       navigation.goBack();
     } catch (error) {

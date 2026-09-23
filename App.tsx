@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { Toast } from '@/components/ui/Toast';
 import { AuthNavigator, MainNavigator, navigationRef } from '@/navigation';
 import { useAuthStore } from '@/stores/auth.store';
 import { useLedgerStore } from '@/stores/ledger.store';
@@ -53,6 +54,7 @@ export default function App() {
       <NavigationContainer ref={navigationRef} theme={navTheme}>
         {status === 'loading' ? <SplashView /> : status === 'signedIn' ? <MainNavigator /> : <AuthNavigator />}
       </NavigationContainer>
+      <Toast />
     </SafeAreaProvider>
   );
 }
