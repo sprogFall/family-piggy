@@ -17,6 +17,8 @@ export const colors = {
   white: '#FFFFFF',
   /** 浮窗（Toast）背景 */
   toastBg: 'rgba(26,26,26,0.86)',
+  /** 按压态水波纹（Android），限定在控件内，避免溢出到相邻元素 */
+  ripple: 'rgba(0, 181, 120, 0.12)',
 } as const;
 
 /** 折线 / 占比图调色板 */

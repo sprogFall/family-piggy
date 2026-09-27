@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import { PlatformPressable } from '@react-navigation/elements';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StackActions, createNavigationContainerRef } from '@react-navigation/native';
+import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import type { ComponentProps } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -48,6 +50,18 @@ const renderTabIcon = (routeName: TabIconRoute, color: string, focused: boolean)
   <Ionicons name={TAB_ICONS[routeName].name} size={22} color={focused ? colors.primary : color} />
 );
 
+/**
+ * 简化 Tab 点击反馈：React Navigation 默认使用 Android 无边界水波纹
+ * （borderless: true），水波纹会溢出按钮范围并与相邻 Tab 相互重叠；
+ * 这里改为受限（borderless: false）的浅色水波纹，只在本按钮内扩散。
+ */
+const TabBarButton = (props: BottomTabBarButtonProps) => (
+  <PlatformPressable
+    {...props}
+    android_ripple={{ color: colors.ripple, borderless: false }}
+  />
+);
+
 const TabNavigator = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
@@ -56,6 +70,7 @@ const TabNavigator = () => (
       tabBarInactiveTintColor: colors.textSecondary,
       tabBarLabelStyle: { fontSize: 11 },
       tabBarStyle: { height: TABBAR_HEIGHT, paddingTop: 6 },
+      tabBarButton: TabBarButton,
       ...(route.name in TAB_ICONS
         ? {
             tabBarLabel: TAB_ICONS[route.name as TabIconRoute].label,
