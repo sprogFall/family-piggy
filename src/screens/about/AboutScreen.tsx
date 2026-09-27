@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import Constants from 'expo-constants';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/ui/AppHeader';
@@ -6,6 +7,9 @@ import type { RootStackParamList } from '@/navigation/types';
 import { colors, fontSize, radius, space } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'About'>;
+
+/** 版本号来自 app.config.js（发布时由 CI 的 tag 注入 APP_VERSION），避免与发布版本脱节 */
+const version = Constants.expoConfig?.version ?? '';
 
 export const AboutScreen = ({ navigation }: Props) => (
   <View style={styles.container}>
@@ -15,7 +19,7 @@ export const AboutScreen = ({ navigation }: Props) => (
         <Text style={styles.logoText}>¥</Text>
       </View>
       <Text style={styles.name}>家庭记账</Text>
-      <Text style={styles.version}>Version 0.1.0</Text>
+      <Text style={styles.version}>Version {version || 'unknown'}</Text>
       <Text style={styles.desc}>
         一款支持个人账本与家庭账本的记账应用，多人实时共同记账，数据云端同步，让每一笔收支都清晰可见。
       </Text>
