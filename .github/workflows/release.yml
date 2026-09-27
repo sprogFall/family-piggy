@@ -39,6 +39,10 @@ jobs:
       - name: 安装依赖
         run: npm ci
 
+      # 打印 commit 与实际安装的原生模块版本：失败时可据此判断是否跑在预期的代码/依赖上
+      - name: 输出构建环境信息
+        run: node -e "const read=(n)=>{try{return require(n+'/package.json').version}catch{return '缺失'}};console.log('commit', process.env.GITHUB_SHA);console.log('node', process.version, '| expo', read('expo'), '| expo-font', read('expo-font'), '| expo-modules-core', read('expo-modules-core'), '| react-native', read('react-native'))"
+
       # 原生模块版本必须与 Expo SDK 对齐，否则 gradle 阶段会报难以定位的插件错误
       - name: 校验依赖与 Expo SDK 匹配
         run: npx expo install --check
