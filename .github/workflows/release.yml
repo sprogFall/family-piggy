@@ -10,8 +10,15 @@ concurrency:
   group: release-build
   cancel-in-progress: false
 
+env:
+  # 客户端连接信息：Metro 打包时把 EXPO_PUBLIC_* 内联进 bundle，值取自仓库 Secrets
+  EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+  # CI 非交互环境，关闭 Expo CLI 遥测
+  EXPO_NO_TELEMETRY: '1'
+
 jobs:
-  build-android:
+  build-apk:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,6 +28,14 @@ jobs:
           node-version: 20
           cache: npm
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # 缓存 Gradle 用户目录与依赖，二次构建可显著提速
+      - uses: gradle/actions/setup-gradle@v4
+
       - name: 安装依赖
         run: npm ci
 
@@ -29,30 +44,70 @@ jobs:
           npm run typecheck
           npm test -- --ci
 
-      - name: 注入 Supabase 环境变量到 EAS
+      - name: 校验 Secrets
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          printf 'EXPO_PUBLIC_SUPABASE_URL=%s\nEXPO_PUBLIC_SUPABASE_ANON_KEY=%s\n' \
-            "$SUPABASE_URL" "$SUPABASE_ANON_KEY" > .env.eas
-          npx eas-cli@latest secret:push --file .env.eas --force --non-interactive
-          rm .env.eas
+          for name in SUPABASE_URL SUPABASE_ANON_KEY ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS; do
+            if [ -z "${!name}" ]; then
+              echo "::error::缺少仓库 Secret：$name（Settings → Secrets and variables → Actions）"
+              exit 1
+            fi
+          done
 
-      - name: EAS 打包 Android APK（preview）
+      - name: 解析版本号
+        run: |
+          echo "ANDROID_VERSION_CODE=${{ github.run_number }}" >> "$GITHUB_ENV"
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            echo "APP_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          fi
+
+      - name: 还原签名 keystore
         env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
-        run: npx eas-cli@latest build --platform android --profile preview --non-interactive --json > build.json
-
-      - name: 下载 APK 产物
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
-          URL=$(node -e "const builds=require('./build.json'); console.log(builds[0].artifacts.buildUrl)")
-          echo "APK: $URL"
-          curl -L "$URL" -o app-release.apk
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
+
+      - name: 生成 Android 工程（expo prebuild）
+        run: npx expo prebuild --platform android --no-install
+
+      - name: 打包 APK（gradle assembleRelease + keystore 签名）
+        env:
+          KEYSTORE_FILE: ${{ runner.temp }}/release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease \
+            -Pandroid.injected.signing.store.file="$KEYSTORE_FILE" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEYSTORE_PASSWORD"
+
+      - name: 校验 APK 签名
+        run: |
+          APK=$(ls android/app/build/outputs/apk/release/*.apk | head -1)
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          echo "--------- 签名信息 ---------"
+          "$APKSIGNER" verify --print-certs "$APK"
+          if "$APKSIGNER" verify --print-certs "$APK" | grep -q "CN=Android Debug"; then
+            echo "::error::APK 仍是 debug 签名，keystore 注入未生效"
+            exit 1
+          fi
+
+      - name: 收集产物
+        run: |
+          APK=$(ls android/app/build/outputs/apk/release/*.apk | head -1)
+          cp "$APK" "family-piggy-${GITHUB_REF_NAME}.apk"
+          ls -lh family-piggy-*.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
-          path: app-release.apk
+          name: family-piggy-apk
+          path: family-piggy-*.apk
+          if-no-files-found: error

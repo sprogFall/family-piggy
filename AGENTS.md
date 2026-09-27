@@ -73,6 +73,6 @@ src/
 - 提交信息使用 `feat / fix / refactor / test / docs / chore` 前缀，一次提交一个完整意图
 - **禁止提交任何真实密钥 / 连接信息**：Supabase 连接信息一律通过 `EXPO_PUBLIC_*` 环境变量注入
   - 本地：`.env`（参考 `.env.example`，`.env` 已被 gitignore，不入库）
-  - CI / 云打包：GitHub Secrets（`SUPABASE_URL` / `SUPABASE_ANON_KEY` / `EXPO_TOKEN` / `EAS_PROJECT_ID`）→ EAS secrets
+  - CI 打包：GitHub Secrets（`SUPABASE_URL` / `SUPABASE_ANON_KEY` / `ANDROID_KEYSTORE_BASE64` / `ANDROID_KEYSTORE_PASSWORD` / `ANDROID_KEY_ALIAS`）直接注入构建环境；APK 由 GitHub Actions 内 `expo prebuild + gradle` 构建并签名，不依赖 Expo / EAS 账号
   - `app.config.js` 只做环境变量读取，不承载真实值；`src/lib/supabase.ts` 直接读取 `process.env.EXPO_PUBLIC_*`
 - 新增环境变量时必须同步更新 `.env.example` 与 README 的 Secrets 表

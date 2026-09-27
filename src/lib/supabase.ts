@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 /**
  * Supabase 连接信息通过 EXPO_PUBLIC_* 环境变量注入（babel-preset-expo 会将其内联进 bundle）：
  * - 本地：.env 文件（参考 .env.example，已 gitignore）
- * - CI / 云打包：GitHub Secrets -> EAS secrets
+ * - CI 打包：GitHub Secrets 直接注入构建环境
  */
 export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 export const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';

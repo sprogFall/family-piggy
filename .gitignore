@@ -2,10 +2,13 @@ node_modules/
 .expo/
 dist/
 web-build/
+android/
+ios/
 *.log
 .DS_Store
 .env
 .env.*
 !.env.example
 *.tsbuildinfo
-.eas/
+*.keystore
+*.jks

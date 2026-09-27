@@ -21,7 +21,6 @@
 ```bash
 EXPO_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
-EAS_PROJECT_ID=            # 执行 npx eas-cli init 后回填
 ```
 
 > Supabase 信息一律通过 `EXPO_PUBLIC_*` 环境变量注入（由 `app.config.js` 与 `src/lib/supabase.ts` 读取），**仓库中不提交任何真实连接信息**；`.env` 已被 `.gitignore` 忽略，仅提交 `.env.example` 模板。
@@ -35,29 +34,68 @@ npm install
 npm start        # Expo Dev Server，用 Expo Go 扫码即可运行
 ```
 
-## CI / 自动打包（GitHub Actions）
+## 打包 Android APK（GitHub Actions）
+
+完全在 GitHub Actions Runner 上构建，**不依赖 Expo / EAS 账号**：CI 内先 `expo prebuild` 生成原生工程，再用 Gradle 打包，并用仓库 Secrets 里的 keystore 签名。JDK 17 与 Android SDK 由 Runner 自带，无需额外准备。
 
 仓库内置两条工作流：
 
 - `.github/workflows/ci.yml`：push / PR 到 main 时执行 `typecheck + jest` 质量门禁；
-- `.github/workflows/release.yml`：推送 `v*` 标签或手动触发时，EAS 云打包 Android **APK**，产物自动上传到 Actions Artifacts（`app-release-apk`），发布正式版可在 `eas.json` 的 `production` profile 上扩展（AAB）。
+- `.github/workflows/release.yml`：推送 `v*` 标签或手动触发时，在 Runner 上构建 Android **APK**，产物上传到 Actions Artifacts（`family-piggy-apk`）。
 
-需要在 GitHub 仓库 **Settings → Secrets and variables → Actions** 配置 4 个 Secrets：
+### 一次性准备
+
+1. **生成签名 keystore**（本机执行一次；务必自行备份，丢失后无法覆盖升级已安装的 App）：
+
+```bash
+keytool -genkeypair -v -storetype PKCS12 \
+  -keystore release.keystore \
+  -alias family-piggy \
+  -keyalg RSA -keysize 2048 -validity 10000
+```
+
+2. **把 keystore 转成 Base64**（Windows PowerShell）：
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("release.keystore")) | Set-Clipboard
+```
+
+> macOS / Linux 用 `base64 -w0 release.keystore`。
+> keystore 已被 `.gitignore` 忽略（`*.keystore` / `*.jks`），**不要提交**。
+
+3. **在 GitHub 仓库 Settings → Secrets and variables → Actions 配置 5 个 Secrets**：
 
 | Secret | 说明 |
 | --- | --- |
 | `SUPABASE_URL` | Supabase 项目 URL |
 | `SUPABASE_ANON_KEY` | Supabase Anon Key |
-| `EXPO_TOKEN` | Expo 账号 Access Token（expo.dev → Account Settings → Access Tokens） |
-| `EAS_PROJECT_ID` | 运行 `npx eas-cli init` 后获得的 项目 ID |
+| `ANDROID_KEYSTORE_BASE64` | 第 2 步得到的 keystore Base64 文本（单行） |
+| `ANDROID_KEYSTORE_PASSWORD` | keystore 密码（PKCS12 下 key 密码与其相同） |
+| `ANDROID_KEY_ALIAS` | keystore 别名（示例中为 `family-piggy`） |
 
-打包前工作流会把 Supabase 信息注入 EAS 项目 secrets（`eas secret:push`），云构建时作为环境变量进入 bundle。
+4. **（可选）应用图标与启动图**：`app.config.js` 目前未配置 `icon / adaptiveIcon / splash`，未配置时使用 Expo 默认图标。
 
-发布新版本：
+### 触发与产物
 
 ```bash
-git tag v0.1.1 && git push origin v0.1.1
+# 手动触发：Actions → Release Build → Run workflow
+git tag v0.1.1 && git push origin v0.1.1   # 打标签触发，版本名取 tag 去掉 v
 ```
+
+产物在运行页的 Artifacts（`family-piggy-apk`），下载后可直接安装。工作流会打印 APK 的签名信息，并校验签名不是 debug 证书。
+
+### 环境变量与版本号注入链路
+
+```
+GitHub Secrets
+  └─ job 级 env：EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY
+       └─ gradle assembleRelease 触发 Metro 打包时，把 EXPO_PUBLIC_* 内联进 bundle
+
+github.run_number → ANDROID_VERSION_CODE → app.config.js 的 android.versionCode（每次构建递增，保证可覆盖升级）
+tag v0.1.1        → APP_VERSION          → app.config.js 的 version
+```
+
+> `EXPO_PUBLIC_*` 会被内联进客户端代码，属于公开信息；真正需要保密的是 keystore 与其密码，仅以 Secrets 形式保存在仓库设置中。
 
 ## 常用命令
 
