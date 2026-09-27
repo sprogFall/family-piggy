@@ -1,0 +1,71 @@
+name: Warm Android Cache
+
+# 为什么需要这个工作流
+# ---------------------
+# gradle/actions/setup-gradle 会把「部分 Gradle User Home」（Gradle 分发包、下载的依赖、
+# 本地 build cache）写入 GitHub Actions 缓存，但 GitHub 的缓存是**按 ref 隔离**的：
+#   * tag 触发的发布构建只能读「默认分支（main）」的缓存，自己写入的条目无法被其他 tag 复用；
+#   * setup-gradle 默认也只在默认分支写缓存。
+# 而 ci.yml 只跑 typecheck + jest，不会触发任何 Gradle 执行，于是 main 上从来没有缓存条目，
+# 导致每次 `v*` 发布都是完全冷启动：重新下载 gradle-8.10.2-all.zip 与全部 Android 依赖。
+#
+# 因此这里在 main 上主动跑一次完整的 Android 构建来「预热」缓存。发布构建的缓存匹配在
+# 找不到同分支条目时会回退到默认分支（见 setup-gradle 的 restore key 规则），即可直接命中。
+#
+# 触发时机刻意收窄，避免拖慢日常 push：仅在依赖 / 配置相关文件变更时，或手动触发时运行。
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'app.config.js'
+      - '.github/workflows/warm-android-cache.yml'
+
+concurrency:
+  group: warm-android-cache
+  cancel-in-progress: true
+
+env:
+  # CI 非交互环境，关闭 Expo CLI 遥测
+  EXPO_NO_TELEMETRY: '1'
+
+jobs:
+  warm-cache:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # 写入 main 作用域的 Gradle User Home 缓存，供 tag 发布构建复用
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 生成 Android 工程（expo prebuild）
+        run: npx expo prebuild --platform android --no-install
+
+      # 与 release.yml 保持一致：必须预热与发布构建相同的分发包，否则缓存命中不了
+      - name: 切换 Gradle 分发包为 -bin
+        run: |
+          sed -i 's#gradle-\([0-9.]*\)-all\.zip#gradle-\1-bin.zip#' android/gradle/wrapper/gradle-wrapper.properties
+          grep distributionUrl android/gradle/wrapper/gradle-wrapper.properties
+
+      # 不注入 keystore：Expo / RN 模板的 release buildType 默认使用 debug 签名，
+      # 这里只为下载依赖、填充 Gradle User Home，产物不会被上传
+      - name: 预热 Gradle 依赖与构建缓存
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease

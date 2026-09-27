@@ -38,9 +38,10 @@ npm start        # Expo Dev Server，用 Expo Go 扫码即可运行
 
 完全在 GitHub Actions Runner 上构建，**不依赖 Expo / EAS 账号**：CI 内先 `expo prebuild` 生成原生工程，再用 Gradle 打包，并用仓库 Secrets 里的 keystore 签名。JDK 17 与 Android SDK 由 Runner 自带，无需额外准备。
 
-仓库内置两条工作流：
+仓库内置三条工作流：
 
 - `.github/workflows/ci.yml`：push / PR 到 main 时执行 `typecheck + jest` 质量门禁；
+- `.github/workflows/warm-android-cache.yml`：在 main 上预热 Gradle 依赖与构建缓存（仅在依赖 / 配置变更或手动触发时运行），让标签发布构建免于冷启动；
 - `.github/workflows/release.yml`：推送 `v*` 标签或手动触发时，在 Runner 上构建 Android **APK**，产物上传到 Actions Artifacts（`family-piggy-apk`）。
 
 ### 一次性准备
@@ -104,6 +105,7 @@ tag v0.1.1        → APP_VERSION          → app.config.js 的 version
 | `Plugin [id: 'expo-module-gradle-plugin'] was not found` | node_modules 里混入了其他 SDK 版本的原生模块（多为 `expo-font` / `expo-asset` 等被宽松版本范围拉高）。跑 `npx expo install --check` 看清单，再用 `npx expo install <包名>` 装回 SDK 期望版本；本地开发用 Expo Go 不会暴露此问题，只有原生构建才会 |
 | `Could not get unknown property 'release' for SoftwareComponent container` | 同上，是版本错配的连带报错，依赖对齐后即消失 |
 | `APK 仍是 debug 签名` | keystore Secrets 未生效，检查 `ANDROID_KEYSTORE_BASE64` / 密码 / 别名 |
+| 发布构建很久，卡在 `Downloading …gradle-*-all.zip` | GitHub 缓存按 ref 隔离，tag 构建只能读默认分支的缓存，而 main 上从不执行 Gradle，所以每次都是冷启动。处理：到 Actions 手动触发一次 **Warm Android Cache**（或 push 改动 `package.json` / `package-lock.json`）把缓存预热到 main 作用域；另外 release 已把分发包换成体积更小的 `-bin` |
 
 依赖约定：Expo 生态包一律用 `npx expo install <包名>` 安装（版本范围由 SDK 决定），不要手写 `^` 范围。
 

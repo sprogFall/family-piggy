@@ -83,6 +83,13 @@ jobs:
       - name: 生成 Android 工程（expo prebuild）
         run: npx expo prebuild --platform android --no-install
 
+      # Gradle 官方建议 CI 使用 -bin 分发包（仅运行时，不含源码 / 文档）；
+      # Expo 模板默认是 -all.zip，体积约多 100MB，每次冷启动都要重新下载
+      - name: 切换 Gradle 分发包为 -bin
+        run: |
+          sed -i 's#gradle-\([0-9.]*\)-all\.zip#gradle-\1-bin.zip#' android/gradle/wrapper/gradle-wrapper.properties
+          grep distributionUrl android/gradle/wrapper/gradle-wrapper.properties
+
       - name: 打包 APK（gradle assembleRelease + keystore 签名）
         env:
           KEYSTORE_FILE: ${{ runner.temp }}/release.keystore
