@@ -47,11 +47,9 @@ jobs:
       - name: 校验依赖与 Expo SDK 匹配
         run: npx expo install --check
 
-      - name: 质量门禁（类型检查 + 测试）
-        run: |
-          npm run typecheck
-          npm test -- --ci
-
+      # 这里刻意不再重复跑 typecheck + jest：发布用的 tag 指向 main 上的提交，
+      # push 到 main 时 ci.yml 已对同一 SHA 执行过同样的质量门禁。
+      # 注意：Metro / Gradle 打包不会做类型检查，所以请勿从未经 CI 的提交直接打标签。
       - name: 校验 Secrets
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
