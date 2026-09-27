@@ -44,6 +44,8 @@ npm start        # Expo Dev Server，用 Expo Go 扫码即可运行
 - `.github/workflows/warm-android-cache.yml`：在 main 上预热 Gradle 依赖与构建缓存（仅在依赖 / 配置变更或手动触发时运行），让标签发布构建免于冷启动；
 - `.github/workflows/release.yml`：推送 `v*` 标签或手动触发时，在 Runner 上构建 Android **APK**，产物上传到 Actions Artifacts（`family-piggy-apk`）。
 
+> 工作流统一固定在 `ubuntu-24.04` 镜像，并使用原生声明 Node 24 运行时的 action 版本：前者避免 `ubuntu-latest` 迁移（2026-10-19 起切到 Ubuntu 26）造成构建环境被动突变，后者消除 Node 20 弃用告警。`gradle/actions/setup-gradle` 刻意停在 v5 —— v6 起默认改用专有的 enhanced 缓存实现，而 v5 与 v4 的缓存 key 格式一致，升级不会让已预热的缓存失效。升级 action 大版本前请先确认破坏性变更。
+
 ### 一次性准备
 
 1. **生成签名 keystore**（本机执行一次；务必自行备份，丢失后无法覆盖升级已安装的 App）：

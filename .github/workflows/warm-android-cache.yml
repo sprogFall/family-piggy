@@ -33,22 +33,24 @@ env:
 
 jobs:
   warm-cache:
-    runs-on: ubuntu-latest
+    # 固定镜像：ubuntu-latest 自 2026-10-19 起迁移到 Ubuntu 26，固定可避免构建环境被动突变
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 17
 
       # 写入 main 作用域的 Gradle User Home 缓存，供 tag 发布构建复用
-      - uses: gradle/actions/setup-gradle@v4
+      # 与 release.yml 保持一致使用 v5（v6 起默认改用专有的 enhanced 缓存实现）
+      - uses: gradle/actions/setup-gradle@v5
 
       - name: 安装依赖
         run: npm ci
