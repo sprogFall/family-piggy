@@ -82,7 +82,7 @@ jest.mock('@/lib/supabase', () => {
       from: jest.fn(),
       rpc: jest.fn(),
       channel: jest.fn(() => makeChannel()),
-      removeChannel: jest.fn(),
+      removeChannel: jest.fn(async () => 'ok'),
       storage: { from: jest.fn() },
     },
   };

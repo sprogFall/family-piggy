@@ -74,12 +74,24 @@ export interface RealtimeHandlers {
   onDelete?: (id: string) => void;
 }
 
+/**
+ * 订阅序号：保证每次订阅使用唯一 topic。
+ *
+ * supabase-js 的 `client.channel(topic)` 会按 topic 复用已存在的 channel，而
+ * `removeChannel` 是异步的（需等待服务端回包才从 channels 中移除）。若沿用固定的
+ * `transactions-${ledgerId}`，在首页与账单页之间切换时，新订阅会命中上一个尚未移除、
+ * 仍处于 joined/joining 的 channel，此时 `channel.on(...)` 会同步抛
+ * "cannot add callbacks after subscribe()"，在 useFocusEffect 中直接导致 App 闪退。
+ */
+let subscriptionSeq = 0;
+
 /** 订阅账本流水实时变更，返回取消订阅函数 */
 export const subscribeTransactions = (
   ledgerId: string,
   handlers: RealtimeHandlers,
 ): (() => void) => {
-  const channel = supabase.channel(`transactions-${ledgerId}`);
+  subscriptionSeq += 1;
+  const channel = supabase.channel(`transactions-${ledgerId}-${subscriptionSeq}`);
 
   channel.on(
     'postgres_changes' as never,
@@ -102,6 +114,6 @@ export const subscribeTransactions = (
   channel.subscribe();
 
   return () => {
-    supabase.removeChannel(channel);
+    void supabase.removeChannel(channel).catch(() => undefined);
   };
 };

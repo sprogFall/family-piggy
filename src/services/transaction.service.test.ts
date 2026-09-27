@@ -22,7 +22,8 @@ describe('transactionService', () => {
   afterEach(() => {
     fromMock.mockReset();
     channelMock.mockReset();
-    removeChannelMock.mockReset();
+    // removeChannel 的实现来自 jest.setup 的全局 mock，mockReset 会把它抹掉，故只清调用记录
+    removeChannelMock.mockClear();
   });
 
   it('listMonth 使用 [start, end) 范围查询并映射 bigint 金额', async () => {
@@ -68,6 +69,11 @@ describe('transactionService', () => {
 });
 
 describe('subscribeTransactions', () => {
+  afterEach(() => {
+    channelMock.mockReset();
+    removeChannelMock.mockClear();
+  });
+
   it('订阅带 ledger 过滤的实时通道并返回取消函数', () => {
     const channel = createRealtimeChannel();
     channelMock.mockReturnValue(channel);
@@ -75,7 +81,7 @@ describe('subscribeTransactions', () => {
     const onUpsert = jest.fn();
     const cleanup = subscribeTransactions('l1', { onUpsert });
 
-    expect(channelMock).toHaveBeenCalledWith('transactions-l1');
+    expect(channelMock).toHaveBeenCalledWith(expect.stringMatching(/^transactions-l1-/));
     expect(channel.on).toHaveBeenCalledWith(
       'postgres_changes',
       expect.objectContaining({ filter: 'ledger_id=eq.l1', table: 'transactions' }),
@@ -93,5 +99,39 @@ describe('subscribeTransactions', () => {
     expect(typeof cleanup).toBe('function');
     cleanup();
     expect(removeChannelMock).toHaveBeenCalledWith(channel);
+  });
+
+  it('同一账本重复订阅使用不同 topic，避免命中未移除的已 subscribe 通道', () => {
+    // 复刻 supabase-js RealtimeClient.channel 行为：按 topic 复用已有 channel，
+    // 且 join 之后再 on 会同步抛错（正是切 Tab 闪退的根因）
+    const registry = new Map<string, Record<string, unknown>>();
+    channelMock.mockImplementation((topic: string) => {
+      const existing = registry.get(topic);
+      if (existing) return existing;
+      const channel: Record<string, unknown> = {};
+      let joined = false;
+      channel.on = jest.fn(() => {
+        if (joined) {
+          throw new Error(
+            `cannot add \`postgres_changes\` callbacks for realtime:${topic} after \`subscribe()\`.`,
+          );
+        }
+        return channel;
+      });
+      channel.subscribe = jest.fn(() => {
+        joined = true;
+        return { unsubscribe: jest.fn() };
+      });
+      registry.set(topic, channel);
+      return channel;
+    });
+
+    subscribeTransactions('l1', { onUpsert: jest.fn() });
+    // 上一次订阅的 removeChannel 尚未完成（异步）时再次订阅
+    expect(() => subscribeTransactions('l1', { onUpsert: jest.fn() })).not.toThrow();
+
+    const topics = channelMock.mock.calls.map((call) => call[0]);
+    expect(topics).toHaveLength(2);
+    expect(topics[0]).not.toBe(topics[1]);
   });
 });
