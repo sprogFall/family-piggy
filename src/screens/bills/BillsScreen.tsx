@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { LedgerSwitcherSheet } from '@/components/LedgerSwitcherSheet';
 import { MonthSwitcher } from '@/components/ui/MonthSwitcher';
 import { PromptModal } from '@/components/ui/PromptModal';
+import { ScreenTopBar } from '@/components/ui/ScreenTopBar';
 import { currentMonth, monthKey, type MonthRef } from '@/domain/dates';
 import { formatCents } from '@/domain/money';
 import { groupByDay, monthSummary } from '@/domain/statement';
@@ -58,7 +59,7 @@ export const BillsScreen = ({ navigation }: Props) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.topBar}>
+      <ScreenTopBar>
         <Pressable style={styles.ledgerChip} onPress={() => setShowLedgerSheet(true)}>
           <Ionicons name="book" size={16} color={colors.primary} />
           <Text style={styles.ledgerName} numberOfLines={1}>
@@ -67,7 +68,7 @@ export const BillsScreen = ({ navigation }: Props) => {
           <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
         </Pressable>
         <MonthSwitcher month={month} onChange={setMonth} />
-      </View>
+      </ScreenTopBar>
 
       <View style={styles.summaryBar}>
         <SummaryItem label="支出" value={formatCents(summary.expense)} />
@@ -163,12 +164,5 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: '600',
     marginTop: 2,
-  },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: space(4),
-    paddingVertical: space(3),
   },
 });

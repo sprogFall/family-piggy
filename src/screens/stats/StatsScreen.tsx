@@ -9,6 +9,7 @@ import { BreakdownList } from '@/components/BreakdownList';
 import { DonutChart } from '@/components/charts/DonutChart';
 import { EmptyState } from '@/components/EmptyState';
 import { MonthSwitcher } from '@/components/ui/MonthSwitcher';
+import { ScreenTopBar } from '@/components/ui/ScreenTopBar';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { currentMonth, monthKey, type MonthRef } from '@/domain/dates';
 import { formatCents } from '@/domain/money';
@@ -61,10 +62,10 @@ export const StatsScreen = (_props: Props) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.topBar}>
+      <ScreenTopBar>
         <Text style={styles.title}>统计</Text>
         <MonthSwitcher month={month} onChange={setMonth} />
-      </View>
+      </ScreenTopBar>
 
       <View style={styles.tabs}>
         <SegmentedTabs items={KIND_TABS} value={kind} onChange={setKind} />
@@ -176,13 +177,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: fontSize.lg,
     fontWeight: '600',
-  },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: space(4),
-    paddingVertical: space(3),
   },
   track: {
     flexDirection: 'row',

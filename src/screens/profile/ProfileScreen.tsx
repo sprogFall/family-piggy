@@ -5,6 +5,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MenuItem } from '@/components/MenuItem';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
@@ -21,6 +22,7 @@ type Props = CompositeScreenProps<
 >;
 
 export const ProfileScreen = ({ navigation }: Props) => {
+  const insets = useSafeAreaInsets();
   const profile = useAuthStore((state) => state.profile);
   const session = useAuthStore((state) => state.session);
   const refreshProfile = useAuthStore((state) => state.refreshProfile);
@@ -68,7 +70,7 @@ export const ProfileScreen = ({ navigation }: Props) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + space(6) }]}>
         <Pressable onPress={() => void pickAvatar()} disabled={uploading}>
           {profile?.avatarUrl ? (
             <Image source={{ uri: profile.avatarUrl }} style={styles.avatar} />
@@ -179,8 +181,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: space(4),
+    paddingBottom: space(6),
     paddingHorizontal: space(5),
-    paddingVertical: space(6),
   },
   menu: {
     gap: space(2),

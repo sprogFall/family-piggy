@@ -14,6 +14,7 @@ import { LedgerSwitcherSheet } from '@/components/LedgerSwitcherSheet';
 import { SummaryCard } from '@/components/SummaryCard';
 import { MonthPickerSheet } from '@/components/ui/MonthPickerSheet';
 import { PromptModal } from '@/components/ui/PromptModal';
+import { ScreenTopBar } from '@/components/ui/ScreenTopBar';
 import { currentMonth, monthKey, monthLabel, type MonthRef } from '@/domain/dates';
 import { formatCents } from '@/domain/money';
 import { breakdownWithOther, monthSummary, trendByDay } from '@/domain/statement';
@@ -69,7 +70,7 @@ export const HomeScreen = ({ navigation }: Props) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.topBar}>
+      <ScreenTopBar>
         <Pressable style={styles.ledgerChip} onPress={() => setShowLedgerSheet(true)}>
           <Ionicons name="book" size={16} color={colors.primary} />
           <Text style={styles.ledgerName} numberOfLines={1}>
@@ -81,7 +82,7 @@ export const HomeScreen = ({ navigation }: Props) => {
           <Text style={styles.monthText}>{monthLabel(month)}</Text>
           <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
         </Pressable>
-      </View>
+      </ScreenTopBar>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {ledger ? (
@@ -205,12 +206,5 @@ const styles = StyleSheet.create({
   monthText: {
     color: colors.text,
     fontSize: fontSize.sm,
-  },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: space(4),
-    paddingVertical: space(3),
   },
 });

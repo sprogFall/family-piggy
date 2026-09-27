@@ -4,6 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import RNDateTimePicker from '@react-native-community/datetimepicker';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AmountKeypad } from '@/components/ui/AmountKeypad';
 import { CategoryGrid } from '@/components/ui/CategoryGrid';
@@ -27,6 +28,7 @@ const KIND_TABS = [
 ];
 
 export const AddTransactionScreen = ({ navigation, route }: Props) => {
+  const insets = useSafeAreaInsets();
   /** 编辑模式：从账单列表携带 transactionId 进入 */
   const editing = useTransactionStore((state) =>
     selectTransactionById(state, route.params?.transactionId),
@@ -137,7 +139,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + space(3) }]}>
         <Pressable hitSlop={12} onPress={() => navigation.goBack()}>
           <Ionicons name="close" size={26} color={colors.text} />
         </Pressable>
@@ -263,8 +265,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    paddingBottom: space(3),
     paddingHorizontal: space(4),
-    paddingVertical: space(3),
   },
   metaRow: {
     alignItems: 'center',
