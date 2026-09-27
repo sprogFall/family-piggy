@@ -11,6 +11,8 @@ module.exports = {
     version: process.env.APP_VERSION || '0.1.0',
     orientation: 'portrait',
     userInterfaceStyle: 'light',
+    // 原生资源 / 字体嵌入（expo install 提示需显式声明，动态配置无法自动写入）
+    plugins: ['expo-asset', 'expo-font'],
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.familypiggy.app',

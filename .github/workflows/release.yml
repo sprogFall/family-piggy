@@ -39,6 +39,10 @@ jobs:
       - name: 安装依赖
         run: npm ci
 
+      # 原生模块版本必须与 Expo SDK 对齐，否则 gradle 阶段会报难以定位的插件错误
+      - name: 校验依赖与 Expo SDK 匹配
+        run: npx expo install --check
+
       - name: 质量门禁（类型检查 + 测试）
         run: |
           npm run typecheck

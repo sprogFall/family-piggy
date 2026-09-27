@@ -20,6 +20,7 @@
 - 测试：Jest + React Native Testing Library
 - 图表：react-native-svg 自绘（不引入重型图表库）
 - 路由：@react-navigation
+- 依赖管理：Expo 生态包一律用 `npx expo install <包名>` 安装（版本由 SDK 决定，写入 `~` 精确范围），禁止手写 `^` 范围，避免原生模块版本漂移到其他 SDK；CI 会执行 `npx expo install --check` 作为门禁
 
 ## 3. 核心开发原则
 

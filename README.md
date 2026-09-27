@@ -97,6 +97,16 @@ tag v0.1.1        → APP_VERSION          → app.config.js 的 version
 
 > `EXPO_PUBLIC_*` 会被内联进客户端代码，属于公开信息；真正需要保密的是 keystore 与其密码，仅以 Secrets 形式保存在仓库设置中。
 
+### 构建失败排查
+
+| 现象 | 原因与处理 |
+| --- | --- |
+| `Plugin [id: 'expo-module-gradle-plugin'] was not found` | node_modules 里混入了其他 SDK 版本的原生模块（多为 `expo-font` / `expo-asset` 等被宽松版本范围拉高）。跑 `npx expo install --check` 看清单，再用 `npx expo install <包名>` 装回 SDK 期望版本；本地开发用 Expo Go 不会暴露此问题，只有原生构建才会 |
+| `Could not get unknown property 'release' for SoftwareComponent container` | 同上，是版本错配的连带报错，依赖对齐后即消失 |
+| `APK 仍是 debug 签名` | keystore Secrets 未生效，检查 `ANDROID_KEYSTORE_BASE64` / 密码 / 别名 |
+
+依赖约定：Expo 生态包一律用 `npx expo install <包名>` 安装（版本范围由 SDK 决定），不要手写 `^` 范围。
+
 ## 常用命令
 
 ```bash
