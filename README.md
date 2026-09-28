@@ -124,6 +124,19 @@ tag v0.1.1        → APP_VERSION          → app.config.js 的 version
 
 依赖约定：Expo 生态包一律用 `npx expo install <包名>` 安装（版本范围由 SDK 决定），不要手写 `^` 范围。
 
+## 应用内更新
+
+Android 端「关于我们」页会自动检查新版本，并支持应用内下载与安装（思路参照 [life_tools](https://github.com/sprogFall/life_tools)）：
+
+- **检查**：匿名调 GitHub Releases API 取最新**正式**版本（草稿与预发布包不会推给用户），再与当前 `version` 做语义化版本比较；
+- **下载**：按「Release 说明里的 `APK-Mirror` → `gh-proxy.com` 镜像 → GitHub 直连」依次回退，边下边显示进度；
+- **校验**：按资产大小 + Release 说明里的 `SHA256` 行做完整性校验（纯 JS 分块哈希，几十 MB 的包不会一次性读进内存）；
+- **安装**：唤起系统安装器；Android 8+ 首次需在手机上允许本应用「安装未知应用」，卡片会给出跳转入口；
+- **忽略版本**：点「忽略此版本」后不再提示，随时可「仍要查看」。
+
+> ⚠️ 该功能要求仓库为**公开**：私有仓库匿名访问 GitHub API 与 Release 资产一律 404（此时卡片显示「暂时无法获取更新信息」而不是报错）。
+> `SHA256` 行由 `release.yml` 在发布时自动写入 Release 说明；镜像行可选，追加 `APK-Mirror: https://...` 即可，App 端无需发版。
+
 ## 常用命令
 
 ```bash
@@ -149,6 +162,7 @@ npm run typecheck # tsc --noEmit
 - 导出：当月流水导出 Excel(.xlsx) / CSV（表头为 日期/类型/分类/金额(元)/标签），系统分享
 - 导入：Excel / CSV 解析预览，缺失分类与标签自动创建（同名标签复用）后批量入库
 - 设置：全局字体大小四档（小 / 标准 / 大 / 超大，标准为设计基准），本地持久化并对整个应用立即生效
+- 应用内更新：「关于我们」页检查 GitHub Release（仅正式版）→ 应用内下载（镜像回退 + SHA-256 校验）→ 拉起系统安装器，可忽略指定版本
 
 ## 目录结构
 
@@ -161,7 +175,7 @@ src/
   screens/     页面（auth / home / add / bills / stats / category / family / export / import / profile / settings / about）
   navigation/  路由与类型
   theme/       设计令牌与图标映射
-  types/       领域类型与数据库行映射
+  types/       领域类型、数据库行类型与 GitHub Release 行类型映射
   lib/         supabase client 与通用工具
 assets/        应用图标（icon.png 通用图标 / adaptive-icon.png Android 自适应前景）
 supabase/      schema.sql（表结构 / RLS / 触发器 / Realtime）+ migrations/（增量迁移）
