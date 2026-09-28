@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, Text, View } from 'react-native';
 
-import { colors, fontSize, radius, space } from '@/theme';
+import { createStyles, colors, fontSize, radius, space } from '@/theme';
 
 interface Props {
   visible: boolean;
@@ -22,7 +22,7 @@ export const BottomSheet = ({ visible, onClose, title, children }: Props) => (
   </Modal>
 );
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   handle: {
     alignSelf: 'center',
     backgroundColor: colors.border,

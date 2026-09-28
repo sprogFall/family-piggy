@@ -13,7 +13,7 @@ import { showAlert } from '@/lib/alert';
 import type { RootStackParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
 import type { Category, TxKind } from '@/types/domain';
-import { colors, fontSize, radius, space } from '@/theme';
+import { createStyles, colors, fontSize, radius, space } from '@/theme';
 import { ICON_CHOICES } from '@/theme/icons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CategoryManager'>;
@@ -193,7 +193,7 @@ const CategoryEditModal = ({ target, onClose, onSave, onDelete }: EditModalProps
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     backgroundColor: colors.bg,
     flex: 1,

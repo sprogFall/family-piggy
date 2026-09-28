@@ -4,8 +4,10 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StackActions, createNavigationContainerRef } from '@react-navigation/native';
 import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
-import type { ComponentProps } from 'react';
-import { StyleSheet, View } from 'react-native';
+import type { ComponentProps, ComponentType } from 'react';
+import { View } from 'react-native';
+
+import { useFontScaleSubscription } from '@/stores/settings.store';
 
 import { AboutScreen } from '@/screens/about/AboutScreen';
 import { AddTransactionScreen } from '@/screens/add/AddTransactionScreen';
@@ -24,11 +26,27 @@ import { ProfileScreen } from '@/screens/profile/ProfileScreen';
 import { RegisterScreen } from '@/screens/auth/RegisterScreen';
 import { SettingsScreen } from '@/screens/settings/SettingsScreen';
 import { StatsScreen } from '@/screens/stats/StatsScreen';
-import { TABBAR_HEIGHT, colors } from '@/theme';
+import { createStyles, colors, fontSize, scaleFontSize, TABBAR_HEIGHT } from '@/theme';
 import type { RootStackParamList, TabParamList } from './types';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
+
+/**
+ * 屏幕包装：订阅「设置 → 字体大小」档位。
+ *
+ * 样式里的 fontSize / lineHeight 由 theme.createStyles 以 getter 形式按当前档位计算，
+ * 因此只要屏幕重渲染，字号即刻生效，无需重建导航或重启应用。
+ * 包装组件必须在模块作用域创建一次，避免每次 render 生成新组件导致屏幕重挂载。
+ */
+const withFontScale = <P extends object>(Screen: ComponentType<P>): ComponentType<P> => {
+  const FontScaleAwareScreen = (props: P) => {
+    useFontScaleSubscription();
+    return <Screen {...props} />;
+  };
+  FontScaleAwareScreen.displayName = `withFontScale(${Screen.displayName ?? Screen.name ?? 'Screen'})`;
+  return FontScaleAwareScreen;
+};
 
 /** 根导航引用：供 TabBar 中央按钮等脱离组件树上下文的场景使用 */
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
@@ -68,7 +86,7 @@ const TabNavigator = () => (
       headerShown: false,
       tabBarActiveTintColor: colors.primary,
       tabBarInactiveTintColor: colors.textSecondary,
-      tabBarLabelStyle: { fontSize: 11 },
+      tabBarLabelStyle: { fontSize: scaleFontSize(fontSize.xs) },
       tabBarStyle: { height: TABBAR_HEIGHT, paddingTop: 6 },
       tabBarButton: TabBarButton,
       ...(route.name in TAB_ICONS
@@ -80,8 +98,8 @@ const TabNavigator = () => (
         : {}),
     })}
   >
-    <Tab.Screen name="Home" component={HomeScreen} />
-    <Tab.Screen name="Bills" component={BillsScreen} />
+    <Tab.Screen name="Home" component={HomeTab} />
+    <Tab.Screen name="Bills" component={BillsTab} />
     <Tab.Screen
       name="AddTab"
       component={AddTabPlaceholder}
@@ -100,40 +118,59 @@ const TabNavigator = () => (
         ),
       }}
     />
-    <Tab.Screen name="Stats" component={StatsScreen} />
-    <Tab.Screen name="Profile" component={ProfileScreen} />
+    <Tab.Screen name="Stats" component={StatsTab} />
+    <Tab.Screen name="Profile" component={ProfileTab} />
   </Tab.Navigator>
 );
 
+const HomeTab = withFontScale(HomeScreen);
+const BillsTab = withFontScale(BillsScreen);
+const StatsTab = withFontScale(StatsScreen);
+const ProfileTab = withFontScale(ProfileScreen);
+const Tabs = withFontScale(TabNavigator);
+const AddTransaction = withFontScale(AddTransactionScreen);
+const CategoryManager = withFontScale(CategoryManagerScreen);
+const Budget = withFontScale(BudgetScreen);
+const Export = withFontScale(ExportScreen);
+const Import = withFontScale(ImportScreen);
+const FamilyHub = withFontScale(FamilyHubScreen);
+const FamilyCreate = withFontScale(FamilyCreateScreen);
+const FamilyJoin = withFontScale(FamilyJoinScreen);
+const FamilyDetail = withFontScale(FamilyDetailScreen);
+const Settings = withFontScale(SettingsScreen);
+const About = withFontScale(AboutScreen);
+const Login = withFontScale(LoginScreen);
+const Register = withFontScale(RegisterScreen);
+
 export const AuthNavigator = () => (
   <RootStack.Navigator screenOptions={{ headerShown: false }}>
-    <RootStack.Screen name="Login" component={LoginScreen} />
-    <RootStack.Screen name="Register" component={RegisterScreen} />
+    <RootStack.Screen name="Login" component={Login} />
+    <RootStack.Screen name="Register" component={Register} />
   </RootStack.Navigator>
 );
 
 export const MainNavigator = () => (
   <RootStack.Navigator screenOptions={{ headerShown: false }}>
-    <RootStack.Screen name="Tabs" component={TabNavigator} />
+    <RootStack.Screen name="Tabs" component={Tabs} />
     <RootStack.Screen
       name="AddTransaction"
-      component={AddTransactionScreen}
+      component={AddTransaction}
       options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
     />
-    <RootStack.Screen name="CategoryManager" component={CategoryManagerScreen} />
-    <RootStack.Screen name="Budget" component={BudgetScreen} />
-    <RootStack.Screen name="Export" component={ExportScreen} />
-    <RootStack.Screen name="Import" component={ImportScreen} />
-    <RootStack.Screen name="FamilyHub" component={FamilyHubScreen} />
-    <RootStack.Screen name="FamilyCreate" component={FamilyCreateScreen} />
-    <RootStack.Screen name="FamilyJoin" component={FamilyJoinScreen} />
-    <RootStack.Screen name="FamilyDetail" component={FamilyDetailScreen} />
-    <RootStack.Screen name="Settings" component={SettingsScreen} />
-    <RootStack.Screen name="About" component={AboutScreen} />
+    <RootStack.Screen name="CategoryManager" component={CategoryManager} />
+    <RootStack.Screen name="Budget" component={Budget} />
+    <RootStack.Screen name="Export" component={Export} />
+    <RootStack.Screen name="Import" component={Import} />
+    <RootStack.Screen name="FamilyHub" component={FamilyHub} />
+    <RootStack.Screen name="FamilyCreate" component={FamilyCreate} />
+    <RootStack.Screen name="FamilyJoin" component={FamilyJoin} />
+    <RootStack.Screen name="FamilyDetail" component={FamilyDetail} />
+    <RootStack.Screen name="Settings" component={Settings} />
+    <RootStack.Screen name="About" component={About} />
   </RootStack.Navigator>
 );
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   addButton: {
     alignItems: 'center',
     backgroundColor: colors.primary,

@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { monthLabel, type MonthRef } from '@/domain/dates';
-import { colors, fontSize, space } from '@/theme';
+import { createStyles, colors, fontSize, space } from '@/theme';
 
 interface Props {
   month: MonthRef;
@@ -21,7 +21,7 @@ export const MonthSwitcher = ({ month, onChange }: Props) => (
   </View>
 );
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   label: {
     color: colors.text,
     fontSize: fontSize.md,

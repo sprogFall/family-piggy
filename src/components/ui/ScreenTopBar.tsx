@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { space } from '@/theme';
+import { createStyles, space } from '@/theme';
 
 interface Props {
   children: ReactNode;
@@ -17,7 +17,7 @@ export const ScreenTopBar = ({ children }: Props) => {
   return <View style={[styles.bar, { paddingTop: insets.top + space(3) }]}>{children}</View>;
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   bar: {
     alignItems: 'center',
     flexDirection: 'row',

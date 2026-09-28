@@ -1,10 +1,10 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import Constants from 'expo-constants';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/ui/AppHeader';
 import type { RootStackParamList } from '@/navigation/types';
-import { colors, fontSize, radius, space } from '@/theme';
+import { createStyles, colors, fontSize, radius, space } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'About'>;
 
@@ -27,7 +27,7 @@ export const AboutScreen = ({ navigation }: Props) => (
   </View>
 );
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     backgroundColor: colors.bg,
     flex: 1,

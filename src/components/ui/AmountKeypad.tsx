@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { pressAmountKey, type AmountKey } from '@/domain/amount-input';
-import { colors, fontSize } from '@/theme';
+import { createStyles, colors, fontSize } from '@/theme';
 
 interface Props {
   value: string;
@@ -59,7 +59,7 @@ export const AmountKeypad = ({
   </View>
 );
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     backgroundColor: colors.card,
     flexDirection: 'row',

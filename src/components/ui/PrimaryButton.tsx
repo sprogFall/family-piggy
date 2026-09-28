@@ -1,7 +1,7 @@
 import type { StyleProp, ViewStyle } from 'react-native';
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, Text } from 'react-native';
 
-import { colors, fontSize, radius } from '@/theme';
+import { createStyles, colors, fontSize, radius } from '@/theme';
 
 interface Props {
   title: string;
@@ -41,7 +41,7 @@ export const PrimaryButton = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   button: {
     alignItems: 'center',
     borderRadius: radius.lg,

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
-import { colors } from '@/theme';
+import { createStyles, colors } from '@/theme';
 import { categoryVisual } from '@/theme/icons';
 
 interface Props {
@@ -33,7 +33,7 @@ export const CategoryIcon = ({ iconKey, size = 40, selected = false }: Props) =>
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   circle: {
     alignItems: 'center',
     justifyContent: 'center',

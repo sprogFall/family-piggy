@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Share, Text, View } from 'react-native';
 
 import { EmptyState } from '@/components/EmptyState';
 import { AppHeader } from '@/components/ui/AppHeader';
@@ -10,7 +10,7 @@ import { showAlert } from '@/lib/alert';
 import { useAuthStore } from '@/stores/auth.store';
 import type { RootStackParamList } from '@/navigation/types';
 import { selectMembers, useLedgerStore } from '@/stores/ledger.store';
-import { colors, fontSize, radius, space } from '@/theme';
+import { createStyles, colors, fontSize, radius, space } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FamilyDetail'>;
 
@@ -147,7 +147,7 @@ export const FamilyDetailScreen = ({ navigation, route }: Props) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   avatar: {
     alignItems: 'center',
     backgroundColor: colors.primaryLight,

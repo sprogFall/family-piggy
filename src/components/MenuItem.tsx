@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
-import { colors, fontSize, radius, space } from '@/theme';
+import { createStyles, colors, fontSize, radius, space } from '@/theme';
 
 interface Props {
   icon: React.ComponentProps<typeof Ionicons>['name'];
@@ -22,7 +22,7 @@ export const MenuItem = ({ icon, label, hint, danger = false, onPress, right }: 
   </Pressable>
 );
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   danger: {
     color: colors.danger,
   },

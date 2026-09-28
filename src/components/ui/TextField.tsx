@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { TextInputProps } from 'react-native';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { colors, fontSize, radius, space } from '@/theme';
+import { createStyles, colors, fontSize, radius, space } from '@/theme';
 
 interface Props extends TextInputProps {
   label?: string;
@@ -25,7 +25,7 @@ export const TextField = ({ label, error, right, style, ...inputProps }: Props) 
   </View>
 );
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   error: {
     color: colors.danger,
     fontSize: fontSize.sm,

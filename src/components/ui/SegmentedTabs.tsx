@@ -1,6 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
-import { colors, fontSize, radius, space } from '@/theme';
+import { createStyles, colors, fontSize, radius, space } from '@/theme';
 
 interface Item<K extends string> {
   key: K;
@@ -27,7 +27,7 @@ export const SegmentedTabs = <K extends string>({ items, value, onChange }: Prop
   </View>
 );
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   activeIndicator: {
     backgroundColor: colors.primary,
   },

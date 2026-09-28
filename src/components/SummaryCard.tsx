@@ -1,8 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { budgetProgress } from '@/domain/budget';
 import { formatCents } from '@/domain/money';
-import { colors, fontSize, space } from '@/theme';
+import { createStyles, colors, fontSize, space } from '@/theme';
 
 interface Props {
   expense: number;
@@ -51,7 +51,7 @@ export const SummaryCard = ({ expense, income, balance, budget = 0, onPressBudge
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   budgetBar: {
     backgroundColor: '#FFFFFF',
     borderRadius: 999,

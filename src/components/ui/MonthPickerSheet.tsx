@@ -1,7 +1,7 @@
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable, ScrollView, Text } from 'react-native';
 
 import { currentMonth, monthLabel, recentMonths, type MonthRef } from '@/domain/dates';
-import { colors, fontSize, space } from '@/theme';
+import { createStyles, colors, fontSize, space } from '@/theme';
 
 import { BottomSheet } from './BottomSheet';
 
@@ -39,7 +39,7 @@ export const MonthPickerSheet = ({ visible, onClose, value, onSelect }: Props) =
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   active: {
     color: colors.primary,
     fontWeight: '600',

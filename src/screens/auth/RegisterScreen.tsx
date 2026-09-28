@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { showAlert } from '@/lib/alert';
@@ -10,7 +10,7 @@ import { validateEmail, validateNickname, validatePassword } from '@/domain/vali
 import { getErrorMessage } from '@/lib/errors';
 import type { RootStackParamList } from '@/navigation/types';
 import { useAuthStore } from '@/stores/auth.store';
-import { colors, fontSize, space } from '@/theme';
+import { createStyles, colors, fontSize, space } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Register'>;
 
@@ -93,7 +93,7 @@ export const RegisterScreen = ({ navigation }: Props) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     backgroundColor: colors.bg,
     flex: 1,

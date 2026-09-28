@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, Text, View } from 'react-native';
 
 import { showAlert } from '@/lib/alert';
-import { colors, fontSize, radius, space } from '@/theme';
+import { createStyles, colors, fontSize, radius, space } from '@/theme';
 
 import { PrimaryButton } from './PrimaryButton';
 import { TextField } from './TextField';
@@ -64,7 +64,7 @@ export const PromptModal = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   actions: {
     flexDirection: 'row',
     gap: space(3),

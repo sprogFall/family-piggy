@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useFontScaleSubscription } from '@/stores/settings.store';
 import { useToastStore } from '@/stores/toast.store';
-import { colors, fontSize, radius, space, TABBAR_HEIGHT } from '@/theme';
+import { createStyles, colors, fontSize, radius, space, TABBAR_HEIGHT } from '@/theme';
 
 /** 淡入 / 淡出时长（毫秒） */
 const FADE_MS = 160;
@@ -12,6 +13,8 @@ const FADE_MS = 160;
 export const Toast = () => {
   const insets = useSafeAreaInsets();
   const message = useToastStore((state) => state.message);
+  // 订阅字号档位：浮窗文本随「设置 → 字体大小」缩放
+  useFontScaleSubscription();
   const [shown, setShown] = useState<string | null>(null);
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -44,7 +47,7 @@ export const Toast = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   bubble: {
     backgroundColor: colors.toastBg,
     borderRadius: radius.round,

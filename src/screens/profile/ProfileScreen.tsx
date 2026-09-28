@@ -4,7 +4,7 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MenuItem } from '@/components/MenuItem';
@@ -14,7 +14,7 @@ import { avatarService } from '@/services/avatar.service';
 import { getErrorMessage } from '@/lib/errors';
 import type { RootStackParamList, TabParamList } from '@/navigation/types';
 import { useAuthStore } from '@/stores/auth.store';
-import { colors, fontSize, radius, space } from '@/theme';
+import { createStyles, colors, fontSize, radius, space } from '@/theme';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<TabParamList, 'Profile'>,
@@ -144,7 +144,7 @@ export const ProfileScreen = ({ navigation }: Props) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   avatar: {
     alignItems: 'center',
     backgroundColor: colors.primary,

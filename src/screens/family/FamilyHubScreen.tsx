@@ -1,14 +1,14 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { EmptyState } from '@/components/EmptyState';
 import { AppHeader } from '@/components/ui/AppHeader';
 import type { RootStackParamList } from '@/navigation/types';
 import { useLedgerStore } from '@/stores/ledger.store';
-import { colors, fontSize, radius, space } from '@/theme';
+import { createStyles, colors, fontSize, radius, space } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FamilyHub'>;
 
@@ -81,7 +81,7 @@ export const FamilyHubScreen = ({ navigation }: Props) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   actionCard: {
     alignItems: 'center',
     backgroundColor: colors.card,

@@ -1,16 +1,18 @@
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Toast } from '@/components/ui/Toast';
 import { AuthNavigator, MainNavigator, navigationRef } from '@/navigation';
 import { useAuthStore } from '@/stores/auth.store';
 import { useLedgerStore } from '@/stores/ledger.store';
+import { useFontScaleSubscription, useSettingsStore } from '@/stores/settings.store';
+import { useTagStore } from '@/stores/tag.store';
 import { useTransactionStore } from '@/stores/transaction.store';
 import { useCategoryStore } from '@/stores/category.store';
-import { colors } from '@/theme';
+import { createStyles, colors } from '@/theme';
 
 const navTheme = {
   ...DefaultTheme,
@@ -21,20 +23,25 @@ const navTheme = {
   },
 };
 
-const SplashView = () => (
-  <View style={styles.splash}>
-    <View style={styles.logo}>
-      <Text style={styles.logoText}>¥</Text>
+const SplashView = () => {
+  // 订阅字号档位：启动页文本随「设置 → 字体大小」缩放
+  useFontScaleSubscription();
+  return (
+    <View style={styles.splash}>
+      <View style={styles.logo}>
+        <Text style={styles.logoText}>¥</Text>
+      </View>
+      <ActivityIndicator color={colors.primary} style={styles.spinner} />
     </View>
-    <ActivityIndicator color={colors.primary} style={styles.spinner} />
-  </View>
-);
+  );
+};
 
 export default function App() {
   const status = useAuthStore((state) => state.status);
 
   useEffect(() => {
     void useAuthStore.getState().initialize();
+    void useSettingsStore.getState().hydrate();
   }, []);
 
   useEffect(() => {
@@ -45,6 +52,7 @@ export default function App() {
       useLedgerStore.getState().reset();
       useTransactionStore.getState().reset();
       useCategoryStore.getState().reset();
+      useTagStore.getState().reset();
     }
   }, [status]);
 
@@ -59,7 +67,7 @@ export default function App() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   logo: {
     alignItems: 'center',
     backgroundColor: colors.primary,

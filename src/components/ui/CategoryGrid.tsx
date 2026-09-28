@@ -1,8 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import type { Category } from '@/types/domain';
-import { colors, fontSize, space } from '@/theme';
+import { createStyles, colors, fontSize, space } from '@/theme';
 
 interface Props {
   categories: Category[];
@@ -30,7 +30,7 @@ export const CategoryGrid = ({ categories, selectedId, onSelect }: Props) => (
   </View>
 );
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

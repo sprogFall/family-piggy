@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { useLedgerStore } from '@/stores/ledger.store';
 import type { Ledger } from '@/types/domain';
-import { colors, fontSize, radius, space } from '@/theme';
+import { createStyles, colors, fontSize, radius, space } from '@/theme';
 
 import { BottomSheet } from './ui/BottomSheet';
 import { PrimaryButton } from './ui/PrimaryButton';
@@ -62,7 +62,7 @@ export const LedgerSwitcherSheet = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   active: {
     color: colors.primary,
     fontWeight: '600',

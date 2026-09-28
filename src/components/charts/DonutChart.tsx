@@ -1,8 +1,8 @@
 import { Path, Svg } from 'react-native-svg';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { arcPath, donutArcs, donutCenterBox } from '@/domain/charts';
-import { colors, fontSize } from '@/theme';
+import { createStyles, colors, fontSize } from '@/theme';
 
 export interface DonutSegment {
   value: number;
@@ -55,7 +55,7 @@ export const DonutChart = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   center: {
     alignItems: 'center',
     justifyContent: 'center',
