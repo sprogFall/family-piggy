@@ -1,38 +1,35 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import type { Tag } from '@/types/domain';
 import { createStyles, colors, fontSize, radius, space } from '@/theme';
+
+import { PromptModal } from './PromptModal';
 
 interface Props {
   tags: Tag[];
   selectedId: string | null;
   /** 选中 / 取消选中（再点一次已选中的标签即取消） */
   onSelect: (tagId: string | null) => void;
-  /** 新建标签（保存当前这笔时一并落库，下次可直接复用） */
+  /** 新建标签（由调用方落库并选中，下次记账可直接复用） */
   onCreate: (name: string) => void;
   /** 长按删除标签（由调用方二次确认） */
   onRemove: (tag: Tag) => void;
 }
 
+/** 与 `tags.name` 的展示宽度匹配的输入上限 */
 const MAX_TAG_LENGTH = 8;
 
 /**
- * 记账标签选择器：展示当前收支类型下已有的标签（点击复用），
- * 也可现场新增；新标签在提交这笔账时落库，下次记账即可直接点选。
+ * 记账标签选择器：展示当前收支类型下已有的标签（点击复用、长按删除），
+ * 「新标签」通过**弹窗**输入。
+ *
+ * 输入框刻意不内联在标签行里：标签行是 `flexWrap` 容器，Android 上把 `TextInput`
+ * 放进换行容器会触发反复测量（画面闪烁）且被挤成一条缝，用弹窗既稳定又能自动聚焦。
  */
 export const TagSelector = ({ tags, selectedId, onSelect, onCreate, onRemove }: Props) => {
-  const [draft, setDraft] = useState('');
-  const [adding, setAdding] = useState(false);
-
-  const submitDraft = () => {
-    const name = draft.trim();
-    if (name === '') return;
-    onCreate(name);
-    setDraft('');
-    setAdding(false);
-  };
+  const [creatorVisible, setCreatorVisible] = useState(false);
 
   return (
     <View style={styles.container}>
@@ -61,39 +58,26 @@ export const TagSelector = ({ tags, selectedId, onSelect, onCreate, onRemove }: 
           );
         })}
 
-        {adding ? (
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              value={draft}
-              placeholder="标签名"
-              placeholderTextColor={colors.textTertiary}
-              maxLength={MAX_TAG_LENGTH}
-              autoFocus
-              returnKeyType="done"
-              onChangeText={setDraft}
-              onSubmitEditing={submitDraft}
-              onBlur={() => {
-                if (draft.trim() === '') setAdding(false);
-              }}
-            />
-            <Pressable
-              style={styles.confirm}
-              accessibilityRole="button"
-              accessibilityLabel="确认新增标签"
-              onPress={submitDraft}
-              hitSlop={6}
-            >
-              <Ionicons name="checkmark" size={16} color={colors.white} />
-            </Pressable>
-          </View>
-        ) : (
-          <Pressable style={[styles.chip, styles.addChip]} onPress={() => setAdding(true)}>
-            <Ionicons name="add" size={13} color={colors.primary} />
-            <Text style={styles.addText}>新标签</Text>
-          </Pressable>
-        )}
+        <Pressable
+          style={[styles.chip, styles.addChip]}
+          accessibilityRole="button"
+          accessibilityLabel="新增标签"
+          onPress={() => setCreatorVisible(true)}
+        >
+          <Ionicons name="add" size={13} color={colors.primary} />
+          <Text style={styles.addText}>新标签</Text>
+        </Pressable>
       </View>
+
+      <PromptModal
+        visible={creatorVisible}
+        onClose={() => setCreatorVisible(false)}
+        title="新建标签"
+        placeholder={`标签名（最多 ${MAX_TAG_LENGTH} 个字）`}
+        submitLabel="添加"
+        maxLength={MAX_TAG_LENGTH}
+        onSubmit={onCreate}
+      />
     </View>
   );
 };
@@ -135,14 +119,6 @@ const styles = createStyles({
     flexWrap: 'wrap',
     gap: space(2),
   },
-  confirm: {
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    borderRadius: radius.round,
-    height: 26,
-    justifyContent: 'center',
-    width: 26,
-  },
   container: {
     paddingHorizontal: space(4),
     paddingVertical: space(2),
@@ -156,23 +132,6 @@ const styles = createStyles({
   hint: {
     color: colors.textTertiary,
     fontSize: fontSize.xs,
-  },
-  input: {
-    color: colors.text,
-    flex: 1,
-    fontSize: fontSize.sm,
-    paddingVertical: 0,
-  },
-  inputRow: {
-    alignItems: 'center',
-    backgroundColor: colors.bg,
-    borderColor: colors.primary,
-    borderRadius: radius.round,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: space(2),
-    paddingHorizontal: space(3),
-    paddingVertical: space(1),
   },
   label: {
     color: colors.textSecondary,

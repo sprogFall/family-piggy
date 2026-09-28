@@ -25,6 +25,12 @@ const setup = (overrides: Partial<React.ComponentProps<typeof TagSelector>> = {}
   return props;
 };
 
+/** 打开「新标签」弹窗：输入框在 Modal 内，不会挤压/重排标签行 */
+const openCreator = () => {
+  fireEvent.press(screen.getByText('新标签'));
+  return screen.getByPlaceholderText('标签名（最多 8 个字）');
+};
+
 describe('TagSelector', () => {
   it('展示同类型下已有标签供复用', () => {
     setup();
@@ -42,24 +48,41 @@ describe('TagSelector', () => {
     expect(selected.onSelect).toHaveBeenCalledWith(null);
   });
 
-  it('新增标签：输入后确认回调 onCreate，并收起输入框', () => {
-    const props = setup({ tags: [] });
-    fireEvent.press(screen.getByText('新标签'));
-
-    const input = screen.getByPlaceholderText('标签名');
-    fireEvent.changeText(input, '  下午茶  ');
-    fireEvent.press(screen.getByLabelText('确认新增标签'));
-
-    expect(props.onCreate).toHaveBeenCalledWith('下午茶');
-    expect(screen.queryByPlaceholderText('标签名')).toBeNull();
+  it('未打开时没有输入框（输入框只在弹窗里）', () => {
+    setup();
+    expect(screen.queryByPlaceholderText('标签名（最多 8 个字）')).toBeNull();
   });
 
-  it('空输入不触发新增', () => {
-    const props = setup({ tags: [] });
-    fireEvent.press(screen.getByText('新标签'));
-    fireEvent.changeText(screen.getByPlaceholderText('标签名'), '   ');
-    fireEvent.press(screen.getByLabelText('确认新增标签'));
+  it('点击「新标签」弹出输入弹窗', () => {
+    setup();
+    expect(openCreator()).toBeTruthy();
+    expect(screen.getByText('新建标签')).toBeTruthy();
+    expect(screen.getByText('添加')).toBeTruthy();
+  });
+
+  it('弹窗内输入名称并提交：回调 onCreate 且弹窗关闭', () => {
+    const props = setup();
+    fireEvent.changeText(openCreator(), '  下午茶  ');
+
+    fireEvent.press(screen.getByText('添加'));
+
+    expect(props.onCreate).toHaveBeenCalledWith('下午茶');
+    expect(screen.queryByPlaceholderText('标签名（最多 8 个字）')).toBeNull();
+  });
+
+  it('弹窗内空输入不触发新增', () => {
+    const props = setup();
+    fireEvent.changeText(openCreator(), '   ');
+    fireEvent.press(screen.getByText('添加'));
     expect(props.onCreate).not.toHaveBeenCalled();
+  });
+
+  it('取消后不新增，且弹窗关闭', () => {
+    const props = setup();
+    openCreator();
+    fireEvent.press(screen.getByText('取消'));
+    expect(props.onCreate).not.toHaveBeenCalled();
+    expect(screen.queryByPlaceholderText('标签名（最多 8 个字）')).toBeNull();
   });
 
   it('长按标签回调删除（由调用方二次确认）', () => {

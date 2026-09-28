@@ -13,6 +13,8 @@ interface Props {
   title: string;
   placeholder?: string;
   submitLabel?: string;
+  /** 输入长度上限（不传则不限制） */
+  maxLength?: number;
   onSubmit: (value: string) => void;
 }
 
@@ -22,6 +24,7 @@ export const PromptModal = ({
   title,
   placeholder,
   submitLabel = '确定',
+  maxLength,
   onSubmit,
 }: Props) => {
   const [value, setValue] = useState('');
@@ -38,6 +41,7 @@ export const PromptModal = ({
             value={value}
             onChangeText={setValue}
             placeholder={placeholder}
+            maxLength={maxLength}
             autoFocus
           />
           <View style={styles.actions}>
