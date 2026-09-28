@@ -39,7 +39,7 @@ const RootStack = createNativeStackNavigator<RootStackParamList>();
  * 因此只要屏幕重渲染，字号即刻生效，无需重建导航或重启应用。
  * 包装组件必须在模块作用域创建一次，避免每次 render 生成新组件导致屏幕重挂载。
  */
-const withFontScale = <P extends object>(Screen: ComponentType<P>): ComponentType<P> => {
+export const withFontScale = <P extends object>(Screen: ComponentType<P>): ComponentType<P> => {
   const FontScaleAwareScreen = (props: P) => {
     useFontScaleSubscription();
     return <Screen {...props} />;
