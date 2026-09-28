@@ -1,8 +1,8 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { formatCents, formatRatio } from '@/domain/money';
 import type { BreakdownItem } from '@/domain/statement';
-import { CHART_PALETTE, colors, fontSize, space } from '@/theme';
+import { createStyles, CHART_PALETTE, colors, fontSize, space } from '@/theme';
 
 interface Props {
   items: BreakdownItem[];
@@ -15,9 +15,8 @@ export const BreakdownList = ({ items, showAmount = false }: Props) => (
     {items.map((item, index) => (
       <View key={`${item.categoryId}-${index}`} style={styles.row}>
         <View style={[styles.dot, { backgroundColor: CHART_PALETTE[index % CHART_PALETTE.length] }]} />
-        <Text style={styles.name} numberOfLines={1}>
-          {item.name}
-        </Text>
+        {/* 不限行数：窄列下长分类名换行展示，避免只剩省略号 */}
+        <Text style={styles.name}>{item.name}</Text>
         <Text style={styles.ratio}>{formatRatio(item.ratio)}</Text>
         {showAmount ? (
           <Text style={styles.amount}>{formatCents(item.amount)}</Text>
@@ -27,9 +26,10 @@ export const BreakdownList = ({ items, showAmount = false }: Props) => (
   </View>
 );
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   amount: {
     color: colors.text,
+    flexShrink: 0,
     fontSize: fontSize.sm,
     fontWeight: '600',
     textAlign: 'right',
@@ -43,11 +43,14 @@ const styles = StyleSheet.create({
   },
   name: {
     color: colors.text,
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
     fontSize: fontSize.sm,
+    minWidth: 48,
   },
   ratio: {
     color: colors.textSecondary,
+    flexShrink: 0,
     fontSize: fontSize.sm,
     marginRight: space(3),
   },

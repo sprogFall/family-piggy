@@ -3,7 +3,7 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 
 import { BreakdownList } from '@/components/BreakdownList';
 import { DonutChart } from '@/components/charts/DonutChart';
@@ -19,7 +19,7 @@ import type { RootStackParamList, TabParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
 import { selectMonthTransactions, useTransactionStore } from '@/stores/transaction.store';
 import type { TxKind } from '@/types/domain';
-import { CHART_PALETTE, colors, fontSize, radius, space } from '@/theme';
+import { createStyles, CHART_PALETTE, colors, fontSize, radius, space } from '@/theme';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<TabParamList, 'Stats'>,
@@ -95,7 +95,8 @@ export const StatsScreen = (_props: Props) => {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{kind === 'expense' ? '支出' : '收入'}构成</Text>
           {items.length > 0 ? (
-            <View style={styles.donutRow}>
+            /* 环形图与明细上下排布：明细独占整卡宽度，保证再长的分类名也能完整展示 */
+            <View style={styles.breakdown}>
               <DonutChart
                 size={150}
                 segments={items.map((item, index) => ({
@@ -105,6 +106,7 @@ export const StatsScreen = (_props: Props) => {
                 centerLabel={formatCents(kind === 'expense' ? summary.expense : summary.income)}
                 centerSub={kind === 'expense' ? '总支出' : '总收入'}
               />
+              {/* alignSelf: stretch 让明细撑满整卡宽度，长分类名换行而非省略 */}
               <View style={styles.legend}>
                 <BreakdownList items={items} showAmount />
               </View>
@@ -118,7 +120,7 @@ export const StatsScreen = (_props: Props) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   card: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,
@@ -138,10 +140,12 @@ const styles = StyleSheet.create({
   content: {
     padding: space(3),
   },
-  donutRow: {
+  breakdown: {
     alignItems: 'center',
-    flexDirection: 'row',
     gap: space(4),
+  },
+  legend: {
+    alignSelf: 'stretch',
   },
   expenseBar: {
     backgroundColor: colors.danger,
@@ -152,9 +156,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: radius.round,
     height: 6,
-  },
-  legend: {
-    flex: 1,
   },
   summaryAmount: {
     color: colors.text,
