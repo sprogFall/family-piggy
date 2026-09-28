@@ -156,3 +156,9 @@ describe('app.config 应用图标', () => {
     expect(offenders.slice(0, 5)).toEqual([]);
   });
 });
+
+describe('app.config Android 权限', () => {
+  it('声明安装未知来源应用所需权限（应用内更新拉起系统安装器）', () => {
+    expect(config.expo.android.permissions).toContain('REQUEST_INSTALL_PACKAGES');
+  });
+});

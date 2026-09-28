@@ -25,9 +25,21 @@ jest.mock('expo-sharing', () => ({
 jest.mock('expo-file-system', () => ({
   cacheDirectory: 'file:///cache/',
   documentDirectory: 'file:///docs/',
+  EncodingType: { Base64: 'base64', UTF8: 'utf8' },
   writeAsStringAsync: jest.fn(async () => undefined),
   readAsStringAsync: jest.fn(async () => ''),
   deleteAsync: jest.fn(async () => undefined),
+  getInfoAsync: jest.fn(async () => ({ exists: false, isDirectory: false, size: 0, uri: '' })),
+  makeDirectoryAsync: jest.fn(async () => undefined),
+  readDirectoryAsync: jest.fn(async () => []),
+  getContentUriAsync: jest.fn(async (uri: string) => uri),
+  createDownloadResumable: jest.fn(() => ({
+    downloadAsync: jest.fn(async () => ({ status: 200, uri: 'file:///docs/updates/family-piggy.apk' })),
+  })),
+}));
+
+jest.mock('expo-intent-launcher', () => ({
+  startActivityAsync: jest.fn(async () => undefined),
 }));
 
 jest.mock('xlsx', () => ({

@@ -26,6 +26,8 @@ module.exports = {
       package: 'com.familypiggy.app',
       // 版本号：CI 中由工作流运行序号注入，保证后续 APK 可覆盖升级
       versionCode: Number(process.env.ANDROID_VERSION_CODE || 1),
+      // 应用内更新需要拉起系统安装器安装下载下来的 APK
+      permissions: ['REQUEST_INSTALL_PACKAGES'],
       // 自适应图标（Android 8+）：前景同为满幅无缝图，主体内容收在安全区内，
       // 圆形 / 圆角方形遮罩都不会裁到笔记本、铅笔与叶子
       adaptiveIcon: {

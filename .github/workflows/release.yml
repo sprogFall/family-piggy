@@ -137,6 +137,9 @@ jobs:
           cp "$APK" "$NAME"
           ls -lh "$NAME"
           echo "APK_NAME=$NAME" >> "$GITHUB_ENV"
+          # 应用内更新会带下载地址、大小与 SHA256 做完整性校验，这里一并算好写进 Release 说明
+          echo "APK_SHA256=$(sha256sum "$NAME" | awk '{print $1}')" >> "$GITHUB_ENV"
+          echo "APK_SIZE=$(stat -c%s "$NAME")" >> "$GITHUB_ENV"
 
       # Actions Artifacts 一定会被打包成 zip，下载后还要解压；
       # 这里改为发布 Release 资产，.apk 可直接点击下载安装。
@@ -146,19 +149,23 @@ jobs:
         run: |
           APK="$APK_NAME"
           TITLE="家庭记账 ${RELEASE_TAG}"
+          # 末行 SHA256 为机器可读行，App 端解析后用于安装包完整性校验，请勿删改格式
           NOTES=$(printf '%s\n' \
             "Android 安装包（已用仓库 keystore 签名，可直接覆盖安装升级）。" \
             "" \
             "- 版本：${RELEASE_TAG}" \
             "- 提交：${GITHUB_SHA}" \
             "- 构建号：${GITHUB_RUN_NUMBER}" \
-            "- 安装包：${APK}" \
+            "- 安装包：${APK}（${APK_SIZE} 字节）" \
             "" \
-            "在下方 Assets 中直接下载 .apk 安装，无需解压。")
+            "在下方 Assets 中直接下载 .apk 安装，无需解压。" \
+            "" \
+            "SHA256: ${APK_SHA256}")
 
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            # 同一标签重跑时覆盖资产，保持幂等
+            # 同一标签重跑时覆盖资产与说明，保持幂等
             gh release upload "$RELEASE_TAG" "$APK" --clobber
+            gh release edit "$RELEASE_TAG" --notes "$NOTES"
           else
             if [ "$GITHUB_REF_TYPE" = "tag" ]; then
               EXTRA=""

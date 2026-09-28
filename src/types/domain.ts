@@ -105,3 +105,27 @@ export interface CategoryInput {
   kind: TxKind;
   sortOrder: number;
 }
+
+/** 应用更新：由 GitHub Release 映射而来（仅正式发布版本） */
+export interface AppRelease {
+  /** Release tag，如 `v0.1.7` */
+  tagName: string;
+  /** 归一化版本号，如 `0.1.7` */
+  version: string;
+  /** Release 标题 */
+  title: string;
+  /** Release 说明原文（含 SHA256 / 镜像行） */
+  notes: string;
+  /** Release 页面地址（无可下载安装包时给用户兜底跳转） */
+  pageUrl: string;
+  /** 安装包下载地址 */
+  apkUrl: string;
+  /** 安装包字节数（GitHub 提供，用于下载前后校验） */
+  apkSize: number | null;
+  /** 安装包 SHA-256（来自 Release 说明，可能缺失） */
+  sha256: string | null;
+  /** 说明里声明的镜像地址（国内加速用） */
+  mirrors: string[];
+  /** 发布时间（ISO 字符串） */
+  publishedAt: string | null;
+}
