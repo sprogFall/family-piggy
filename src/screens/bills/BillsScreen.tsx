@@ -15,7 +15,7 @@ import { ScreenTopBar } from '@/components/ui/ScreenTopBar';
 import { currentMonth, monthKey, type MonthRef } from '@/domain/dates';
 import { formatCents } from '@/domain/money';
 import { groupByDay, monthSummary } from '@/domain/statement';
-import { useActiveLedger, useActiveCategories } from '@/hooks/useActiveLedgerData';
+import { useActiveLedger, useActiveCategories, useCreatorLabel } from '@/hooks/useActiveLedgerData';
 import type { RootStackParamList, TabParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
 import { useLedgerStore } from '@/stores/ledger.store';
@@ -34,6 +34,8 @@ export const BillsScreen = ({ navigation }: Props) => {
 
   const ledger = useActiveLedger();
   const categories = useActiveCategories();
+  /** 家庭账本展示「谁记的」；个人账本恒为 null，不展示 */
+  const creatorLabelOf = useCreatorLabel();
   const transactions = useTransactionStore((state) =>
     selectMonthTransactions(state, ledger?.id, month),
   );
@@ -85,6 +87,7 @@ export const BillsScreen = ({ navigation }: Props) => {
               key={group.key}
               group={group}
               categories={categories}
+              creatorNameOf={(tx) => creatorLabelOf(tx.createdBy)}
               onRowPress={(tx) => navigation.navigate('AddTransaction', { transactionId: tx.id })}
             />
           ))

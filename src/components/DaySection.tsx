@@ -11,9 +11,11 @@ interface Props {
   group: DayGroup;
   categories: Category[];
   onRowPress?: (transaction: Transaction) => void;
+  /** 记录人标注（家庭账本由调用方提供；返回 null 则不展示） */
+  creatorNameOf?: (transaction: Transaction) => string | null;
 }
 
-export const DaySection = ({ group, categories, onRowPress }: Props) => {
+export const DaySection = ({ group, categories, onRowPress, creatorNameOf }: Props) => {
   const categoryById = new Map(categories.map((c) => [c.id, c]));
   return (
     <View style={styles.section}>
@@ -37,6 +39,7 @@ export const DaySection = ({ group, categories, onRowPress }: Props) => {
             categoryName={category?.name ?? '未知分类'}
             iconKey={category?.icon ?? 'ellipsis-horizontal'}
             showTime
+            createdByName={creatorNameOf?.(tx) ?? null}
             onPress={() => onRowPress?.(tx)}
           />
         );

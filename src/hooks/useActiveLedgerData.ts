@@ -1,10 +1,12 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 
-import { selectActiveLedger, useLedgerStore } from '@/stores/ledger.store';
-import { selectCategories, useCategoryStore } from '@/stores/category.store';
-import { selectMonthTransactions, useTransactionStore } from '@/stores/transaction.store';
+import { creatorLabel } from '@/domain/attribution';
 import type { MonthRef } from '@/domain/dates';
-import type { Category } from '@/types/domain';
+import { useAuthStore } from '@/stores/auth.store';
+import { selectCategories, useCategoryStore } from '@/stores/category.store';
+import { selectActiveLedger, selectMembers, useLedgerStore } from '@/stores/ledger.store';
+import { selectMonthTransactions, useTransactionStore } from '@/stores/transaction.store';
+import type { Category, FamilyMember } from '@/types/domain';
 
 export const useActiveLedger = () => useLedgerStore(selectActiveLedger);
 
@@ -18,6 +20,47 @@ export const useCategoryOf = (): ((categoryId: string) => Category | undefined) 
   return useCallback(
     (categoryId: string) => categories.find((category) => category.id === categoryId),
     [categories],
+  );
+};
+
+/**
+ * 当前家庭账本的成员：账本为家庭时确保成员已加载，个人账本返回稳定空数组。
+ * 成员数据用于「谁记的」标注，加载失败时静默降级（不标注，不影响记账主流程）。
+ */
+export const useActiveFamilyMembers = (): FamilyMember[] => {
+  const ledger = useActiveLedger();
+  const familyId = ledger?.type === 'family' ? ledger.familyId : null;
+  const members = useLedgerStore((state) => selectMembers(state, familyId ?? ''));
+  const loadMembers = useLedgerStore((state) => state.loadMembers);
+
+  useEffect(() => {
+    if (!familyId) return;
+    void loadMembers(familyId).catch(() => undefined);
+  }, [familyId, loadMembers]);
+
+  return members;
+};
+
+/**
+ * 记录人展示名：仅家庭账本返回标注（本人记的为「我」，他人为成员昵称）；
+ * 个人账本、成员资料未加载或成员已退出家庭时返回 null，由 UI 决定隐藏。
+ */
+export const useCreatorLabel = (): ((createdBy: string) => string | null) => {
+  const ledger = useActiveLedger();
+  const viewerId = useAuthStore((state) => state.session?.user.id ?? null);
+  const members = useActiveFamilyMembers();
+  const isFamily = ledger?.type === 'family';
+
+  return useCallback(
+    (createdBy: string) =>
+      isFamily
+        ? creatorLabel(
+            createdBy,
+            viewerId,
+            members.find((member) => member.userId === createdBy)?.nickname,
+          )
+        : null,
+    [isFamily, members, viewerId],
   );
 };
 

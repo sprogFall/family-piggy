@@ -12,6 +12,8 @@ interface Props {
   /** 分类图标 key（存于 Category.icon） */
   iconKey: string;
   showTime?: boolean;
+  /** 记录人标注（家庭账本「谁记的」）；null / 未传表示不展示 */
+  createdByName?: string | null;
   onPress?: () => void;
 }
 
@@ -20,9 +22,12 @@ export const TransactionRow = ({
   categoryName,
   iconKey,
   showTime = false,
+  createdByName = null,
   onPress,
 }: Props) => {
   const isIncome = transaction.kind === 'income';
+  const meta = showTime ? timeLabelOf(transaction.occurredAt) : (transaction.note ?? '');
+  const sub = createdByName ? (meta ? `${meta} · ${createdByName}` : createdByName) : meta;
   return (
     <Pressable style={styles.row} onPress={onPress} disabled={!onPress}>
       <CategoryIcon iconKey={iconKey} size={38} />
@@ -31,7 +36,7 @@ export const TransactionRow = ({
           {categoryName}
         </Text>
         <Text style={styles.sub} numberOfLines={1}>
-          {showTime ? timeLabelOf(transaction.occurredAt) : (transaction.note ?? '')}
+          {sub}
         </Text>
       </View>
       <Text style={[styles.amount, isIncome ? styles.income : null]}>
