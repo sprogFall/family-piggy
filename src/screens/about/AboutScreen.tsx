@@ -1,10 +1,12 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ScrollView, Text, View } from 'react-native';
+import { Image, ScrollView, Text, View } from 'react-native';
 
 import { UpdateCard } from '@/components/UpdateCard';
 import { AppHeader } from '@/components/ui/AppHeader';
 import type { RootStackParamList } from '@/navigation/types';
 import { createStyles, colors, fontSize, radius, space } from '@/theme';
+
+import appIcon from '../../../assets/icon.png';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'About'>;
 
@@ -12,9 +14,8 @@ export const AboutScreen = ({ navigation }: Props) => (
   <View style={styles.container}>
     <AppHeader title="关于我们" onBack={() => navigation.goBack()} />
     <ScrollView contentContainerStyle={styles.content}>
-      <View style={styles.logo}>
-        <Text style={styles.logoText}>¥</Text>
-      </View>
+      {/* 直接展示与启动器一致的应用图标，而不是绿底「¥」占位 */}
+      <Image testID="about-app-icon" source={appIcon} style={styles.logo} resizeMode="cover" />
       <Text style={styles.name}>家庭记账</Text>
       <Text style={styles.desc}>
         一款支持个人账本与家庭账本的记账应用，多人实时共同记账，数据云端同步，让每一笔收支都清晰可见。
@@ -44,17 +45,10 @@ const styles = createStyles({
     textAlign: 'center',
   },
   logo: {
-    alignItems: 'center',
-    backgroundColor: colors.primary,
     borderRadius: radius.lg,
     height: 72,
-    justifyContent: 'center',
+    overflow: 'hidden',
     width: 72,
-  },
-  logoText: {
-    color: colors.white,
-    fontSize: 36,
-    fontWeight: '700',
   },
   name: {
     color: colors.text,
