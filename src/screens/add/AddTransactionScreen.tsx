@@ -7,6 +7,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AmountKeypad } from '@/components/ui/AmountKeypad';
+import { AmountPanel } from '@/components/ui/AmountPanel';
 import { CategoryGrid } from '@/components/ui/CategoryGrid';
 import { CurrencyPickerSheet } from '@/components/ui/CurrencyPickerSheet';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
@@ -23,7 +24,7 @@ import { useTagStore } from '@/stores/tag.store';
 import { useToastStore } from '@/stores/toast.store';
 import { selectTransactionById, useTransactionStore } from '@/stores/transaction.store';
 import type { Tag, TxKind } from '@/types/domain';
-import { makeStyles, useColors, fontSize, radius, space } from '@/theme';
+import { fontSize, makeStyles, space, useColors } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddTransaction'>;
 
@@ -33,9 +34,9 @@ const KIND_TABS = [
 ];
 
 export const AddTransactionScreen = ({ navigation, route }: Props) => {
+  const insets = useSafeAreaInsets();
   const styles = useStyles();
   const colors = useColors();
-  const insets = useSafeAreaInsets();
   /** 编辑模式：从账单列表携带 transactionId 进入 */
   const editing = useTransactionStore((state) =>
     selectTransactionById(state, route.params?.transactionId),
@@ -218,23 +219,13 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
       </View>
 
       {/* 顶部：左侧币种 + 金额，右侧日期，位于支出/收入之上，便于先确认币种、数额与时间 */}
-      <View style={styles.topPanel}>
-        <Pressable style={styles.currencyChip} onPress={() => setShowCurrencyPicker(true)}>
-          <Text style={styles.currencyCode}>{currency}</Text>
-          <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
-        </Pressable>
-        <View style={styles.divider} />
-        <View style={styles.amountBox}>
-          <Text style={styles.amountValue} numberOfLines={1} adjustsFontSizeToFit>
-            {amount === '' ? '0.00' : amount}
-          </Text>
-        </View>
-        <Pressable style={styles.dateChip} onPress={() => setShowPicker(true)}>
-          <Ionicons name="calendar-outline" size={16} color={colors.textSecondary} />
-          <Text style={styles.dateText}>{entryDateLabel(date.toISOString())}</Text>
-          <Ionicons name="chevron-down" size={14} color={colors.textTertiary} />
-        </Pressable>
-      </View>
+      <AmountPanel
+        currency={currency}
+        amount={amount}
+        dateLabel={entryDateLabel(date.toISOString())}
+        onPressCurrency={() => setShowCurrencyPicker(true)}
+        onPressDate={() => setShowPicker(true)}
+      />
 
       <View style={styles.tabsCard}>
         <SegmentedTabs items={KIND_TABS} value={kind} onChange={changeKind} />
@@ -295,17 +286,6 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
 };
 
 const useStyles = makeStyles((colors) => ({
-  amountBox: {
-    alignItems: 'center',
-    flex: 1,
-    flexDirection: 'row',
-    marginRight: space(3),
-  },
-  amountValue: {
-    color: colors.text,
-    fontSize: 30,
-    fontWeight: '700',
-  },
   body: {
     flex: 1,
   },
@@ -318,37 +298,6 @@ const useStyles = makeStyles((colors) => ({
   container: {
     backgroundColor: colors.bg,
     flex: 1,
-  },
-  currencyChip: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: space(1),
-    paddingVertical: space(1),
-  },
-  currencyCode: {
-    color: colors.text,
-    fontSize: fontSize.lg,
-    fontWeight: '600',
-  },
-  dateChip: {
-    alignItems: 'center',
-    backgroundColor: colors.bg,
-    borderRadius: radius.round,
-    flexDirection: 'row',
-    gap: space(1),
-    paddingHorizontal: space(3),
-    paddingVertical: space(1.5),
-  },
-  dateText: {
-    color: colors.text,
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-  },
-  divider: {
-    backgroundColor: colors.border,
-    height: 22,
-    marginHorizontal: space(3),
-    width: 1,
   },
   header: {
     alignItems: 'center',
@@ -370,12 +319,5 @@ const useStyles = makeStyles((colors) => ({
     color: colors.text,
     fontSize: fontSize.lg,
     fontWeight: '600',
-  },
-  topPanel: {
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    flexDirection: 'row',
-    paddingBottom: space(3),
-    paddingHorizontal: space(4),
   },
 }));
