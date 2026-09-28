@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { View } from 'react-native';
 
-import { createStyles, colors } from '@/theme';
+import { makeStyles, useColors } from '@/theme';
 import { categoryVisual } from '@/theme/icons';
 
 interface Props {
@@ -11,6 +11,8 @@ interface Props {
 }
 
 export const CategoryIcon = ({ iconKey, size = 40, selected = false }: Props) => {
+  const styles = useStyles();
+  const colors = useColors();
   const visual = categoryVisual(iconKey, colors.textSecondary);
   return (
     <View
@@ -33,9 +35,9 @@ export const CategoryIcon = ({ iconKey, size = 40, selected = false }: Props) =>
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   circle: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-});
+}));

@@ -10,11 +10,12 @@ import { showAlert } from '@/lib/alert';
 import { getErrorMessage } from '@/lib/errors';
 import type { RootStackParamList } from '@/navigation/types';
 import { useLedgerStore } from '@/stores/ledger.store';
-import { createStyles, colors, fontSize, space } from '@/theme';
+import { makeStyles, fontSize, space } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FamilyCreate'>;
 
 export const FamilyCreateScreen = ({ navigation }: Props) => {
+  const styles = useStyles();
   const createFamily = useLedgerStore((state) => state.createFamily);
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -58,7 +59,7 @@ export const FamilyCreateScreen = ({ navigation }: Props) => {
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   container: {
     backgroundColor: colors.bg,
     flex: 1,
@@ -72,4 +73,4 @@ const styles = createStyles({
     fontSize: fontSize.sm,
     lineHeight: 20,
   },
-});
+}));

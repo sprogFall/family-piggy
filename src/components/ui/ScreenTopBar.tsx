@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { createStyles, space } from '@/theme';
+import { makeStyles, space } from '@/theme';
 
 interface Props {
   children: ReactNode;
@@ -13,11 +13,12 @@ interface Props {
  * Android 状态栏为半透明（内容绘制在其下方），顶部栏必须自行空出 insets.top。
  */
 export const ScreenTopBar = ({ children }: Props) => {
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   return <View style={[styles.bar, { paddingTop: insets.top + space(3) }]}>{children}</View>;
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   bar: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -25,4 +26,4 @@ const styles = createStyles({
     paddingBottom: space(3),
     paddingHorizontal: space(4),
   },
-});
+}));

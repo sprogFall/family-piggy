@@ -6,7 +6,7 @@ import { Circle, Line, Path, Polyline, Svg } from 'react-native-svg';
 import { lineGeometry, nearestPointIndex, tooltipPlacement, trendDayLabel } from '@/domain/charts';
 import type { CurrencyCode } from '@/domain/currency';
 import type { TrendPoint } from '@/domain/statement';
-import { createStyles, CHART_PALETTE, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, CHART_PALETTE, useColors, fontSize, radius, space } from '@/theme';
 
 import { TrendTooltip, type TooltipSize } from './TrendTooltip';
 
@@ -26,13 +26,13 @@ const AREA_OPACITY = 0.12;
 const TOOLTIP_ESTIMATE: TooltipSize = { width: 104, height: 76 };
 const ACCESSIBILITY_LABEL = '本月收支趋势折线图，按住或滑动可查看某一天的收支';
 
-const EXPENSE_COLOR = colors.primary;
 const INCOME_COLOR = CHART_PALETTE[1];
 
-const LEGEND = [
-  { label: '支出', color: EXPENSE_COLOR },
+/** 图例：支出用主题主色（随深浅色配色变化），收入用折线调色板第二色（固定） */
+const legendItems = (expenseColor: string) => [
+  { label: '支出', color: expenseColor },
   { label: '收入', color: INCOME_COLOR },
-] as const;
+];
 
 interface Props {
   /** 整月每日收支（分），按日期升序 */
@@ -53,6 +53,9 @@ export const TrendChart = ({
   height = 120,
   accessibilityLabel = ACCESSIBILITY_LABEL,
 }: Props) => {
+  const styles = useStyles();
+  const colors = useColors();
+  const expenseColor = colors.primary;
   const [containerWidth, setContainerWidth] = useState(0);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [tooltipSize, setTooltipSize] = useState<TooltipSize>(TOOLTIP_ESTIMATE);
@@ -119,7 +122,7 @@ export const TrendChart = ({
   return (
     <View>
       <View style={styles.legend}>
-        {LEGEND.map((item) => (
+        {legendItems(expenseColor).map((item) => (
           <View key={item.label} style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: item.color }]} />
             <Text style={styles.legendText}>{item.label}</Text>
@@ -146,13 +149,13 @@ export const TrendChart = ({
           preserveAspectRatio="none"
         >
           {expense.area ? (
-            <Path d={expense.area} fill={EXPENSE_COLOR} opacity={AREA_OPACITY} />
+            <Path d={expense.area} fill={expenseColor} opacity={AREA_OPACITY} />
           ) : null}
           {expense.points ? (
             <Polyline
               points={expense.points}
               fill="none"
-              stroke={EXPENSE_COLOR}
+              stroke={expenseColor}
               strokeWidth={2}
             />
           ) : null}
@@ -167,7 +170,7 @@ export const TrendChart = ({
                 cx={coord.x}
                 cy={coord.y}
                 r={POINT_RADIUS}
-                fill={EXPENSE_COLOR}
+                fill={expenseColor}
               />
             ),
           )}
@@ -200,7 +203,7 @@ export const TrendChart = ({
                 cx={active.expense.x}
                 cy={active.expense.y}
                 r={ACTIVE_POINT_RADIUS}
-                fill={EXPENSE_COLOR}
+                fill={expenseColor}
                 stroke={colors.card}
                 strokeWidth={1.5}
               />
@@ -233,7 +236,7 @@ export const TrendChart = ({
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   legend: {
     flexDirection: 'row',
     gap: space(3),
@@ -256,4 +259,4 @@ const styles = createStyles({
   plot: {
     position: 'relative',
   },
-});
+}));

@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { budgetProgress } from '@/domain/budget';
 import type { CurrencyCode } from '@/domain/currency';
 import { formatMoney } from '@/domain/money';
-import { createStyles, colors, fontSize, space } from '@/theme';
+import { makeStyles, fontSize, space } from '@/theme';
 
 interface Props {
   expense: number;
@@ -24,6 +24,7 @@ export const SummaryCard = ({
   budget = 0,
   onPressBudget,
 }: Props) => {
+  const styles = useStyles();
   const progress = budgetProgress(expense, budget);
   return (
     <View style={styles.card}>
@@ -61,7 +62,7 @@ export const SummaryCard = ({
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   budgetBar: {
     backgroundColor: '#FFFFFF',
     borderRadius: 999,
@@ -118,4 +119,4 @@ const styles = createStyles({
     fontWeight: '600',
     marginTop: 2,
   },
-});
+}));

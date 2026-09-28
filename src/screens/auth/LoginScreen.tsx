@@ -10,11 +10,12 @@ import { showAlert } from '@/lib/alert';
 import { getErrorMessage } from '@/lib/errors';
 import type { RootStackParamList } from '@/navigation/types';
 import { useAuthStore } from '@/stores/auth.store';
-import { createStyles, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, fontSize, radius, space } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export const LoginScreen = ({ navigation }: Props) => {
+  const styles = useStyles();
   const signIn = useAuthStore((state) => state.signIn);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -91,7 +92,7 @@ export const LoginScreen = ({ navigation }: Props) => {
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   container: {
     backgroundColor: colors.bg,
     flex: 1,
@@ -159,4 +160,4 @@ const styles = createStyles({
     fontWeight: '700',
     marginTop: space(4),
   },
-});
+}));

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
 
 import { showAlert } from '@/lib/alert';
-import { createStyles, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, fontSize, radius, space } from '@/theme';
 
 import { PrimaryButton } from './PrimaryButton';
 import { TextField } from './TextField';
@@ -27,6 +27,7 @@ export const PromptModal = ({
   maxLength,
   onSubmit,
 }: Props) => {
+  const styles = useStyles();
   const [value, setValue] = useState('');
   const close = () => {
     setValue('');
@@ -68,7 +69,7 @@ export const PromptModal = ({
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   actions: {
     flexDirection: 'row',
     gap: space(3),
@@ -94,7 +95,7 @@ const styles = createStyles({
   },
   mask: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: colors.scrim,
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: space(8),
@@ -109,4 +110,4 @@ const styles = createStyles({
     marginBottom: space(4),
     textAlign: 'center',
   },
-});
+}));

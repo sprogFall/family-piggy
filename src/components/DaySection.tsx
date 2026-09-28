@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { formatMoney } from '@/domain/money';
 import type { DayGroup } from '@/domain/statement';
 import type { Category, Transaction } from '@/types/domain';
-import { createStyles, colors, fontSize, space } from '@/theme';
+import { makeStyles, fontSize, space } from '@/theme';
 
 import { TransactionRow } from './TransactionRow';
 
@@ -18,6 +18,7 @@ interface Props {
 }
 
 export const DaySection = ({ group, categories, tagNameOf, onRowPress, creatorNameOf }: Props) => {
+  const styles = useStyles();
   const categoryById = new Map(categories.map((c) => [c.id, c]));
   return (
     <View style={styles.section}>
@@ -53,7 +54,7 @@ export const DaySection = ({ group, categories, tagNameOf, onRowPress, creatorNa
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   day: {
     color: colors.text,
     fontSize: fontSize.sm,
@@ -83,4 +84,4 @@ const styles = createStyles({
     color: colors.textSecondary,
     fontSize: fontSize.sm,
   },
-});
+}));

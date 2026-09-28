@@ -23,7 +23,7 @@ import { useTagStore } from '@/stores/tag.store';
 import { useToastStore } from '@/stores/toast.store';
 import { selectTransactionById, useTransactionStore } from '@/stores/transaction.store';
 import type { Tag, TxKind } from '@/types/domain';
-import { createStyles, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, useColors, fontSize, radius, space } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddTransaction'>;
 
@@ -33,6 +33,8 @@ const KIND_TABS = [
 ];
 
 export const AddTransactionScreen = ({ navigation, route }: Props) => {
+  const styles = useStyles();
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   /** 编辑模式：从账单列表携带 transactionId 进入 */
   const editing = useTransactionStore((state) =>
@@ -292,7 +294,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   amountBox: {
     alignItems: 'center',
     flex: 1,
@@ -376,4 +378,4 @@ const styles = createStyles({
     paddingBottom: space(3),
     paddingHorizontal: space(4),
   },
-});
+}));

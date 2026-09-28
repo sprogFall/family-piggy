@@ -38,7 +38,7 @@
 - 命名清晰自释；禁止魔法数字/魔法字符串，统一收敛到 `theme`、`types` 或常量文件
 - 禁止在组件/页面中直接调用 Supabase，必须经 `services` 层
 - **金额一律以“分”（整数 cents）存储与计算**，仅展示层格式化为元
-- UI 颜色、间距、字号统一走 `src/theme`，禁止散落硬编码样式值
+- UI 颜色、间距、字号统一走 `src/theme`，禁止散落硬编码样式值；颜色只能在**组件内**用 `makeStyles((colors) => ...)` / `useColors()` 读取（禁止在模块作用域取色），新增颜色令牌必须同时补齐浅色 / 深色两套调色板
 
 ## 4. 分层架构（依赖方向不可违反）
 
@@ -50,7 +50,7 @@ src/
   components/  通用 UI 组件与图表
   screens/     页面（按功能分组）
   navigation/  路由定义与类型
-  theme/       设计令牌（颜色 / 间距 / 字号 / 图标映射）
+  theme/       设计令牌（浅色 / 深色调色板、间距、字号、图标映射）与 makeStyles / useColors 样式工厂
   types/       领域类型与数据库行类型映射
   lib/         supabase client、通用工具
 ```

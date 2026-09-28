@@ -5,7 +5,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { formatBytes } from '@/domain/bytes';
 import { toDisplayNotes } from '@/domain/release-notes';
 import { useUpdateStore } from '@/stores/update.store';
-import { createStyles, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, useColors, fontSize, radius, space } from '@/theme';
 
 /** 下载进度百分比；总长度未知时返回 null（改为展示不确定态） */
 const progressPercent = (received: number, total: number | null): number | null => {
@@ -20,6 +20,8 @@ const progressPercent = (received: number, total: number | null): number | null 
  * 之后由用户手动触发。
  */
 export const UpdateCard = () => {
+  const styles = useStyles();
+  const colors = useColors();
   const status = useUpdateStore((state) => state.status);
   const release = useUpdateStore((state) => state.release);
   const currentVersion = useUpdateStore((state) => state.currentVersion);
@@ -166,7 +168,7 @@ export const UpdateCard = () => {
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   action: {
     marginTop: space(3),
   },
@@ -242,4 +244,4 @@ const styles = createStyles({
     lineHeight: 20,
     marginTop: space(2),
   },
-});
+}));

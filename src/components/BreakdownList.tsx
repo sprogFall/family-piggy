@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import type { CurrencyCode } from '@/domain/currency';
 import { formatMoney, formatRatio } from '@/domain/money';
 import type { BreakdownItem } from '@/domain/statement';
-import { createStyles, CHART_PALETTE, colors, fontSize, space } from '@/theme';
+import { makeStyles, CHART_PALETTE, fontSize, space } from '@/theme';
 
 interface Props {
   items: BreakdownItem[];
@@ -13,23 +13,26 @@ interface Props {
   showAmount?: boolean;
 }
 
-export const BreakdownList = ({ items, currency, showAmount = false }: Props) => (
-  <View>
-    {items.map((item, index) => (
-      <View key={`${item.categoryId}-${index}`} style={styles.row}>
-        <View style={[styles.dot, { backgroundColor: CHART_PALETTE[index % CHART_PALETTE.length] }]} />
-        {/* 不限行数：窄列下长分类名换行展示，避免只剩省略号 */}
-        <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.ratio}>{formatRatio(item.ratio)}</Text>
-        {showAmount ? (
-          <Text style={styles.amount}>{formatMoney(item.amount, currency)}</Text>
-        ) : null}
-      </View>
-    ))}
-  </View>
-);
+export const BreakdownList = ({ items, currency, showAmount = false }: Props) => {
+  const styles = useStyles();
+  return (
+    <View>
+      {items.map((item, index) => (
+        <View key={`${item.categoryId}-${index}`} style={styles.row}>
+          <View style={[styles.dot, { backgroundColor: CHART_PALETTE[index % CHART_PALETTE.length] }]} />
+          {/* 不限行数：窄列下长分类名换行展示，避免只剩省略号 */}
+          <Text style={styles.name}>{item.name}</Text>
+          <Text style={styles.ratio}>{formatRatio(item.ratio)}</Text>
+          {showAmount ? (
+            <Text style={styles.amount}>{formatMoney(item.amount, currency)}</Text>
+          ) : null}
+        </View>
+      ))}
+    </View>
+  );
+};
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   amount: {
     color: colors.text,
     flexShrink: 0,
@@ -62,4 +65,4 @@ const styles = createStyles({
     flexDirection: 'row',
     paddingVertical: space(1.5),
   },
-});
+}));

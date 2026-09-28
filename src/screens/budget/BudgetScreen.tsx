@@ -10,11 +10,12 @@ import { useActiveLedger } from '@/hooks/useActiveLedgerData';
 import { showAlert } from '@/lib/alert';
 import type { RootStackParamList } from '@/navigation/types';
 import { useLedgerStore } from '@/stores/ledger.store';
-import { createStyles, colors, fontSize, space } from '@/theme';
+import { makeStyles, fontSize, space } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Budget'>;
 
 export const BudgetScreen = ({ navigation }: Props) => {
+  const styles = useStyles();
   const ledger = useActiveLedger();
   const setBudget = useLedgerStore((state) => state.setBudget);
   const [amount, setAmount] = useState(
@@ -94,7 +95,7 @@ export const BudgetScreen = ({ navigation }: Props) => {
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   clear: {
     alignItems: 'center',
     paddingVertical: space(3),
@@ -121,4 +122,4 @@ const styles = createStyles({
     fontSize: fontSize.sm,
     lineHeight: 20,
   },
-});
+}));

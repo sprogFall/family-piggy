@@ -2,12 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 
 import { DEFAULT_CURRENCY, isCurrencyCode, type CurrencyCode } from '@/domain/currency';
-import {
-  DEFAULT_FONT_SCALE,
-  isFontScaleKey,
-  setActiveFontScale,
-  type FontScaleKey,
-} from '@/theme/font-scale';
+import { DEFAULT_FONT_SCALE, isFontScaleKey, type FontScaleKey } from '@/theme/font-scale';
 
 const FONT_SCALE_STORAGE_KEY = 'settings:fontScale';
 const CURRENCY_STORAGE_KEY = 'settings:currency';
@@ -35,17 +30,13 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       ]);
       const fontScale = isFontScaleKey(storedScale) ? storedScale : DEFAULT_FONT_SCALE;
       const currency = isCurrencyCode(storedCurrency) ? storedCurrency : DEFAULT_CURRENCY;
-      setActiveFontScale(fontScale);
       set({ fontScale, currency });
     } catch {
-      setActiveFontScale(DEFAULT_FONT_SCALE);
       set({ fontScale: DEFAULT_FONT_SCALE, currency: DEFAULT_CURRENCY });
     }
   },
 
   setFontScale: (key) => {
-    // 先更新样式层读取的缩放系数，再通知订阅者重渲染
-    setActiveFontScale(key);
     set({ fontScale: key });
     void AsyncStorage.setItem(FONT_SCALE_STORAGE_KEY, key).catch(() => undefined);
   },
@@ -55,13 +46,3 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     void AsyncStorage.setItem(CURRENCY_STORAGE_KEY, code).catch(() => undefined);
   },
 }));
-
-/**
- * 订阅全局字号档位（仅用于驱动屏幕重渲染）。
- *
- * `theme.createStyles` 在读取样式时按当前档位物化样式对象，因此屏幕重渲染即生效，
- * 不需要重建导航或重启应用。
- */
-export const useFontScaleSubscription = (): void => {
-  useSettingsStore((state) => state.fontScale);
-};

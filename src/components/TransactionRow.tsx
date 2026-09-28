@@ -4,7 +4,7 @@ import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { timeLabelOf } from '@/domain/dates';
 import { formatMoney } from '@/domain/money';
 import type { Transaction } from '@/types/domain';
-import { createStyles, colors, fontSize, space } from '@/theme';
+import { makeStyles, fontSize, space } from '@/theme';
 
 interface Props {
   transaction: Transaction;
@@ -28,6 +28,7 @@ export const TransactionRow = ({
   createdByName = null,
   onPress,
 }: Props) => {
+  const styles = useStyles();
   const isIncome = transaction.kind === 'income';
   const sub = [
     showTime ? timeLabelOf(transaction.occurredAt) : '',
@@ -54,7 +55,7 @@ export const TransactionRow = ({
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   amount: {
     color: colors.text,
     fontSize: fontSize.md,
@@ -81,4 +82,4 @@ const styles = createStyles({
     fontSize: fontSize.sm,
     marginTop: 2,
   },
-});
+}));

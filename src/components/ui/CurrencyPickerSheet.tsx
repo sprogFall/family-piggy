@@ -7,7 +7,7 @@ import {
   currencyLabel,
   type CurrencyCode,
 } from '@/domain/currency';
-import { createStyles, colors, fontSize, space } from '@/theme';
+import { makeStyles, useColors, fontSize, space } from '@/theme';
 
 import { BottomSheet } from './BottomSheet';
 
@@ -19,33 +19,37 @@ interface Props {
 }
 
 /** 币种选择：记一笔页面顶部左侧的「CNY ⌄」点开后弹出 */
-export const CurrencyPickerSheet = ({ visible, onClose, value, onSelect }: Props) => (
-  <BottomSheet visible={visible} onClose={onClose} title="选择币种">
-    <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-      {CURRENCY_CODES.map((code) => {
-        const active = code === value;
-        return (
-          <Pressable
-            key={code}
-            style={styles.item}
-            onPress={() => {
-              onSelect(code);
-              onClose();
-            }}
-          >
-            <Text style={styles.symbol}>{CURRENCY_META[code].symbol}</Text>
-            <Text style={[styles.itemText, active ? styles.active : null]}>
-              {currencyLabel(code)}
-            </Text>
-            {active ? <Ionicons name="checkmark" size={18} color={colors.primary} /> : null}
-          </Pressable>
-        );
-      })}
-    </ScrollView>
-  </BottomSheet>
-);
+export const CurrencyPickerSheet = ({ visible, onClose, value, onSelect }: Props) => {
+  const styles = useStyles();
+  const colors = useColors();
+  return (
+    <BottomSheet visible={visible} onClose={onClose} title="选择币种">
+      <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+        {CURRENCY_CODES.map((code) => {
+          const active = code === value;
+          return (
+            <Pressable
+              key={code}
+              style={styles.item}
+              onPress={() => {
+                onSelect(code);
+                onClose();
+              }}
+            >
+              <Text style={styles.symbol}>{CURRENCY_META[code].symbol}</Text>
+              <Text style={[styles.itemText, active ? styles.active : null]}>
+                {currencyLabel(code)}
+              </Text>
+              {active ? <Ionicons name="checkmark" size={18} color={colors.primary} /> : null}
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </BottomSheet>
+  );
+};
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   active: {
     color: colors.primary,
     fontWeight: '600',
@@ -70,4 +74,4 @@ const styles = createStyles({
     textAlign: 'center',
     width: 40,
   },
-});
+}));

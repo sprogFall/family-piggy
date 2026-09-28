@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 
 import type { CurrencyCode } from '@/domain/currency';
 import { formatMoney } from '@/domain/money';
-import { createStyles, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, fontSize, radius, space } from '@/theme';
 
 export interface TooltipSize {
   width: number;
@@ -36,6 +36,7 @@ export const TrendTooltip = ({
   top,
   onMeasure,
 }: Props) => {
+  const styles = useStyles();
   const handleLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
     onMeasure?.({ width, height });
@@ -61,7 +62,7 @@ export const TrendTooltip = ({
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   amount: {
     color: colors.white,
     fontSize: fontSize.xs,
@@ -79,4 +80,4 @@ const styles = createStyles({
     fontSize: fontSize.xs,
     marginBottom: space(1),
   },
-});
+}));

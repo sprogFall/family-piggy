@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { TextInputProps } from 'react-native';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { createStyles, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, useColors, fontSize, radius, space } from '@/theme';
 
 interface Props extends TextInputProps {
   label?: string;
@@ -10,22 +10,26 @@ interface Props extends TextInputProps {
   right?: ReactNode;
 }
 
-export const TextField = ({ label, error, right, style, ...inputProps }: Props) => (
-  <View>
-    {label ? <Text style={styles.label}>{label}</Text> : null}
-    <View style={[styles.field, error ? styles.fieldError : null]}>
-      <TextInput
-        placeholderTextColor={colors.textTertiary}
-        style={[styles.input, style]}
-        {...inputProps}
-      />
-      {right}
+export const TextField = ({ label, error, right, style, ...inputProps }: Props) => {
+  const styles = useStyles();
+  const colors = useColors();
+  return (
+    <View>
+      {label ? <Text style={styles.label}>{label}</Text> : null}
+      <View style={[styles.field, error ? styles.fieldError : null]}>
+        <TextInput
+          placeholderTextColor={colors.textTertiary}
+          style={[styles.input, style]}
+          {...inputProps}
+        />
+        {right}
+      </View>
+      {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
-    {error ? <Text style={styles.error}>{error}</Text> : null}
-  </View>
-);
+  );
+};
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   error: {
     color: colors.danger,
     fontSize: fontSize.sm,
@@ -54,4 +58,4 @@ const styles = createStyles({
     fontSize: fontSize.sm,
     marginBottom: space(1),
   },
-});
+}));

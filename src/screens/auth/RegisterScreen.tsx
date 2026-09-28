@@ -10,11 +10,12 @@ import { validateEmail, validateNickname, validatePassword } from '@/domain/vali
 import { getErrorMessage } from '@/lib/errors';
 import type { RootStackParamList } from '@/navigation/types';
 import { useAuthStore } from '@/stores/auth.store';
-import { createStyles, colors, fontSize, space } from '@/theme';
+import { makeStyles, fontSize, space } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Register'>;
 
 export const RegisterScreen = ({ navigation }: Props) => {
+  const styles = useStyles();
   const signUp = useAuthStore((state) => state.signUp);
   const [nickname, setNickname] = useState('');
   const [email, setEmail] = useState('');
@@ -93,7 +94,7 @@ export const RegisterScreen = ({ navigation }: Props) => {
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   container: {
     backgroundColor: colors.bg,
     flex: 1,
@@ -113,4 +114,4 @@ const styles = createStyles({
     marginTop: space(5),
     textAlign: 'center',
   },
-});
+}));

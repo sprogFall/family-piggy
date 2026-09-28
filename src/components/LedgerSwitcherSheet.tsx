@@ -4,7 +4,7 @@ import { Pressable, Text, View } from 'react-native';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { useLedgerStore } from '@/stores/ledger.store';
 import type { Ledger } from '@/types/domain';
-import { createStyles, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, useColors, fontSize, radius, space } from '@/theme';
 
 import { BottomSheet } from './ui/BottomSheet';
 import { PrimaryButton } from './ui/PrimaryButton';
@@ -24,6 +24,8 @@ export const LedgerSwitcherSheet = ({
   onCreatePersonal,
   onManageFamilies,
 }: Props) => {
+  const styles = useStyles();
+  const colors = useColors();
   const ledgers = useLedgerStore((state) => state.ledgers);
   const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
 
@@ -62,7 +64,7 @@ export const LedgerSwitcherSheet = ({
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   active: {
     color: colors.primary,
     fontWeight: '600',
@@ -102,4 +104,4 @@ const styles = createStyles({
     color: colors.primary,
     fontSize: fontSize.sm,
   },
-});
+}));

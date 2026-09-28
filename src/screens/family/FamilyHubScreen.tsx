@@ -8,11 +8,13 @@ import { EmptyState } from '@/components/EmptyState';
 import { AppHeader } from '@/components/ui/AppHeader';
 import type { RootStackParamList } from '@/navigation/types';
 import { useLedgerStore } from '@/stores/ledger.store';
-import { createStyles, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, useColors, fontSize, radius, space } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FamilyHub'>;
 
 export const FamilyHubScreen = ({ navigation }: Props) => {
+  const styles = useStyles();
+  const colors = useColors();
   const families = useLedgerStore((state) => state.families);
   const ledgers = useLedgerStore((state) => state.ledgers);
   const load = useLedgerStore((state) => state.load);
@@ -42,7 +44,7 @@ export const FamilyHubScreen = ({ navigation }: Props) => {
             style={styles.actionCard}
             onPress={() => navigation.navigate('FamilyJoin')}
           >
-            <View style={[styles.actionIcon, { backgroundColor: '#E8F1FD' }]}>
+            <View style={[styles.actionIcon, { backgroundColor: colors.infoLight }]}>
               <Ionicons name="people-outline" size={24} color={colors.primary} />
             </View>
             <Text style={styles.actionTitle}>加入家庭</Text>
@@ -81,7 +83,7 @@ export const FamilyHubScreen = ({ navigation }: Props) => {
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   actionCard: {
     alignItems: 'center',
     backgroundColor: colors.card,
@@ -154,4 +156,4 @@ const styles = createStyles({
     fontSize: fontSize.sm,
     marginTop: space(5),
   },
-});
+}));

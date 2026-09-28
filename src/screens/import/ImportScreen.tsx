@@ -19,11 +19,13 @@ import {
   type ImportParseResult,
 } from '@/services/import.service';
 import { useAuthStore } from '@/stores/auth.store';
-import { createStyles, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, useColors, fontSize, radius, space } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Import'>;
 
 export const ImportScreen = ({ navigation }: Props) => {
+  const styles = useStyles();
+  const colors = useColors();
   const [fileName, setFileName] = useState<string | null>(null);
   const [preview, setPreview] = useState<ImportParseResult | null>(null);
   const [importing, setImporting] = useState(false);
@@ -121,7 +123,7 @@ export const ImportScreen = ({ navigation }: Props) => {
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   container: {
     backgroundColor: colors.bg,
     flex: 1,
@@ -180,4 +182,4 @@ const styles = createStyles({
     fontSize: fontSize.sm,
     marginTop: space(2),
   },
-});
+}));

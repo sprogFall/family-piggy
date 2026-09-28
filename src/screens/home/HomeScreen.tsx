@@ -26,7 +26,7 @@ import type { RootStackParamList, TabParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
 import { useLedgerStore } from '@/stores/ledger.store';
 import { useTransactionStore } from '@/stores/transaction.store';
-import { createStyles, CHART_PALETTE, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, CHART_PALETTE, useColors, fontSize, radius, space } from '@/theme';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<TabParamList, 'Home'>,
@@ -34,6 +34,8 @@ type Props = CompositeScreenProps<
 >;
 
 export const HomeScreen = ({ navigation }: Props) => {
+  const styles = useStyles();
+  const colors = useColors();
   const [month, setMonth] = useState<MonthRef>(currentMonth());
   const [showLedgerSheet, setShowLedgerSheet] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -171,7 +173,7 @@ export const HomeScreen = ({ navigation }: Props) => {
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   card: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,
@@ -230,4 +232,4 @@ const styles = createStyles({
     color: colors.text,
     fontSize: fontSize.sm,
   },
-});
+}));

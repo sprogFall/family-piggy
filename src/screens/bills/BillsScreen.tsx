@@ -29,7 +29,7 @@ import { useCategoryStore } from '@/stores/category.store';
 import { useLedgerStore } from '@/stores/ledger.store';
 import { useTagStore } from '@/stores/tag.store';
 import { selectMonthTransactions, useTransactionStore } from '@/stores/transaction.store';
-import { createStyles, colors, fontSize, space } from '@/theme';
+import { makeStyles, useColors, fontSize, space } from '@/theme';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<TabParamList, 'Bills'>,
@@ -37,6 +37,8 @@ type Props = CompositeScreenProps<
 >;
 
 export const BillsScreen = ({ navigation }: Props) => {
+  const styles = useStyles();
+  const colors = useColors();
   const [month, setMonth] = useState<MonthRef>(currentMonth());
   const [showLedgerSheet, setShowLedgerSheet] = useState(false);
   const [showCreateLedger, setShowCreateLedger] = useState(false);
@@ -141,16 +143,19 @@ export const BillsScreen = ({ navigation }: Props) => {
   );
 };
 
-const SummaryItem = ({ label, value }: { label: string; value: string }) => (
-  <View style={styles.summaryItem}>
-    <Text style={styles.summaryLabel}>{label}</Text>
-    <Text style={styles.summaryValue} numberOfLines={1}>
-      {value}
-    </Text>
-  </View>
-);
+const SummaryItem = ({ label, value }: { label: string; value: string }) => {
+  const styles = useStyles();
+  return (
+    <View style={styles.summaryItem}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={styles.summaryValue} numberOfLines={1}>
+        {value}
+      </Text>
+    </View>
+  );
+};
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   container: {
     backgroundColor: colors.bg,
     flex: 1,
@@ -199,4 +204,4 @@ const styles = createStyles({
     fontWeight: '600',
     marginTop: 2,
   },
-});
+}));

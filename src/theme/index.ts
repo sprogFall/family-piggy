@@ -1,40 +1,31 @@
-/** 设计令牌：所有颜色 / 间距 / 字号统一从这里取 */
+/** 设计令牌与样式工厂：所有颜色 / 间距 / 字号统一从这里取 */
 
 import type { ImageStyle, TextStyle, ViewStyle } from 'react-native';
 
-import { getActiveFontScale, type FontScaleKey, scaleFontSize } from './font-scale';
+import { useSettingsStore } from '@/stores/settings.store';
+import { useThemeStore } from '@/stores/theme.store';
 
-export {
-  FONT_SCALE_KEYS,
-  FONT_SCALE_LABELS,
-  DEFAULT_FONT_SCALE,
-  isFontScaleKey,
-  scaleFontSize,
-} from './font-scale';
+import { scaleFontSize, type FontScaleKey } from './font-scale';
+import { paletteOf } from './scheme';
+import type { ThemeColors } from './palette';
+
+export { DEFAULT_FONT_SCALE, FONT_SCALE_KEYS, FONT_SCALE_LABELS, isFontScaleKey, scaleFontSize } from './font-scale';
 export type { FontScaleKey } from './font-scale';
+export { DARK_COLORS, LIGHT_COLORS } from './palette';
+export type { ThemeColors } from './palette';
+export {
+  DEFAULT_THEME_MODE,
+  isColorScheme,
+  isThemeMode,
+  paletteOf,
+  resolveScheme,
+  THEME_MODE_LABELS,
+  THEME_MODES,
+  toColorScheme,
+} from './scheme';
+export type { ColorScheme, ThemeMode } from './scheme';
 
-export const colors = {
-  primary: '#00B578',
-  primaryDark: '#00945F',
-  primaryLight: '#E6F7F0',
-  primaryDisabled: '#A8DFC6',
-  bg: '#F7F8FA',
-  card: '#FFFFFF',
-  border: '#EFEFEF',
-  text: '#1A1A1A',
-  textSecondary: '#999999',
-  textTertiary: '#CCCCCC',
-  income: '#00B578',
-  expense: '#1A1A1A',
-  danger: '#FA5151',
-  white: '#FFFFFF',
-  /** 浮窗（Toast）背景 */
-  toastBg: 'rgba(26,26,26,0.86)',
-  /** 按压态水波纹（Android），限定在控件内，避免溢出到相邻元素 */
-  ripple: 'rgba(0, 181, 120, 0.12)',
-} as const;
-
-/** 折线 / 占比图调色板 */
+/** 折线 / 占比图调色板（深浅两套配色下均可用） */
 export const CHART_PALETTE = [
   '#00B578',
   '#4A90E2',
@@ -61,11 +52,16 @@ export const fontSize = {
   lg: 17,
   xl: 20,
   xxl: 26,
+  /** 「记一笔」金额展示字号（设计基准，随字号档位缩放） */
+  display: 40,
 } as const;
 
 export const space = (n: number): number => n * 4;
 
 export const TABBAR_HEIGHT = 58;
+
+/** 「记一笔」金额行最小高度：整行加高，让金额更抢眼 */
+export const AMOUNT_ROW_MIN_HEIGHT = 96;
 
 export type NamedStyles<T> = { [P in keyof T]: ViewStyle | TextStyle | ImageStyle };
 
@@ -76,72 +72,61 @@ const SCALED_STYLE_KEYS = ['fontSize', 'lineHeight'] as const;
 
 const isScaledKey = (key: string): boolean => (SCALED_STYLE_KEYS as readonly string[]).includes(key);
 
-/**
- * 物化缓存：原始样式对象 → （档位 → 该档位下物化出的新样式对象）。
- *
- * 用 WeakMap 以原始样式对象为键，样式对象本身被回收时缓存随之释放，不会泄漏内存。
- */
-const materializedByScale = new WeakMap<Style, Map<FontScaleKey, Style>>();
+/** 当前生效配色：订阅主题仓库，切换深色模式后读取即拿到新配色 */
+export const useColors = (): ThemeColors =>
+  paletteOf(useThemeStore((state) => state.scheme));
 
-/**
- * 按当前档位把原始样式「物化」成一份新的 plain object：`fontSize` / `lineHeight`
- * 缩放，其余属性原样透传，属性全部是可枚举的普通属性（不含 getter）。
- *
- * 同一档位下命中缓存返回**同一引用**（同一份样式对象被多处复用、以及每帧重渲染时
- * 都不会新建对象）；切换档位则一定返回**新引用** —— React Native（Fabric）在
- * diffProperties 里先比较 `prevProp === nextProp`，引用不变就认为没有变化、
- * 不会把新字号下发原生，因此引用必须随档位变化。
- *
- * 物化对象永远从原始样式重新计算，不会在已缩放的对象上再次缩放。
- */
-const materializeStyle = <S extends Style>(style: S): S => {
-  let cache = materializedByScale.get(style);
-  if (!cache) {
-    cache = new Map<FontScaleKey, Style>();
-    materializedByScale.set(style, cache);
-  }
+/** 当前字号档位（订阅设置仓库） */
+export const useFontScale = (): FontScaleKey =>
+  useSettingsStore((state) => state.fontScale);
 
-  const scale = getActiveFontScale();
-  const cached = cache.get(scale);
-  if (cached) return cached as S;
-
+/** 把单份样式里的 fontSize / lineHeight 按档位物化，其余属性原样透传 */
+const materializeStyle = (style: Style, scale: FontScaleKey): Style => {
   const source = style as Record<string, unknown>;
   const materialized: Record<string, unknown> = {};
   for (const key of Object.keys(source)) {
     const value = source[key];
     materialized[key] =
-      isScaledKey(key) && typeof value === 'number' ? scaleFontSize(value) : value;
+      isScaledKey(key) && typeof value === 'number' ? scaleFontSize(value, scale) : value;
   }
+  return materialized as Style;
+};
 
-  cache.set(scale, materialized as Style);
-  return materialized as S;
+/** 物化整份样式集合：输出是普通可枚举属性的 plain object（不含 getter），RN 才能序列化下发原生 */
+const materializeStyles = <S>(styles: S, scale: FontScaleKey): S => {
+  const source = styles as unknown as Record<string, Style>;
+  const result: Record<string, Style> = {};
+  for (const name of Object.keys(source)) {
+    result[name] = materializeStyle(source[name], scale);
+  }
+  return result as unknown as S;
 };
 
 /**
- * 样式创建入口，等价于 `StyleSheet.create`，额外让 `fontSize` / `lineHeight`
- * 跟随「设置 → 字体大小」档位缩放。
+ * 样式工厂：`const useStyles = makeStyles((colors) => ({...}))`，组件内 `const styles = useStyles()`。
  *
- * 返回的容器对象每个属性都是 getter：读取时（即组件重渲染时）按当前档位物化出
- * 一份新的样式对象，因此切换档位，屏幕重渲染后字号立即生效，无需重启 App。
- * 既能覆盖 `fontSize.md` 这类令牌，也能覆盖样式里显式写死的字号。
+ * 工厂在**渲染时**按「当前配色 + 当前字号档位」执行并物化字号，同一组合只物化一次并缓存：
+ * - 组合不变 → 返回**同一引用**。RN（Fabric）的 `diffProperties` 先比较 `prevProp === nextProp`，
+ *   引用稳定才不会每次渲染都把样式重新下发原生。
+ * - 配色或档位变化 → 返回**新引用**，屏幕重渲染即生效，切换深色模式 / 字号无需重启应用。
  *
- * 签名与 react-native 的 `StyleSheet.create` 完全一致：泛型里必须出现 `any`
- * （`NamedStyles<any>` 交叉类型为对象字面量提供上下文类型，否则 `alignItems: 'center'`
- * 会被推断成 string 而类型报错；仅用 `unknown` 无法替代），故此处保留 any。
+ * 签名与 `StyleSheet.create` 一致：泛型里必须出现 `any`（`NamedStyles<any>` 交叉类型为对象
+ * 字面量提供上下文类型，否则 `alignItems: 'center'` 会被推断成 string 而类型报错；
+ * 仅用 `unknown` 无法替代），故此处保留 any。
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export const createStyles = <T extends NamedStyles<T> | NamedStyles<any>>(
-  styles: T & NamedStyles<any>,
-): T => {
-  const source = styles as Record<string, Style>;
-  const container: Record<string, unknown> = {};
-  for (const key of Object.keys(source)) {
-    const original = source[key];
-    Object.defineProperty(container, key, {
-      configurable: true,
-      enumerable: true,
-      get: () => materializeStyle(original),
-    });
-  }
-  return container as T;
+export const makeStyles = <T extends NamedStyles<T> | NamedStyles<any>>(
+  factory: (colors: ThemeColors) => T & NamedStyles<any>,
+): (() => T) => {
+  const cache = new Map<string, T>();
+  return function useStyles(): T {
+    const scheme = useThemeStore((state) => state.scheme);
+    const fontScale = useFontScale();
+    const key = `${scheme}:${fontScale}`;
+    const cached = cache.get(key);
+    if (cached) return cached;
+    const created = materializeStyles<T>(factory(paletteOf(scheme)), fontScale);
+    cache.set(key, created);
+    return created;
+  };
 };

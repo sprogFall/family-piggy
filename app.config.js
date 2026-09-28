@@ -10,7 +10,8 @@ module.exports = {
     // 版本名：CI 打标签时由 tag 注入（v0.1.1 -> 0.1.1）
     version: process.env.APP_VERSION || '0.1.0',
     orientation: 'portrait',
-    userInterfaceStyle: 'light',
+    // 深浅色跟随系统：iOS 由 RN Appearance 直接上报，Android 需要 expo-system-ui 才能真正读到系统深色配置
+    userInterfaceStyle: 'automatic',
     // 应用图标：由设计稿裁掉白边生成（圆角方块外的白底用边界色无缝延续成满幅）
     icon: './assets/icon.png',
     // 原生资源 / 字体嵌入（expo install 提示需显式声明，动态配置无法自动写入）

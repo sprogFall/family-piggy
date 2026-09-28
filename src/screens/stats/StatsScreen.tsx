@@ -20,7 +20,7 @@ import type { RootStackParamList, TabParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
 import { selectMonthTransactions, useTransactionStore } from '@/stores/transaction.store';
 import type { TxKind } from '@/types/domain';
-import { createStyles, CHART_PALETTE, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, CHART_PALETTE, fontSize, radius, space } from '@/theme';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<TabParamList, 'Stats'>,
@@ -33,6 +33,7 @@ const KIND_TABS = [
 ];
 
 export const StatsScreen = (_props: Props) => {
+  const styles = useStyles();
   const [month, setMonth] = useState<MonthRef>(currentMonth());
   const [kind, setKind] = useState<TxKind>('expense');
 
@@ -132,7 +133,7 @@ export const StatsScreen = (_props: Props) => {
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   card: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,
@@ -203,4 +204,4 @@ const styles = createStyles({
     gap: space(1),
     marginVertical: space(2),
   },
-});
+}));

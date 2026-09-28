@@ -1,6 +1,6 @@
 import { Pressable, Text, View } from 'react-native';
 
-import { createStyles, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, fontSize, radius, space } from '@/theme';
 
 interface Item<K extends string> {
   key: K;
@@ -13,21 +13,24 @@ interface Props<K extends string> {
   onChange: (key: K) => void;
 }
 
-export const SegmentedTabs = <K extends string>({ items, value, onChange }: Props<K>) => (
-  <View style={styles.row}>
-    {items.map((item) => {
-      const active = item.key === value;
-      return (
-        <Pressable key={item.key} style={styles.item} onPress={() => onChange(item.key)}>
-          <Text style={[styles.label, active ? styles.activeText : null]}>{item.label}</Text>
-          <View style={[styles.indicator, active ? styles.activeIndicator : null]} />
-        </Pressable>
-      );
-    })}
-  </View>
-);
+export const SegmentedTabs = <K extends string>({ items, value, onChange }: Props<K>) => {
+  const styles = useStyles();
+  return (
+    <View style={styles.row}>
+      {items.map((item) => {
+        const active = item.key === value;
+        return (
+          <Pressable key={item.key} style={styles.item} onPress={() => onChange(item.key)}>
+            <Text style={[styles.label, active ? styles.activeText : null]}>{item.label}</Text>
+            <View style={[styles.indicator, active ? styles.activeIndicator : null]} />
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+};
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   activeIndicator: {
     backgroundColor: colors.primary,
   },
@@ -55,4 +58,4 @@ const styles = createStyles({
     backgroundColor: colors.card,
     flexDirection: 'row',
   },
-});
+}));

@@ -13,7 +13,7 @@ import { showAlert } from '@/lib/alert';
 import type { RootStackParamList } from '@/navigation/types';
 import { useTagStore } from '@/stores/tag.store';
 import { selectMonthTransactions, useTransactionStore } from '@/stores/transaction.store';
-import { createStyles, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, useColors, fontSize, radius, space } from '@/theme';
 import {
   EXPORT_FORMAT_LABEL,
   exportTransactions,
@@ -23,6 +23,7 @@ import {
 type Props = NativeStackScreenProps<RootStackParamList, 'Export'>;
 
 export const ExportScreen = ({ navigation }: Props) => {
+  const styles = useStyles();
   const [month, setMonth] = useState<MonthRef>(currentMonth());
   const [format, setFormat] = useState<ExportFormat>('xlsx');
   const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -111,6 +112,8 @@ const OptionRow = ({
   value: string;
   onPress?: () => void;
 }) => {
+  const styles = useStyles();
+  const colors = useColors();
   const content = (
     <>
       <Text style={styles.optionLabel}>{label}</Text>
@@ -127,7 +130,7 @@ const OptionRow = ({
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   card: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,
@@ -164,4 +167,4 @@ const styles = createStyles({
     lineHeight: 20,
     marginTop: space(4),
   },
-});
+}));

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
-import { createStyles, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, useColors, fontSize, radius, space } from '@/theme';
 
 interface Props {
   icon: React.ComponentProps<typeof Ionicons>['name'];
@@ -13,16 +13,20 @@ interface Props {
   right?: ReactNode;
 }
 
-export const MenuItem = ({ icon, label, hint, danger = false, onPress, right }: Props) => (
-  <Pressable style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]} onPress={onPress}>
-    <Ionicons name={icon} size={20} color={danger ? colors.danger : colors.primary} />
-    <Text style={[styles.label, danger ? styles.danger : null]}>{label}</Text>
-    {hint ? <Text style={styles.hint}>{hint}</Text> : null}
-    {right ?? <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />}
-  </Pressable>
-);
+export const MenuItem = ({ icon, label, hint, danger = false, onPress, right }: Props) => {
+  const styles = useStyles();
+  const colors = useColors();
+  return (
+    <Pressable style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]} onPress={onPress}>
+      <Ionicons name={icon} size={20} color={danger ? colors.danger : colors.primary} />
+      <Text style={[styles.label, danger ? styles.danger : null]}>{label}</Text>
+      {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+      {right ?? <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />}
+    </Pressable>
+  );
+};
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   danger: {
     color: colors.danger,
   },
@@ -46,4 +50,4 @@ const styles = createStyles({
     paddingHorizontal: space(3),
     paddingVertical: space(2),
   },
-});
+}));

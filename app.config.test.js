@@ -162,3 +162,15 @@ describe('app.config Android 权限', () => {
     expect(config.expo.android.permissions).toContain('REQUEST_INSTALL_PACKAGES');
   });
 });
+
+describe('app.config 深色模式', () => {
+  it('userInterfaceStyle 为 automatic（跟随系统深浅色）', () => {
+    expect(config.expo.userInterfaceStyle).toBe('automatic');
+  });
+
+  it('依赖 expo-system-ui 才能在 Android 上读到系统深色配置', () => {
+    // eslint-disable-next-line global-require
+    const pkg = require('./package.json');
+    expect(pkg.dependencies['expo-system-ui']).toBeDefined();
+  });
+});

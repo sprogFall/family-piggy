@@ -1,7 +1,7 @@
 import type { StyleProp, ViewStyle } from 'react-native';
 import { ActivityIndicator, Pressable, Text } from 'react-native';
 
-import { createStyles, colors, fontSize, radius } from '@/theme';
+import { makeStyles, useColors, fontSize, radius } from '@/theme';
 
 interface Props {
   title: string;
@@ -20,6 +20,8 @@ export const PrimaryButton = ({
   variant = 'primary',
   style,
 }: Props) => {
+  const styles = useStyles();
+  const colors = useColors();
   const bg = disabled
     ? colors.primaryDisabled
     : variant === 'danger'
@@ -41,7 +43,7 @@ export const PrimaryButton = ({
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   button: {
     alignItems: 'center',
     borderRadius: radius.lg,
@@ -53,4 +55,4 @@ const styles = createStyles({
     fontSize: fontSize.md,
     fontWeight: '600',
   },
-});
+}));

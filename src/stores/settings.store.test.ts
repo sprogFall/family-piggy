@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { DEFAULT_CURRENCY } from '@/domain/currency';
-import { DEFAULT_FONT_SCALE, getActiveFontScale, scaleFontSize, setActiveFontScale } from '@/theme/font-scale';
+import { DEFAULT_FONT_SCALE } from '@/theme/font-scale';
 
 import { useSettingsStore } from './settings.store';
 
@@ -11,7 +11,6 @@ const CURRENCY_KEY = 'settings:currency';
 describe('useSettingsStore', () => {
   beforeEach(async () => {
     await AsyncStorage.clear();
-    setActiveFontScale(DEFAULT_FONT_SCALE);
     useSettingsStore.setState({ fontScale: DEFAULT_FONT_SCALE, currency: DEFAULT_CURRENCY });
   });
 
@@ -19,8 +18,6 @@ describe('useSettingsStore', () => {
     useSettingsStore.getState().setFontScale('large');
 
     expect(useSettingsStore.getState().fontScale).toBe('large');
-    expect(getActiveFontScale()).toBe('large');
-    expect(scaleFontSize(20)).toBe(23);
     await Promise.resolve();
     expect(await AsyncStorage.getItem(STORAGE_KEY)).toBe('large');
   });
@@ -30,7 +27,6 @@ describe('useSettingsStore', () => {
     await useSettingsStore.getState().hydrate();
 
     expect(useSettingsStore.getState().fontScale).toBe('small');
-    expect(getActiveFontScale()).toBe('small');
   });
 
   it('hydrate 遇到非法值时回落标准档', async () => {
@@ -38,7 +34,6 @@ describe('useSettingsStore', () => {
     await useSettingsStore.getState().hydrate();
 
     expect(useSettingsStore.getState().fontScale).toBe(DEFAULT_FONT_SCALE);
-    expect(getActiveFontScale()).toBe(DEFAULT_FONT_SCALE);
   });
 
   it('默认币种为 CNY，setCurrency 写入本地存储', async () => {

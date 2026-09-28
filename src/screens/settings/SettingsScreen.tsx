@@ -9,31 +9,46 @@ import { formatCents } from '@/domain/money';
 import { showAlert } from '@/lib/alert';
 import type { RootStackParamList } from '@/navigation/types';
 import { useSettingsStore } from '@/stores/settings.store';
+import { useThemeStore } from '@/stores/theme.store';
 import {
-  createStyles,
-  colors,
   FONT_SCALE_KEYS,
   FONT_SCALE_LABELS,
   fontSize,
+  makeStyles,
   radius,
   space,
+  THEME_MODE_LABELS,
+  THEME_MODES,
 } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
 const FONT_SCALE_ITEMS = FONT_SCALE_KEYS.map((key) => ({ key, label: FONT_SCALE_LABELS[key] }));
 
+const THEME_MODE_ITEMS = THEME_MODES.map((key) => ({ key, label: THEME_MODE_LABELS[key] }));
+
 /** 预览样例金额（分）：仅用于展示字号效果，不参与任何记账数据 */
 export const PREVIEW_AMOUNT_CENTS = 236800;
 
 export const SettingsScreen = ({ navigation }: Props) => {
+  const styles = useStyles();
   const fontScale = useSettingsStore((state) => state.fontScale);
   const setFontScale = useSettingsStore((state) => state.setFontScale);
+  const themeMode = useThemeStore((state) => state.mode);
+  const setThemeMode = useThemeStore((state) => state.setMode);
 
   return (
     <View style={styles.container}>
       <AppHeader title="设置" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>深色模式</Text>
+          <SegmentedTabs items={THEME_MODE_ITEMS} value={themeMode} onChange={setThemeMode} />
+          <Text style={styles.previewHint}>
+            跟随系统时随手机的深浅色自动切换，切换后立即生效
+          </Text>
+        </View>
+
         <View style={styles.card}>
           <Text style={styles.cardTitle}>字体大小</Text>
           <SegmentedTabs items={FONT_SCALE_ITEMS} value={fontScale} onChange={setFontScale} />
@@ -86,7 +101,7 @@ export const SettingsScreen = ({ navigation }: Props) => {
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   card: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,
@@ -140,4 +155,4 @@ const styles = createStyles({
     fontSize: fontSize.lg,
     fontWeight: '600',
   },
-});
+}));

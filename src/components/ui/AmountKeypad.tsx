@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { pressAmountKey, type AmountKey } from '@/domain/amount-input';
-import { createStyles, colors, fontSize } from '@/theme';
+import { makeStyles, useColors, fontSize } from '@/theme';
 
 interface Props {
   value: string;
@@ -25,41 +25,45 @@ export const AmountKeypad = ({
   onSubmit,
   submitDisabled = false,
   submitLabel = '完成',
-}: Props) => (
-  <View style={styles.container}>
-    <View style={styles.grid}>
-      {GRID_KEYS.map((key) => (
-        <Pressable
-          key={key}
-          accessibilityLabel={key === 'backspace' ? 'backspace' : undefined}
-          style={({ pressed }) => [styles.key, pressed && styles.keyPressed]}
-          onPress={() => onChange(pressAmountKey(value, key))}
-        >
-          {key === 'backspace' ? (
-            <Ionicons name="backspace-outline" size={24} color={colors.text} />
-          ) : (
-            <Text style={styles.keyText}>{key}</Text>
-          )}
-        </Pressable>
-      ))}
+}: Props) => {
+  const styles = useStyles();
+  const colors = useColors();
+  return (
+    <View style={styles.container}>
+      <View style={styles.grid}>
+        {GRID_KEYS.map((key) => (
+          <Pressable
+            key={key}
+            accessibilityLabel={key === 'backspace' ? 'backspace' : undefined}
+            style={({ pressed }) => [styles.key, pressed && styles.keyPressed]}
+            onPress={() => onChange(pressAmountKey(value, key))}
+          >
+            {key === 'backspace' ? (
+              <Ionicons name="backspace-outline" size={24} color={colors.text} />
+            ) : (
+              <Text style={styles.keyText}>{key}</Text>
+            )}
+          </Pressable>
+        ))}
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={submitLabel}
+        disabled={submitDisabled}
+        style={({ pressed }) => [
+          styles.submit,
+          submitDisabled && styles.submitDisabled,
+          pressed && styles.keyPressed,
+        ]}
+        onPress={onSubmit}
+      >
+        <Text style={styles.submitText}>{submitLabel}</Text>
+      </Pressable>
     </View>
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={submitLabel}
-      disabled={submitDisabled}
-      style={({ pressed }) => [
-        styles.submit,
-        submitDisabled && styles.submitDisabled,
-        pressed && styles.keyPressed,
-      ]}
-      onPress={onSubmit}
-    >
-      <Text style={styles.submitText}>{submitLabel}</Text>
-    </Pressable>
-  </View>
-);
+  );
+};
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   container: {
     backgroundColor: colors.card,
     flexDirection: 'row',
@@ -98,4 +102,4 @@ const styles = createStyles({
     fontSize: fontSize.lg,
     fontWeight: '600',
   },
-});
+}));

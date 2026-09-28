@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 
 import type { CurrencyCode } from '@/domain/currency';
 import type { TrendPoint } from '@/domain/statement';
-import { colors } from '@/theme';
+import { LIGHT_COLORS } from '@/theme';
 
 import { TrendChart } from './TrendChart';
 
@@ -69,7 +69,7 @@ describe('TrendChart', () => {
     const style = StyleSheet.flatten(tooltip.props.style);
 
     expect(tooltip.props.pointerEvents).toBe('none');
-    expect(style.backgroundColor).toBe(colors.toastBg);
+    expect(style.backgroundColor).toBe(LIGHT_COLORS.toastBg);
     expect(style.position).toBe('absolute');
     expect(style.left).toBeGreaterThanOrEqual(0);
     expect(style.left).toBeLessThanOrEqual(CONTAINER_WIDTH);

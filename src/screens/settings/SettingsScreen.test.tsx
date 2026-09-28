@@ -3,8 +3,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { formatCents } from '@/domain/money';
 import { useSettingsStore } from '@/stores/settings.store';
+import { useThemeStore } from '@/stores/theme.store';
 import { fontSize, scaleFontSize } from '@/theme';
-import { DEFAULT_FONT_SCALE, getActiveFontScale, setActiveFontScale } from '@/theme/font-scale';
+import { DEFAULT_FONT_SCALE } from '@/theme/font-scale';
+import { DARK_COLORS, LIGHT_COLORS } from '@/theme/palette';
+import { DEFAULT_THEME_MODE } from '@/theme/scheme';
 
 import { PREVIEW_AMOUNT_CENTS, SettingsScreen } from './SettingsScreen';
 
@@ -25,8 +28,8 @@ const renderScreen = () =>
 
 describe('SettingsScreen', () => {
   beforeEach(() => {
-    setActiveFontScale(DEFAULT_FONT_SCALE);
     useSettingsStore.setState({ fontScale: DEFAULT_FONT_SCALE });
+    useThemeStore.setState({ mode: DEFAULT_THEME_MODE, systemScheme: 'light', scheme: 'light' });
   });
 
   it('展示四个字号档位', () => {
@@ -37,16 +40,37 @@ describe('SettingsScreen', () => {
     }
   });
 
-  it('点击档位立即切换字号并写入全局缩放系数', () => {
+  it('点击档位立即切换字号', () => {
     renderScreen();
 
     fireEvent.press(screen.getByText('超大'));
 
     expect(useSettingsStore.getState().fontScale).toBe('xlarge');
-    expect(getActiveFontScale()).toBe('xlarge');
   });
 
-  it('重渲染后实际样式字号按新档位缩放（getter 生效）', () => {
+  it('展示深色模式三档并可切换到深色', () => {
+    renderScreen();
+    expect(screen.getByText('深色模式')).toBeTruthy();
+    for (const label of ['跟随系统', '浅色', '深色']) {
+      expect(screen.getByText(label)).toBeTruthy();
+    }
+
+    fireEvent.press(screen.getByText('深色'));
+
+    expect(useThemeStore.getState().mode).toBe('dark');
+    expect(useThemeStore.getState().scheme).toBe('dark');
+  });
+
+  it('点击浅色可从深色切回', () => {
+    useThemeStore.setState({ mode: 'dark', systemScheme: 'light', scheme: 'dark' });
+    renderScreen();
+
+    fireEvent.press(screen.getByText('浅色'));
+
+    expect(useThemeStore.getState().scheme).toBe('light');
+  });
+
+  it('重渲染后实际样式字号按新档位缩放（样式工厂生效）', () => {
     renderScreen();
     // fontSize.md = 15（标准档基准）
     expect(screen.getByText('字体大小').props.style.fontSize).toBe(15);
@@ -78,17 +102,27 @@ describe('SettingsScreen', () => {
     const previewAfter = screen.getByTestId('settings-preview-title').props.style;
     // RN（Fabric）diff 先比较引用，引用不变就不会下发新字号
     expect(previewAfter).not.toBe(previewBefore);
-    expect(previewAfter.fontSize).toBe(scaleFontSize(fontSize.lg)); // 17 * 1.3 = 22.1 → 22
+    expect(previewAfter.fontSize).toBe(scaleFontSize(fontSize.lg, 'xlarge')); // 17 * 1.3 = 22.1 → 22
     expect(screen.getByTestId('settings-preview-amount').props.style.fontSize).toBe(
-      scaleFontSize(fontSize.xl), // 20 * 1.3 = 26
+      scaleFontSize(fontSize.xl, 'xlarge'), // 20 * 1.3 = 26
     );
     expect(screen.getByTestId('settings-preview-secondary').props.style.fontSize).toBe(
-      scaleFontSize(fontSize.xs), // 11 * 1.3 = 14.3 → 14
+      scaleFontSize(fontSize.xs, 'xlarge'), // 11 * 1.3 = 14.3 → 14
     );
 
     // 切回标准档：字号回到基准，且引用与标准档缓存一致
     fireEvent.press(screen.getByText('标准'));
     expect(screen.getByTestId('settings-preview-title').props.style).toBe(previewBefore);
     expect(screen.getByTestId('settings-preview-title').props.style.fontSize).toBe(fontSize.lg);
+  });
+
+  it('切换深色后页面文字颜色取深色调色板', () => {
+    renderScreen();
+    expect(screen.getByText('设置').props.style.color).toBe(LIGHT_COLORS.text);
+
+    fireEvent.press(screen.getByText('深色'));
+
+    // 标题样式重新物化出新引用，颜色来自深色调色板
+    expect(screen.getByText('设置').props.style.color).toBe(DARK_COLORS.text);
   });
 });

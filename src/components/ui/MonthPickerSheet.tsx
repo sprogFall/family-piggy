@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, Text } from 'react-native';
 
 import { currentMonth, monthLabel, recentMonths, type MonthRef } from '@/domain/dates';
-import { createStyles, colors, fontSize, space } from '@/theme';
+import { makeStyles, fontSize, space } from '@/theme';
 
 import { BottomSheet } from './BottomSheet';
 
@@ -13,6 +13,7 @@ interface Props {
 }
 
 export const MonthPickerSheet = ({ visible, onClose, value, onSelect }: Props) => {
+  const styles = useStyles();
   const months = recentMonths(24, currentMonth());
   return (
     <BottomSheet visible={visible} onClose={onClose} title="选择月份">
@@ -39,7 +40,7 @@ export const MonthPickerSheet = ({ visible, onClose, value, onSelect }: Props) =
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   active: {
     color: colors.primary,
     fontWeight: '600',
@@ -54,4 +55,4 @@ const styles = createStyles({
   list: {
     marginBottom: space(2),
   },
-});
+}));

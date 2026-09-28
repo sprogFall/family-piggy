@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { createStyles, colors, fontSize, space } from '@/theme';
+import { makeStyles, useColors, fontSize, space } from '@/theme';
 
 interface Props {
   title: string;
@@ -12,6 +12,8 @@ interface Props {
 }
 
 export const AppHeader = ({ title, onBack, right }: Props) => {
+  const styles = useStyles();
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.container, { paddingTop: insets.top + space(2) }]}>
@@ -32,7 +34,7 @@ export const AppHeader = ({ title, onBack, right }: Props) => {
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   container: {
     backgroundColor: colors.bg,
     paddingBottom: space(2),
@@ -55,4 +57,4 @@ const styles = createStyles({
     fontWeight: '600',
     textAlign: 'center',
   },
-});
+}));

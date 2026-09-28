@@ -10,11 +10,13 @@ import { showAlert } from '@/lib/alert';
 import { useAuthStore } from '@/stores/auth.store';
 import type { RootStackParamList } from '@/navigation/types';
 import { selectMembers, useLedgerStore } from '@/stores/ledger.store';
-import { createStyles, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, useColors, fontSize, radius, space } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FamilyDetail'>;
 
 export const FamilyDetailScreen = ({ navigation, route }: Props) => {
+  const styles = useStyles();
+  const colors = useColors();
   const { familyId } = route.params;
   const family = useLedgerStore((state) =>
     state.families.find((item) => item.family.id === familyId)?.family,
@@ -147,7 +149,7 @@ export const FamilyDetailScreen = ({ navigation, route }: Props) => {
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   avatar: {
     alignItems: 'center',
     backgroundColor: colors.primaryLight,
@@ -228,4 +230,4 @@ const styles = createStyles({
     fontSize: fontSize.sm,
     marginBottom: space(2),
   },
-});
+}));

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
 
-import { createStyles, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, fontSize, radius, space } from '@/theme';
 
 interface Props {
   visible: boolean;
@@ -10,19 +10,22 @@ interface Props {
   children: ReactNode;
 }
 
-export const BottomSheet = ({ visible, onClose, title, children }: Props) => (
-  <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-    <Pressable style={styles.mask} onPress={onClose}>
-      <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
-        <View style={styles.handle} />
-        {title ? <Text style={styles.title}>{title}</Text> : null}
-        {children}
+export const BottomSheet = ({ visible, onClose, title, children }: Props) => {
+  const styles = useStyles();
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.mask} onPress={onClose}>
+        <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
+          <View style={styles.handle} />
+          {title ? <Text style={styles.title}>{title}</Text> : null}
+          {children}
+        </Pressable>
       </Pressable>
-    </Pressable>
-  </Modal>
-);
+    </Modal>
+  );
+};
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   handle: {
     alignSelf: 'center',
     backgroundColor: colors.border,
@@ -32,7 +35,7 @@ const styles = createStyles({
     width: 36,
   },
   mask: {
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: colors.scrim,
     flex: 1,
     justifyContent: 'flex-end',
   },
@@ -52,4 +55,4 @@ const styles = createStyles({
     marginBottom: space(2),
     textAlign: 'center',
   },
-});
+}));

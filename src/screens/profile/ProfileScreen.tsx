@@ -14,7 +14,7 @@ import { avatarService } from '@/services/avatar.service';
 import { getErrorMessage } from '@/lib/errors';
 import type { RootStackParamList, TabParamList } from '@/navigation/types';
 import { useAuthStore } from '@/stores/auth.store';
-import { createStyles, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, useColors, fontSize, radius, space } from '@/theme';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<TabParamList, 'Profile'>,
@@ -22,6 +22,8 @@ type Props = CompositeScreenProps<
 >;
 
 export const ProfileScreen = ({ navigation }: Props) => {
+  const styles = useStyles();
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   const profile = useAuthStore((state) => state.profile);
   const session = useAuthStore((state) => state.session);
@@ -144,7 +146,7 @@ export const ProfileScreen = ({ navigation }: Props) => {
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   avatar: {
     alignItems: 'center',
     backgroundColor: colors.primary,
@@ -204,4 +206,4 @@ const styles = createStyles({
   userMeta: {
     flex: 1,
   },
-});
+}));

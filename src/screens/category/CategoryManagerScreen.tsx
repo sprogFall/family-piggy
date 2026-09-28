@@ -13,7 +13,7 @@ import { showAlert } from '@/lib/alert';
 import type { RootStackParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
 import type { Category, TxKind } from '@/types/domain';
-import { createStyles, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, useColors, fontSize, radius, space } from '@/theme';
 import { ICON_CHOICES } from '@/theme/icons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CategoryManager'>;
@@ -29,6 +29,8 @@ interface EditTarget {
 }
 
 export const CategoryManagerScreen = ({ navigation }: Props) => {
+  const styles = useStyles();
+  const colors = useColors();
   const [kind, setKind] = useState<TxKind>('expense');
   const [editing, setEditing] = useState<EditTarget | null>(null);
 
@@ -142,6 +144,8 @@ interface EditModalProps {
 }
 
 const CategoryEditModal = ({ target, onClose, onSave, onDelete }: EditModalProps) => {
+  const styles = useStyles();
+  const colors = useColors();
   const [name, setName] = useState('');
   const [icon, setIcon] = useState('ellipsis-horizontal');
   const visible = target !== null;
@@ -193,7 +197,7 @@ const CategoryEditModal = ({ target, onClose, onSave, onDelete }: EditModalProps
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   container: {
     backgroundColor: colors.bg,
     flex: 1,
@@ -245,7 +249,7 @@ const styles = createStyles({
   },
   mask: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: colors.scrim,
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: space(8),
@@ -291,4 +295,4 @@ const styles = createStyles({
     fontSize: fontSize.lg,
     fontWeight: '600',
   },
-});
+}));

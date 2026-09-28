@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import type { Tag } from '@/types/domain';
-import { createStyles, colors, fontSize, radius, space } from '@/theme';
+import { makeStyles, useColors, fontSize, radius, space } from '@/theme';
 
 import { PromptModal } from './PromptModal';
 
@@ -40,6 +40,8 @@ export const TagSelector = ({
   onCreate,
   onRemove,
 }: Props) => {
+  const styles = useStyles();
+  const colors = useColors();
   const [creatorVisible, setCreatorVisible] = useState(false);
 
   if (disabled) return null;
@@ -95,7 +97,7 @@ export const TagSelector = ({
   );
 };
 
-const styles = createStyles({
+const useStyles = makeStyles((colors) => ({
   addChip: {
     backgroundColor: colors.primaryLight,
     borderColor: colors.primaryLight,
@@ -151,4 +153,4 @@ const styles = createStyles({
     fontSize: fontSize.sm,
     fontWeight: '600',
   },
-});
+}));
