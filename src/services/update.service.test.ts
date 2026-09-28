@@ -1,3 +1,5 @@
+import * as FileSystem from 'expo-file-system';
+
 import type { AppRelease } from '@/types/domain';
 
 import {
@@ -7,6 +9,8 @@ import {
   downloadWithFallback,
   fetchLatestRelease,
   resolveDownloadUrls,
+  sha256OfFile,
+  type VerifyProgress,
 } from './update.service';
 
 const release: AppRelease = {
@@ -160,5 +164,48 @@ describe('fetchLatestRelease', () => {
       jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ ...row, tag_name: 'build-42' }) }),
     );
     await expect(fetchLatestRelease()).resolves.toBeNull();
+  });
+});
+
+describe('sha256OfFile', () => {
+  const fileSystem = FileSystem as jest.Mocked<typeof FileSystem>;
+
+  const mockFile = (size: number, base64 = '') => {
+    fileSystem.getInfoAsync.mockResolvedValue({
+      exists: true,
+      uri: 'file:///updates/app.apk',
+      size,
+      isDirectory: false,
+      modificationTime: 0,
+    });
+    fileSystem.readAsStringAsync.mockResolvedValue(base64);
+  };
+
+  afterEach(() => {
+    fileSystem.getInfoAsync.mockReset();
+    fileSystem.readAsStringAsync.mockReset();
+  });
+
+  it('读取 + base64 解码 + 哈希的链路与文件内容一致', async () => {
+    // 'abc' 的 SHA-256 是固定值：能一并锁住分块读取与 base64 解码的正确性
+    mockFile(3, Buffer.from('abc').toString('base64'));
+
+    await expect(sha256OfFile('file:///updates/app.apk')).resolves.toBe(
+      'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+    );
+  });
+
+  it('上报递增的校验进度，最后一笔恰好等于文件总长度', async () => {
+    const size = 1_200_000;
+    mockFile(size);
+    const progress: VerifyProgress[] = [];
+
+    await sha256OfFile('file:///updates/app.apk', (state) => progress.push(state));
+
+    expect(progress.length).toBeGreaterThan(1);
+    expect(progress[progress.length - 1]).toEqual({ hashed: size, total: size });
+    expect(progress.every((state, index) => index === 0 || state.hashed > progress[index - 1].hashed)).toBe(
+      true,
+    );
   });
 });

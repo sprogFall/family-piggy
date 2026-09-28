@@ -17,6 +17,8 @@ export type UpdateStatus =
   | 'ignored'
   | 'unavailable'
   | 'downloading'
+  /** 下载完成、正在校验安装包完整性（纯 JS 分块哈希，需要数秒） */
+  | 'verifying'
   | 'ready'
   | 'failed';
 
@@ -28,6 +30,8 @@ interface UpdateState {
   currentVersion: string;
   receivedBytes: number;
   totalBytes: number | null;
+  /** 已校验字节数（verifying 期间展示校验进度） */
+  verifiedBytes: number;
   /** 下载完成的本地文件 URI */
   localUri: string | null;
   /** 失败原因或操作提示 */
@@ -55,6 +59,7 @@ const idleState = {
   release: null,
   receivedBytes: 0,
   totalBytes: null,
+  verifiedBytes: 0,
   localUri: null,
   message: null,
 };
@@ -76,8 +81,8 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
 
   check: async (options) => {
     const { status } = get();
-    // 检查/下载进行中重复点击不叠加请求
-    if (status === 'checking' || status === 'downloading') return;
+    // 检查/下载/校验进行中重复点击不叠加请求
+    if (status === 'checking' || status === 'downloading' || status === 'verifying') return;
 
     const currentVersion = updateService.getCurrentVersion();
     set({ status: 'checking', message: null, currentVersion });
@@ -128,15 +133,22 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
         set({ receivedBytes: progress.received, totalBytes: progress.total ?? release.apkSize });
       });
 
-      await updateService.verifyDownloadedApk(release, uri);
+      // 下载完成后还有一步 SHA-256 完整性校验：单独进入 verifying 并上报进度，
+      // 否则界面会停在「下载 100%」上干等数秒，看起来像卡死
+      set({ status: 'verifying', verifiedBytes: 0 });
+      await updateService.verifyDownloadedApk(release, uri, (progress) => {
+        set({ verifiedBytes: progress.hashed });
+      });
+
       set({
         status: 'ready',
         localUri: uri,
         receivedBytes: release.apkSize ?? get().receivedBytes,
+        verifiedBytes: release.apkSize ?? get().verifiedBytes,
         message: null,
       });
     } catch (error) {
-      set({ status: 'failed', localUri: null, message: getErrorMessage(error) });
+      set({ status: 'failed', localUri: null, verifiedBytes: 0, message: getErrorMessage(error) });
     }
   },
 

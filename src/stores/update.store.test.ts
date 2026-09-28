@@ -135,7 +135,43 @@ describe('useUpdateStore', () => {
       expect(state.localUri).toBe('file:///local/app.apk');
       expect(state.receivedBytes).toBe(200);
       expect(state.totalBytes).toBe(200);
-      expect(mocked.verifyDownloadedApk).toHaveBeenCalledWith(release, 'file:///local/app.apk');
+      expect(mocked.verifyDownloadedApk).toHaveBeenCalledWith(
+        release,
+        'file:///local/app.apk',
+        expect.any(Function),
+      );
+    });
+
+    it('下载完成先进入 verifying 并上报校验进度，通过后才是 ready', async () => {
+      mocked.fetchLatestRelease.mockResolvedValue(release);
+      mocked.downloadApk.mockResolvedValue('file:///local/app.apk');
+      let statusWhileVerifying: string | undefined;
+      let verifiedWhileVerifying: number | undefined;
+      mocked.verifyDownloadedApk.mockImplementation(async (_release, _uri, onProgress) => {
+        onProgress?.({ hashed: 120, total: 200 });
+        statusWhileVerifying = useUpdateStore.getState().status;
+        verifiedWhileVerifying = useUpdateStore.getState().verifiedBytes;
+      });
+
+      await useUpdateStore.getState().check();
+      await useUpdateStore.getState().download();
+
+      expect(statusWhileVerifying).toBe('verifying');
+      expect(verifiedWhileVerifying).toBe(120);
+      const state = useUpdateStore.getState();
+      expect(state.status).toBe('ready');
+      expect(state.verifiedBytes).toBe(200);
+    });
+
+    it('校验中重复触发检查与下载都不会叠加请求', async () => {
+      useUpdateStore.setState({ status: 'verifying', release });
+
+      await useUpdateStore.getState().check();
+      await useUpdateStore.getState().download();
+
+      expect(mocked.fetchLatestRelease).not.toHaveBeenCalled();
+      expect(mocked.downloadApk).not.toHaveBeenCalled();
+      expect(useUpdateStore.getState().status).toBe('verifying');
     });
 
     it('校验失败时进入 failed、清空本地路径并给出原因', async () => {

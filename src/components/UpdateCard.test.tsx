@@ -97,12 +97,35 @@ describe('UpdateCard', () => {
     expect(mocked.verifyDownloadedApk).toHaveBeenCalledWith(
       release,
       'file:///docs/updates/family-piggy-0.1.7.apk',
+      expect.any(Function),
     );
 
     fireEvent.press(screen.getByText('安装'));
     await waitFor(() =>
       expect(mocked.installApk).toHaveBeenCalledWith('file:///docs/updates/family-piggy-0.1.7.apk'),
     );
+  });
+
+  it('校验安装包期间展示校验进度，且此时不提供安装入口', async () => {
+    mocked.fetchLatestRelease.mockResolvedValue(release);
+    mocked.downloadApk.mockResolvedValue('file:///docs/updates/family-piggy-0.1.7.apk');
+    let finishVerify: () => void = () => undefined;
+    mocked.verifyDownloadedApk.mockImplementation(async (_release, _uri, onProgress) => {
+      onProgress?.({ hashed: 35_000_000, total: release.apkSize ?? 0 });
+      await new Promise<void>((resolve) => {
+        finishVerify = resolve;
+      });
+    });
+
+    render(<UpdateCard />);
+    fireEvent.press(await screen.findByText('立即更新'));
+
+    expect(await screen.findByText(/正在校验安装包 50%/)).toBeTruthy();
+    expect(screen.queryByText('安装')).toBeNull();
+
+    finishVerify();
+    expect(await screen.findByText(/安装包已下载完成/)).toBeTruthy();
+    expect(screen.getByText('安装')).toBeTruthy();
   });
 
   it('安装被系统拦截时提示并引导去授权', async () => {

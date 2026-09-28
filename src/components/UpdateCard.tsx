@@ -25,6 +25,7 @@ export const UpdateCard = () => {
   const currentVersion = useUpdateStore((state) => state.currentVersion);
   const receivedBytes = useUpdateStore((state) => state.receivedBytes);
   const totalBytes = useUpdateStore((state) => state.totalBytes);
+  const verifiedBytes = useUpdateStore((state) => state.verifiedBytes);
   const message = useUpdateStore((state) => state.message);
   const hydrate = useUpdateStore((state) => state.hydrate);
   const check = useUpdateStore((state) => state.check);
@@ -41,6 +42,8 @@ export const UpdateCard = () => {
   }, [hydrate, check]);
 
   const percent = progressPercent(receivedBytes, totalBytes);
+  // 校验阶段重新起算：下载已到 100%，再拿下载进度算校验百分比会永远是 0%
+  const verifyPercent = progressPercent(verifiedBytes, totalBytes);
   const version = release?.version ?? '';
 
   const renderBody = () => {
@@ -63,6 +66,24 @@ export const UpdateCard = () => {
             {percent === null ? '正在下载安装包…' : `正在下载 ${percent}%`}
             {totalBytes === null ? '' : `（${formatBytes(receivedBytes)} / ${formatBytes(totalBytes)}）`}
           </Text>
+        </View>
+      );
+    }
+
+    // 下载已完成、正在做 SHA-256 完整性校验：进度条保持满格，另给校验进度与转圈，
+    // 避免「下载 100%」后界面看起来卡住
+    if (status === 'verifying') {
+      return (
+        <View>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressBar, { width: '100%' }]} />
+          </View>
+          <View style={styles.inline}>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={styles.hint}>
+              {verifyPercent === null ? '正在校验安装包…' : `正在校验安装包 ${verifyPercent}%`}
+            </Text>
+          </View>
         </View>
       );
     }

@@ -34,6 +34,13 @@ export interface DownloadProgress {
   total: number | null;
 }
 
+export interface VerifyProgress {
+  /** 已校验字节数 */
+  hashed: number;
+  /** 文件总字节数 */
+  total: number;
+}
+
 export const isAndroid = (): boolean => Platform.OS === 'android';
 
 /** 当前安装版本（来自 app.config.js 的 version，发布时由 tag 注入） */
@@ -187,11 +194,20 @@ export const downloadApk = async (
   );
 };
 
-/** 分块读取文件并流式计算 SHA-256（几十 MB 的 APK 不进一次性内存） */
-export const sha256OfFile = async (uri: string): Promise<string> => {
+/**
+ * 分块读取文件并流式计算 SHA-256（几十 MB 的 APK 不进一次性内存）。
+ *
+ * 可选上报进度：纯 JS 哈希几十 MB 需要数秒（手机上更久），不上报的话界面只能停在
+ * 「下载 100%」干等。只在**整数百分比变化**时上报，避免几十 MB 触发上百次重渲染。
+ */
+export const sha256OfFile = async (
+  uri: string,
+  onProgress?: (progress: VerifyProgress) => void,
+): Promise<string> => {
   const info = await FileSystem.getInfoAsync(uri, { size: true });
   const total = info.exists && typeof info.size === 'number' ? info.size : 0;
   const hasher = createSha256();
+  let reportedPercent = -1;
 
   for (let position = 0; position < total; position += HASH_CHUNK_SIZE) {
     const base64 = await FileSystem.readAsStringAsync(uri, {
@@ -200,18 +216,29 @@ export const sha256OfFile = async (uri: string): Promise<string> => {
       length: Math.min(HASH_CHUNK_SIZE, total - position),
     });
     hasher.update(new Uint8Array(decode(base64)));
+
+    const hashed = Math.min(total, position + HASH_CHUNK_SIZE);
+    const percent = Math.floor((hashed / total) * 100);
+    if (percent !== reportedPercent) {
+      reportedPercent = percent;
+      onProgress?.({ hashed, total });
+    }
   }
 
   return hasher.digest();
 };
 
-/** 下载完成后校验大小与 SHA-256；不一致时抛出原因 */
-export const verifyDownloadedApk = async (release: AppRelease, uri: string): Promise<void> => {
+/** 下载完成后校验大小与 SHA-256；不一致时抛出原因。`onProgress` 用于展示校验进度 */
+export const verifyDownloadedApk = async (
+  release: AppRelease,
+  uri: string,
+  onProgress?: (progress: VerifyProgress) => void,
+): Promise<void> => {
   const info = await FileSystem.getInfoAsync(uri, { size: true });
   if (!info.exists) throw new Error('安装包不存在，请重新下载');
 
   const actualSize = typeof info.size === 'number' ? info.size : 0;
-  const actualSha256 = await sha256OfFile(uri);
+  const actualSha256 = await sha256OfFile(uri, onProgress);
   const problem = describeIntegrityProblem({
     actualSize,
     expectedSize: release.apkSize,
