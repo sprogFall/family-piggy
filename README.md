@@ -42,7 +42,7 @@ npm start        # Expo Dev Server，用 Expo Go 扫码即可运行
 
 - `.github/workflows/ci.yml`：push / PR 到 main 时执行 `typecheck + jest` 质量门禁；
 - `.github/workflows/warm-android-cache.yml`：在 main 上预热 Gradle 依赖与构建缓存（仅在依赖 / 配置变更或手动触发时运行），让标签发布构建免于冷启动；
-- `.github/workflows/release.yml`：推送 `v*` 标签或手动触发时，在 Runner 上构建 Android **APK**，产物上传到 Actions Artifacts（`family-piggy-apk`）。
+- `.github/workflows/release.yml`：推送 `v*` 标签或手动触发时，在 Runner 上构建 Android **APK**，并发布为 **GitHub Release 资产**（可直接下载安装的 `.apk`，不是需要解压的 zip）。
 
 > 工作流统一固定在 `ubuntu-24.04` 镜像，并使用原生声明 Node 24 运行时的 action 版本：前者避免 `ubuntu-latest` 迁移（2026-10-19 起切到 Ubuntu 26）造成构建环境被动突变，后者消除 Node 20 弃用告警。`gradle/actions/setup-gradle` 刻意停在 v5 —— v6 起默认改用专有的 enhanced 缓存实现，而 v5 与 v4 的缓存 key 格式一致，升级不会让已预热的缓存失效。升级 action 大版本前请先确认破坏性变更。
 
@@ -85,7 +85,16 @@ keytool -genkeypair -v -storetype PKCS12 \
 git tag v0.1.1 && git push origin v0.1.1   # 打标签触发，版本名取 tag 去掉 v
 ```
 
-产物在运行页的 Artifacts（`family-piggy-apk`），下载后可直接安装。工作流会打印 APK 的签名信息，并校验签名不是 debug 证书。
+产物发布在仓库的 **Releases** 页面（不是 Actions Artifacts —— Artifacts 会被 GitHub 强制打成 zip）：
+
+| 触发方式 | 发布标签 | 说明 |
+| --- | --- | --- |
+| 推送 `v*` 标签 | 该标签（如 `v0.1.2`） | 正式 Release |
+| 手动 Run workflow | `build-<run_number>` | 预发布（prerelease），便于随时拿到安装包 |
+
+在 Release 页面的 **Assets** 里直接点击 `family-piggy-<tag>.apk` 即可下载安装，**无需解压**；同一标签重跑会覆盖同名资产（幂等）。工作流会打印 APK 的签名信息、校验签名不是 debug 证书，并把 Release 链接写入运行摘要。
+
+> 工作流需要 `contents: write` 权限来创建 Release（已在 `release.yml` 中声明）。若仓库/组织策略把默认 `GITHUB_TOKEN` 限制为只读，请到 Settings → Actions → General → Workflow permissions 调整为 "Read and write permissions"。
 
 ### 环境变量与版本号注入链路
 
@@ -125,6 +134,7 @@ npm run typecheck # tsc --noEmit
 - 多账本：个人账本、家庭账本自由切换，可新建个人账本
 - 记一笔：支出/收入切换、分类九宫格、备注、日期选择、金额键盘
 - 账单列表：按天分组、日小计、月汇总；点击账单可编辑 / 删除
+- 成员记账标注：家庭账本的每条账单标明「谁记的」（本人显示「我」，他人显示成员昵称）
 - 月度预算：按账本设置，首页汇总卡展示使用进度与超支提醒
 - 首页与统计：月度汇总卡、收支趋势、支出占比环形图、分类构成
 - 分类管理：新增 / 编辑 / 删除（支出与收入独立）
@@ -157,5 +167,4 @@ supabase/      schema.sql（表结构 / RLS / 触发器 / Realtime）
 ## 路线图
 
 - 手机号 + 短信验证码登录（需 Supabase SMS Provider）
-- 家庭账本成员记账标注（谁记的）
 - iOS 正式包（AAB / TestFlight）发布流水线

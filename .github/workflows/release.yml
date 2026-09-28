@@ -21,6 +21,9 @@ jobs:
   build-apk:
     # 固定镜像：ubuntu-latest 自 2026-10-19 起迁移到 Ubuntu 26，固定可避免构建环境被动突变
     runs-on: ubuntu-24.04
+    # 发布 Release 需要写权限（默认 GITHUB_TOKEN 在部分仓库设置下是只读的）
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
 
@@ -68,11 +71,16 @@ jobs:
             fi
           done
 
-      - name: 解析版本号
+      - name: 解析版本号与发布标签
         run: |
-          echo "ANDROID_VERSION_CODE=${{ github.run_number }}" >> "$GITHUB_ENV"
+          echo "ANDROID_VERSION_CODE=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
             echo "APP_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+            echo "RELEASE_TAG=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+          else
+            # 手动触发没有 tag：用运行序号生成预发布标签，
+            # 保证每次构建都能在 Releases 页面拿到可直接下载的 APK
+            echo "RELEASE_TAG=build-${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
           fi
 
       - name: 还原签名 keystore
@@ -116,14 +124,43 @@ jobs:
             exit 1
           fi
 
-      - name: 收集产物
+      - name: 整理产物
         run: |
           APK=$(ls android/app/build/outputs/apk/release/*.apk | head -1)
-          cp "$APK" "family-piggy-${GITHUB_REF_NAME}.apk"
-          ls -lh family-piggy-*.apk
+          NAME="family-piggy-${RELEASE_TAG}.apk"
+          cp "$APK" "$NAME"
+          ls -lh "$NAME"
+          echo "APK_NAME=$NAME" >> "$GITHUB_ENV"
 
-      - uses: actions/upload-artifact@v7
-        with:
-          name: family-piggy-apk
-          path: family-piggy-*.apk
-          if-no-files-found: error
+      # Actions Artifacts 一定会被打包成 zip，下载后还要解压；
+      # 这里改为发布 Release 资产，.apk 可直接点击下载安装。
+      - name: 发布 Release（APK 作为可直接下载的安装包）
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          APK="$APK_NAME"
+          TITLE="家庭记账 ${RELEASE_TAG}"
+          NOTES=$(printf '%s\n' \
+            "Android 安装包（已用仓库 keystore 签名，可直接覆盖安装升级）。" \
+            "" \
+            "- 版本：${RELEASE_TAG}" \
+            "- 提交：${GITHUB_SHA}" \
+            "- 构建号：${GITHUB_RUN_NUMBER}" \
+            "- 安装包：${APK}" \
+            "" \
+            "在下方 Assets 中直接下载 .apk 安装，无需解压。")
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            # 同一标签重跑时覆盖资产，保持幂等
+            gh release upload "$RELEASE_TAG" "$APK" --clobber
+          else
+            if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+              EXTRA=""
+            else
+              EXTRA="--prerelease --target=$GITHUB_SHA"
+            fi
+            gh release create "$RELEASE_TAG" "$APK" --title "$TITLE" --notes "$NOTES" $EXTRA
+          fi
+
+          URL=$(gh release view "$RELEASE_TAG" --json url -q .url)
+          echo "APK 下载地址：$URL" >> "$GITHUB_STEP_SUMMARY"
