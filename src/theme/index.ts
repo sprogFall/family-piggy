@@ -2,7 +2,7 @@
 
 import type { ImageStyle, TextStyle, ViewStyle } from 'react-native';
 
-import { scaleFontSize } from './font-scale';
+import { getActiveFontScale, type FontScaleKey, scaleFontSize } from './font-scale';
 
 export {
   FONT_SCALE_KEYS,
@@ -69,29 +69,60 @@ export const TABBAR_HEIGHT = 58;
 
 export type NamedStyles<T> = { [P in keyof T]: ViewStyle | TextStyle | ImageStyle };
 
+type Style = ViewStyle | TextStyle | ImageStyle;
+
 /** 随全局字号档位缩放的样式属性 */
 const SCALED_STYLE_KEYS = ['fontSize', 'lineHeight'] as const;
 
-const withScaledFont = <T extends object>(style: T): T => {
-  for (const key of SCALED_STYLE_KEYS) {
-    const descriptor = Object.getOwnPropertyDescriptor(style, key);
-    // 已是缩放后的 getter（同一份样式对象被多处复用时）不重复缩放
-    if (!descriptor || descriptor.get || typeof descriptor.value !== 'number') continue;
-    const base = descriptor.value;
-    Object.defineProperty(style, key, {
-      configurable: true,
-      enumerable: true,
-      get: () => scaleFontSize(base),
-    });
+const isScaledKey = (key: string): boolean => (SCALED_STYLE_KEYS as readonly string[]).includes(key);
+
+/**
+ * 物化缓存：原始样式对象 → （档位 → 该档位下物化出的新样式对象）。
+ *
+ * 用 WeakMap 以原始样式对象为键，样式对象本身被回收时缓存随之释放，不会泄漏内存。
+ */
+const materializedByScale = new WeakMap<Style, Map<FontScaleKey, Style>>();
+
+/**
+ * 按当前档位把原始样式「物化」成一份新的 plain object：`fontSize` / `lineHeight`
+ * 缩放，其余属性原样透传，属性全部是可枚举的普通属性（不含 getter）。
+ *
+ * 同一档位下命中缓存返回**同一引用**（同一份样式对象被多处复用、以及每帧重渲染时
+ * 都不会新建对象）；切换档位则一定返回**新引用** —— React Native（Fabric）在
+ * diffProperties 里先比较 `prevProp === nextProp`，引用不变就认为没有变化、
+ * 不会把新字号下发原生，因此引用必须随档位变化。
+ *
+ * 物化对象永远从原始样式重新计算，不会在已缩放的对象上再次缩放。
+ */
+const materializeStyle = <S extends Style>(style: S): S => {
+  let cache = materializedByScale.get(style);
+  if (!cache) {
+    cache = new Map<FontScaleKey, Style>();
+    materializedByScale.set(style, cache);
   }
-  return style;
+
+  const scale = getActiveFontScale();
+  const cached = cache.get(scale);
+  if (cached) return cached as S;
+
+  const source = style as Record<string, unknown>;
+  const materialized: Record<string, unknown> = {};
+  for (const key of Object.keys(source)) {
+    const value = source[key];
+    materialized[key] =
+      isScaledKey(key) && typeof value === 'number' ? scaleFontSize(value) : value;
+  }
+
+  cache.set(scale, materialized as Style);
+  return materialized as S;
 };
 
 /**
  * 样式创建入口，等价于 `StyleSheet.create`，额外让 `fontSize` / `lineHeight`
  * 跟随「设置 → 字体大小」档位缩放。
  *
- * 缩放值在**读取样式时**计算（属性 getter），因此切换档位后组件重渲染即生效，
+ * 返回的容器对象每个属性都是 getter：读取时（即组件重渲染时）按当前档位物化出
+ * 一份新的样式对象，因此切换档位，屏幕重渲染后字号立即生效，无需重启 App。
  * 既能覆盖 `fontSize.md` 这类令牌，也能覆盖样式里显式写死的字号。
  *
  * 签名与 react-native 的 `StyleSheet.create` 完全一致：泛型里必须出现 `any`
@@ -102,6 +133,15 @@ const withScaledFont = <T extends object>(style: T): T => {
 export const createStyles = <T extends NamedStyles<T> | NamedStyles<any>>(
   styles: T & NamedStyles<any>,
 ): T => {
-  for (const style of Object.values(styles)) withScaledFont(style);
-  return styles;
+  const source = styles as Record<string, Style>;
+  const container: Record<string, unknown> = {};
+  for (const key of Object.keys(source)) {
+    const original = source[key];
+    Object.defineProperty(container, key, {
+      configurable: true,
+      enumerable: true,
+      get: () => materializeStyle(original),
+    });
+  }
+  return container as T;
 };
