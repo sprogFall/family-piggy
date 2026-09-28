@@ -5,6 +5,7 @@ import type {
   Family,
   Ledger,
   Profile,
+  Tag,
   Transaction,
 } from './domain';
 
@@ -48,6 +49,14 @@ export interface CategoryRow {
   sort_order: number;
 }
 
+export interface TagRow {
+  id: string;
+  ledger_id: string;
+  kind: 'expense' | 'income';
+  name: string;
+  created_at: string;
+}
+
 export interface TransactionRow {
   id: string;
   ledger_id: string;
@@ -55,7 +64,7 @@ export interface TransactionRow {
   kind: 'expense' | 'income';
   /** Postgres bigint 经 supabase-js 可能返回 string */
   amount: number | string;
-  note: string | null;
+  tag_id: string | null;
   occurred_at: string;
   created_by: string;
 }
@@ -93,13 +102,21 @@ export const toCategory = (row: CategoryRow): Category => ({
   sortOrder: row.sort_order,
 });
 
+export const toTag = (row: TagRow): Tag => ({
+  id: row.id,
+  ledgerId: row.ledger_id,
+  kind: row.kind,
+  name: row.name,
+  createdAt: row.created_at,
+});
+
 export const toTransaction = (row: TransactionRow): Transaction => ({
   id: row.id,
   ledgerId: row.ledger_id,
   categoryId: row.category_id,
   kind: row.kind,
   amount: Number(row.amount),
-  note: row.note,
+  tagId: row.tag_id,
   occurredAt: row.occurred_at,
   createdBy: row.created_by,
 });

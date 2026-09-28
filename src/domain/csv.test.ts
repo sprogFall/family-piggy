@@ -10,23 +10,23 @@ describe('draftsToCsv', () => {
         kind: 'expense',
         categoryName: '餐饮',
         amountCents: 1230,
-        note: '午饭',
+        tagName: '午饭',
       },
     ]);
     expect(csv.startsWith('\uFEFF')).toBe(true);
-    expect(csv).toContain('日期,类型,分类,金额(元),备注');
+    expect(csv).toContain('日期,类型,分类,金额(元),标签');
     expect(csv).toContain('2024-05-20 14:30,支出,餐饮,12.30,午饭');
     expect(csv.endsWith('\r\n')).toBe(false);
   });
 
-  it('备注含逗号与引号时转义', () => {
+  it('标签含逗号与引号时转义', () => {
     const csv = draftsToCsv([
       {
         occurredAt: '2024-05-20 14:30',
         kind: 'income',
         categoryName: '工资',
         amountCents: 100,
-        note: '含,逗号"引号"',
+        tagName: '含,逗号"引号"',
       },
     ]);
     expect(csv).toContain('"含,逗号""引号"""');
@@ -34,24 +34,28 @@ describe('draftsToCsv', () => {
 });
 
 describe('transactionToDraft', () => {
-  it('映射字段并按分类函数取名称', () => {
+  it('映射字段并按分类 / 标签函数取名称', () => {
     const tx: Transaction = {
       id: 't1',
       ledgerId: 'l1',
       categoryId: 'c1',
       kind: 'expense',
       amount: 1230,
-      note: '午饭',
+      tagId: 'g1',
       occurredAt: new Date(2024, 4, 20, 14, 30).toISOString(),
       createdBy: 'u1',
     };
-    const draft = transactionToDraft(tx, (id) => (id === 'c1' ? '餐饮' : ''));
+    const draft = transactionToDraft(
+      tx,
+      (id) => (id === 'c1' ? '餐饮' : ''),
+      (id) => (id === 'g1' ? '午饭' : ''),
+    );
     expect(draft).toEqual({
       occurredAt: '2024-05-20 14:30',
       kind: 'expense',
       categoryName: '餐饮',
       amountCents: 1230,
-      note: '午饭',
+      tagName: '午饭',
     });
   });
 });
@@ -80,7 +84,7 @@ describe('parseCsv', () => {
 describe('csvToDrafts', () => {
   it('解析含表头的合法数据', () => {
     const { drafts, errors } = csvToDrafts([
-      ['日期', '类型', '分类', '金额(元)', '备注'],
+      ['日期', '类型', '分类', '金额(元)', '标签'],
       ['2024-05-20 14:30', '支出', '餐饮', '12.30', '午饭'],
       ['2024-05-21', '收入', '工资', '3,800.00', ''],
     ]);

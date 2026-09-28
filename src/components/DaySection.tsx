@@ -1,21 +1,23 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { formatCents } from '@/domain/money';
 import type { DayGroup } from '@/domain/statement';
 import type { Category, Transaction } from '@/types/domain';
-import { colors, fontSize, space } from '@/theme';
+import { createStyles, colors, fontSize, space } from '@/theme';
 
 import { TransactionRow } from './TransactionRow';
 
 interface Props {
   group: DayGroup;
   categories: Category[];
+  /** 标签 ID -> 标签名（取自当前账本标签表） */
+  tagNameOf: (tagId: string) => string;
   onRowPress?: (transaction: Transaction) => void;
   /** 记录人标注（家庭账本由调用方提供；返回 null 则不展示） */
   creatorNameOf?: (transaction: Transaction) => string | null;
 }
 
-export const DaySection = ({ group, categories, onRowPress, creatorNameOf }: Props) => {
+export const DaySection = ({ group, categories, tagNameOf, onRowPress, creatorNameOf }: Props) => {
   const categoryById = new Map(categories.map((c) => [c.id, c]));
   return (
     <View style={styles.section}>
@@ -38,6 +40,7 @@ export const DaySection = ({ group, categories, onRowPress, creatorNameOf }: Pro
             transaction={tx}
             categoryName={category?.name ?? '未知分类'}
             iconKey={category?.icon ?? 'ellipsis-horizontal'}
+            tagName={tx.tagId ? tagNameOf(tx.tagId) : null}
             showTime
             createdByName={creatorNameOf?.(tx) ?? null}
             onPress={() => onRowPress?.(tx)}
@@ -48,7 +51,7 @@ export const DaySection = ({ group, categories, onRowPress, creatorNameOf }: Pro
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   day: {
     color: colors.text,
     fontSize: fontSize.sm,

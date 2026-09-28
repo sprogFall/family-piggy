@@ -8,7 +8,7 @@ import { formatCents, parseAmountToCents } from './money';
 import { parseDateTimeCN } from './dates';
 
 export const CSV_BOM = '\uFEFF';
-export const CSV_HEADERS = ['日期', '类型', '分类', '金额(元)', '备注'] as const;
+export const CSV_HEADERS = ['日期', '类型', '分类', '金额(元)', '标签'] as const;
 
 export const KIND_BY_LABEL: Record<string, TxKind> = {
   支出: 'expense',
@@ -20,7 +20,7 @@ export interface CsvDraft {
   kind: TxKind;
   categoryName: string;
   amountCents: number;
-  note: string;
+  tagName: string;
 }
 
 const escapeCell = (value: string): string =>
@@ -36,7 +36,7 @@ export const draftsToCsv = (drafts: CsvDraft[]): string => {
         draft.kind === 'expense' ? '支出' : '收入',
         draft.categoryName,
         formatCents(draft.amountCents, { thousands: false }),
-        escapeCell(draft.note),
+        escapeCell(draft.tagName),
       ].join(','),
     );
   }
@@ -46,12 +46,13 @@ export const draftsToCsv = (drafts: CsvDraft[]): string => {
 export const transactionToDraft = (
   tx: Transaction,
   categoryNameOf: (categoryId: string) => string,
+  tagNameOf: (tagId: string) => string,
 ): CsvDraft => ({
   occurredAt: formatDateTimeCN(tx.occurredAt),
   kind: tx.kind,
   categoryName: categoryNameOf(tx.categoryId),
   amountCents: tx.amount,
-  note: tx.note ?? '',
+  tagName: tx.tagId ? tagNameOf(tx.tagId) : '',
 });
 
 const formatDateTimeCN = (iso: string): string => {
@@ -132,7 +133,7 @@ export const csvToDrafts = (rows: string[][]): CsvParseResult => {
     if (index === 0 && isHeaderRow(row)) return;
     if (row.every((c) => c.trim() === '')) return;
 
-    const [dateCell = '', kindCell = '', nameCell = '', amountCell = '', noteCell = ''] = row;
+    const [dateCell = '', kindCell = '', nameCell = '', amountCell = '', tagCell = ''] = row;
 
     const date = parseDateTimeCN(dateCell);
     if (!date) {
@@ -159,7 +160,7 @@ export const csvToDrafts = (rows: string[][]): CsvParseResult => {
       kind,
       categoryName,
       amountCents,
-      note: noteCell.trim(),
+      tagName: tagCell.trim(),
     });
   });
 

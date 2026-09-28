@@ -26,7 +26,7 @@ export const transactionService = {
         category_id: input.categoryId,
         kind: input.kind,
         amount: input.amount,
-        note: input.note,
+        tag_id: input.tagId,
         occurred_at: input.occurredAt,
         created_by: createdBy,
       })
@@ -44,7 +44,7 @@ export const transactionService = {
       category_id: input.categoryId,
       kind: input.kind,
       amount: input.amount,
-      note: input.note,
+      tag_id: input.tagId,
       occurred_at: input.occurredAt,
       created_by: input.createdBy,
     }));
@@ -57,7 +57,7 @@ export const transactionService = {
     if (patch.categoryId !== undefined) row.category_id = patch.categoryId;
     if (patch.kind !== undefined) row.kind = patch.kind;
     if (patch.amount !== undefined) row.amount = patch.amount;
-    if (patch.note !== undefined) row.note = patch.note;
+    if (patch.tagId !== undefined) row.tag_id = patch.tagId;
     if (patch.occurredAt !== undefined) row.occurred_at = patch.occurredAt;
     const { error } = await supabase.from('transactions').update(row).eq('id', id);
     if (error) throw new Error('修改账单失败');

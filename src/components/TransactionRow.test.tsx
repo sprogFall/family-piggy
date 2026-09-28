@@ -10,43 +10,53 @@ const tx: Transaction = {
   categoryId: 'c1',
   kind: 'expense',
   amount: 236800,
-  note: '和朋友聚餐',
+  tagId: 'g1',
   occurredAt: new Date(2024, 4, 20, 14, 30).toISOString(),
   createdBy: 'u1',
 };
 
 describe('TransactionRow', () => {
-  it('渲染分类名、备注与支出金额', () => {
-    render(<TransactionRow transaction={tx} categoryName="餐饮" iconKey="restaurant" />);
+  it('渲染分类名与标签', () => {
+    render(
+      <TransactionRow transaction={tx} categoryName="餐饮" iconKey="restaurant" tagName="和朋友聚餐" />,
+    );
     expect(screen.getByText('餐饮')).toBeTruthy();
-    expect(screen.getByText('和朋友聚餐')).toBeTruthy();
+    expect(screen.getByText('#和朋友聚餐')).toBeTruthy();
     expect(screen.getByText('2,368.00')).toBeTruthy();
   });
 
-  it('收入金额带 + 号且不展示备注', () => {
+  it('未打标签时不展示标签文案', () => {
+    render(<TransactionRow transaction={{ ...tx, tagId: null }} categoryName="餐饮" iconKey="restaurant" />);
+    expect(screen.getByText('餐饮')).toBeTruthy();
+    expect(screen.queryByText(/^#/)).toBeNull();
+  });
+
+  it('收入金额带 + 号，展示时间与标签', () => {
     render(
       <TransactionRow
-        transaction={{ ...tx, kind: 'income', amount: 380000, note: null }}
+        transaction={{ ...tx, kind: 'income', amount: 380000, tagId: 'g2' }}
         categoryName="工资"
         iconKey="cash"
+        tagName="月薪"
         showTime
       />,
     );
     expect(screen.getByText('+3,800.00')).toBeTruthy();
-    expect(screen.getByText('14:30')).toBeTruthy();
+    expect(screen.getByText('14:30 · #月薪')).toBeTruthy();
   });
 
-  it('家庭账本在时间后追加记录人标注', () => {
+  it('家庭账本在时间与标签后追加记录人标注', () => {
     render(
       <TransactionRow
         transaction={tx}
         categoryName="餐饮"
         iconKey="restaurant"
+        tagName="聚餐"
         showTime
         createdByName="我"
       />,
     );
-    expect(screen.getByText('14:30 · 我')).toBeTruthy();
+    expect(screen.getByText('14:30 · #聚餐 · 我')).toBeTruthy();
   });
 
   it('他人记录展示成员昵称', () => {

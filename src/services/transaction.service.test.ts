@@ -13,7 +13,7 @@ const row = {
   category_id: 'c1',
   kind: 'expense',
   amount: '1230',
-  note: '午饭',
+  tag_id: 'g1',
   occurred_at: '2024-05-20T04:00:00.000Z',
   created_by: 'u1',
 };
@@ -45,7 +45,7 @@ describe('transactionService', () => {
         categoryId: 'c1',
         kind: 'expense',
         amount: 1230,
-        note: '午饭',
+        tagId: 'g1',
         occurredAt: '2024-05-20T04:00:00.000Z',
       },
       'u1',
@@ -58,8 +58,8 @@ describe('transactionService', () => {
   it('update 只映射传入字段', async () => {
     const chain = createQueryChain({ data: null, error: null });
     fromMock.mockReturnValue(chain);
-    await transactionService.update('t1', { amount: 100, note: null });
-    expect(chain.update).toHaveBeenCalledWith({ amount: 100, note: null });
+    await transactionService.update('t1', { amount: 100, tagId: null });
+    expect(chain.update).toHaveBeenCalledWith({ amount: 100, tag_id: null });
   });
 
   it('失败时抛出友好错误', async () => {

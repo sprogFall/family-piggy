@@ -3,7 +3,7 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { DaySection } from '@/components/DaySection';
@@ -15,12 +15,20 @@ import { ScreenTopBar } from '@/components/ui/ScreenTopBar';
 import { currentMonth, monthKey, type MonthRef } from '@/domain/dates';
 import { formatCents } from '@/domain/money';
 import { groupByDay, monthSummary } from '@/domain/statement';
-import { useActiveLedger, useActiveCategories, useCreatorLabel } from '@/hooks/useActiveLedgerData';
+import { showAlert } from '@/lib/alert';
+import { getErrorMessage } from '@/lib/errors';
+import {
+  useActiveLedger,
+  useActiveCategories,
+  useCreatorLabel,
+  useTagNameOf,
+} from '@/hooks/useActiveLedgerData';
 import type { RootStackParamList, TabParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
 import { useLedgerStore } from '@/stores/ledger.store';
+import { useTagStore } from '@/stores/tag.store';
 import { selectMonthTransactions, useTransactionStore } from '@/stores/transaction.store';
-import { colors, fontSize, space } from '@/theme';
+import { createStyles, colors, fontSize, space } from '@/theme';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<TabParamList, 'Bills'>,
@@ -36,6 +44,7 @@ export const BillsScreen = ({ navigation }: Props) => {
   const categories = useActiveCategories();
   /** 家庭账本展示「谁记的」；个人账本恒为 null，不展示 */
   const creatorLabelOf = useCreatorLabel();
+  const tagNameOf = useTagNameOf();
   const transactions = useTransactionStore((state) =>
     selectMonthTransactions(state, ledger?.id, month),
   );
@@ -43,6 +52,7 @@ export const BillsScreen = ({ navigation }: Props) => {
   const loadMonth = useTransactionStore((state) => state.loadMonth);
   const subscribe = useTransactionStore((state) => state.subscribe);
   const loadCategories = useCategoryStore((state) => state.load);
+  const loadTags = useTagStore((state) => state.load);
   const createPersonalLedger = useLedgerStore((state) => state.createPersonalLedger);
 
   const monthKeyValue = monthKey(month);
@@ -51,6 +61,7 @@ export const BillsScreen = ({ navigation }: Props) => {
       if (!ledger) return undefined;
       void loadMonth(ledger.id, month);
       void loadCategories(ledger.id);
+      void loadTags(ledger.id).catch(() => undefined);
       return subscribe(ledger.id);
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [ledger?.id, monthKeyValue]),
@@ -87,6 +98,7 @@ export const BillsScreen = ({ navigation }: Props) => {
               key={group.key}
               group={group}
               categories={categories}
+              tagNameOf={tagNameOf}
               creatorNameOf={(tx) => creatorLabelOf(tx.createdBy)}
               onRowPress={(tx) => navigation.navigate('AddTransaction', { transactionId: tx.id })}
             />
@@ -110,7 +122,9 @@ export const BillsScreen = ({ navigation }: Props) => {
         title="新建个人账本"
         placeholder="账本名称"
         onSubmit={(name) => {
-          void createPersonalLedger(name);
+          void createPersonalLedger(name).catch((error: unknown) =>
+            showAlert('创建失败', getErrorMessage(error)),
+          );
         }}
       />
     </View>
@@ -126,7 +140,7 @@ const SummaryItem = ({ label, value }: { label: string; value: string }) => (
   </View>
 );
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     backgroundColor: colors.bg,
     flex: 1,

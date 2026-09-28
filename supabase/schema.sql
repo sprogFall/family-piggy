@@ -117,6 +117,23 @@ comment on column public.categories.kind       is '分类类型：expense=支出
 comment on column public.categories.sort_order is '排序序号（同类型内升序展示）';
 comment on column public.categories.created_at is '创建时间';
 
+-- 标签（属于账本且区分收支类型；记账时随流水一并记录，下次可直接复用）
+create table if not exists public.tags (
+  id         uuid primary key default gen_random_uuid(),                     -- 标签 ID
+  ledger_id  uuid        not null references public.ledgers (id) on delete cascade, -- 所属账本 ID
+  kind       text        not null check (kind in ('expense', 'income')),      -- 类型：expense=支出，income=收入
+  name       text        not null,                                            -- 标签名称（同账本同类型内唯一）
+  created_at timestamptz not null default now(),                              -- 创建时间
+  unique (ledger_id, kind, name)                                              -- 同账本同类型下标签名唯一，保证「复用」幂等
+);
+
+comment on table public.tags is '记账标签（属于账本，按收支类型区分，可在记账时复用）';
+comment on column public.tags.id         is '标签 ID';
+comment on column public.tags.ledger_id  is '所属账本 ID';
+comment on column public.tags.kind       is '类型：expense=支出，income=收入';
+comment on column public.tags.name       is '标签名称（同账本同类型内唯一）';
+comment on column public.tags.created_at is '创建时间';
+
 -- 流水（amount 单位：分，正整数）
 create table if not exists public.transactions (
   id          uuid primary key default gen_random_uuid(),                    -- 流水 ID
@@ -124,15 +141,39 @@ create table if not exists public.transactions (
   category_id uuid        not null references public.categories (id),        -- 分类 ID
   kind        text        not null check (kind in ('expense', 'income')),    -- 类型：expense=支出，income=收入
   amount      bigint      not null check (amount > 0),                       -- 金额（单位：分，正整数，避免浮点误差）
-  note        text,                                                          -- 备注（可空）
+  tag_id      uuid        references public.tags (id) on delete set null,    -- 标签 ID（可空；标签被删除后自动置空）
   occurred_at timestamptz not null default now(),                            -- 发生时间
   created_by  uuid        not null references auth.users (id),               -- 记录人用户 ID（家庭账本中可区分谁记的）
   created_at  timestamptz not null default now(),                            -- 创建时间
   updated_at  timestamptz not null default now()                             -- 更新时间
 );
 
+-- 历史库升级（旧版本用 note 存备注）：按「账本 + 类型 + 备注」建标签 → 回填 tag_id → 删除 note 列
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'transactions' and column_name = 'note'
+  ) then
+    insert into public.tags (ledger_id, kind, name)
+    select distinct t.ledger_id, t.kind, btrim(t.note)
+    from public.transactions t
+    where t.note is not null and btrim(t.note) <> ''
+    on conflict (ledger_id, kind, name) do nothing;
+
+    update public.transactions t
+    set tag_id = g.id
+    from public.tags g
+    where t.note is not null and btrim(t.note) <> ''
+      and g.ledger_id = t.ledger_id and g.kind = t.kind and g.name = btrim(t.note);
+
+    alter table public.transactions drop column note;
+  end if;
+end $$;
+
 create index if not exists idx_transactions_ledger_time on public.transactions (ledger_id, occurred_at desc);
 create index if not exists idx_categories_ledger on public.categories (ledger_id, kind, sort_order);
+create index if not exists idx_tags_ledger on public.tags (ledger_id, kind, name);
 create index if not exists idx_family_members_user on public.family_members (user_id);
 
 comment on table public.transactions is '收支流水';
@@ -141,7 +182,7 @@ comment on column public.transactions.ledger_id   is '所属账本 ID';
 comment on column public.transactions.category_id is '分类 ID';
 comment on column public.transactions.kind        is '类型：expense=支出，income=收入';
 comment on column public.transactions.amount      is '金额（单位：分，正整数，避免浮点误差）';
-comment on column public.transactions.note        is '备注（可空）';
+comment on column public.transactions.tag_id      is '标签 ID（可空；标签被删除后自动置空）';
 comment on column public.transactions.occurred_at is '发生时间';
 comment on column public.transactions.created_by  is '记录人用户 ID（家庭账本中可区分谁记的）';
 comment on column public.transactions.created_at  is '创建时间';
@@ -352,6 +393,7 @@ alter table public.families        enable row level security;
 alter table public.family_members  enable row level security;
 alter table public.ledgers         enable row level security;
 alter table public.categories      enable row level security;
+alter table public.tags            enable row level security;
 alter table public.transactions    enable row level security;
 
 -- 用户资料：本人可读写；同家庭成员可读
@@ -408,9 +450,14 @@ create policy family_members_delete on public.family_members for delete
   );
 
 -- 账本：可见即可读，本人可写
+-- 注意：`owner_id = auth.uid()` 这一支不可省略。`INSERT ... RETURNING`（supabase-js 的
+--       `.insert().select()`）会用 SELECT 策略过滤返回行，而 `can_access_ledger` 是 stable
+--       security definer 函数，在同一条语句内看不到本语句刚插入的行，导致插入成功却返回 0 行
+--       （PostgREST 报 PGRST116），表现为「创建家庭/账本失败」。直接比较本行 owner_id 不查表，
+--       可让 RETURNING 正常返回。
 drop policy if exists ledgers_select on public.ledgers;
 create policy ledgers_select on public.ledgers for select
-  using (public.can_access_ledger(id));
+  using (owner_id = auth.uid() or public.can_access_ledger(id));
 
 drop policy if exists ledgers_insert on public.ledgers;
 create policy ledgers_insert on public.ledgers for insert
@@ -439,6 +486,23 @@ create policy categories_update on public.categories for update
 
 drop policy if exists categories_delete on public.categories;
 create policy categories_delete on public.categories for delete
+  using (public.can_access_ledger(ledger_id));
+
+-- 标签：可见账本内全员可读写；插入需账本可访问（ledger_id 为已存在账本，RETURNING 可正常返回）
+drop policy if exists tags_select on public.tags;
+create policy tags_select on public.tags for select
+  using (public.can_access_ledger(ledger_id));
+
+drop policy if exists tags_insert on public.tags;
+create policy tags_insert on public.tags for insert
+  with check (public.can_access_ledger(ledger_id));
+
+drop policy if exists tags_update on public.tags;
+create policy tags_update on public.tags for update
+  using (public.can_access_ledger(ledger_id));
+
+drop policy if exists tags_delete on public.tags;
+create policy tags_delete on public.tags for delete
   using (public.can_access_ledger(ledger_id));
 
 -- 流水：可见账本内可读可记；仅创建者或账本创建者可改删

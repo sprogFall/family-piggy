@@ -1,12 +1,13 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 import { creatorLabel } from '@/domain/attribution';
 import type { MonthRef } from '@/domain/dates';
 import { useAuthStore } from '@/stores/auth.store';
 import { selectCategories, useCategoryStore } from '@/stores/category.store';
 import { selectActiveLedger, selectMembers, useLedgerStore } from '@/stores/ledger.store';
+import { selectTags, useTagStore } from '@/stores/tag.store';
 import { selectMonthTransactions, useTransactionStore } from '@/stores/transaction.store';
-import type { Category, FamilyMember } from '@/types/domain';
+import type { Category, FamilyMember, Tag, TxKind } from '@/types/domain';
 
 export const useActiveLedger = () => useLedgerStore(selectActiveLedger);
 
@@ -21,6 +22,27 @@ export const useCategoryOf = (): ((categoryId: string) => Category | undefined) 
     (categoryId: string) => categories.find((category) => category.id === categoryId),
     [categories],
   );
+};
+
+/** 当前账本某收支类型下的标签（记账时点选复用） */
+export const useActiveTags = (kind: TxKind): Tag[] => {
+  const ledger = useActiveLedger();
+  return useTagStore((state) => selectTags(state, ledger?.id, kind));
+};
+
+/** 标签 ID -> 标签名；未加载或已删除时返回空串 */
+export const useTagNameOf = (): ((tagId: string) => string) => {
+  const ledger = useActiveLedger();
+  const ledgerTags = useTagStore((state) =>
+    ledger?.id ? state.byLedger[ledger.id] : undefined,
+  );
+  return useMemo(() => {
+    const nameById = new Map<string, string>();
+    for (const tag of [...(ledgerTags?.expense ?? []), ...(ledgerTags?.income ?? [])]) {
+      nameById.set(tag.id, tag.name);
+    }
+    return (tagId: string) => nameById.get(tagId) ?? '';
+  }, [ledgerTags]);
 };
 
 /**

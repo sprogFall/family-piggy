@@ -7,7 +7,7 @@ const tx = (partial: Partial<Transaction> & { id: string }): Transaction => ({
   categoryId: 'c1',
   kind: 'expense',
   amount: 100,
-  note: null,
+  tagId: null,
   occurredAt: new Date(2024, 4, 20, 12, 0).toISOString(),
   createdBy: 'u1',
   ...partial,

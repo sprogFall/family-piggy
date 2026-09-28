@@ -52,6 +52,15 @@ export interface Category {
   sortOrder: number;
 }
 
+/** 记账标签：属于账本且区分收支类型，可在同类型下反复选用 */
+export interface Tag {
+  id: string;
+  ledgerId: string;
+  kind: TxKind;
+  name: string;
+  createdAt: string;
+}
+
 export interface Transaction {
   id: string;
   ledgerId: string;
@@ -59,7 +68,8 @@ export interface Transaction {
   kind: TxKind;
   /** 金额，单位：分 */
   amount: number;
-  note: string | null;
+  /** 标签 ID，null 表示未打标签 */
+  tagId: string | null;
   /** ISO 8601 */
   occurredAt: string;
   createdBy: string;
@@ -70,7 +80,7 @@ export interface CreateTransactionInput {
   categoryId: string;
   kind: TxKind;
   amount: number;
-  note: string | null;
+  tagId: string | null;
   occurredAt: string;
 }
 
@@ -78,8 +88,14 @@ export interface UpdateTransactionInput {
   categoryId?: string;
   kind?: TxKind;
   amount?: number;
-  note?: string | null;
+  tagId?: string | null;
   occurredAt?: string;
+}
+
+export interface TagInput {
+  ledgerId: string;
+  kind: TxKind;
+  name: string;
 }
 
 export interface CategoryInput {

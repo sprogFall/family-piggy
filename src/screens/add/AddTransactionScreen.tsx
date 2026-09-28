@@ -3,22 +3,24 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import RNDateTimePicker from '@react-native-community/datetimepicker';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AmountKeypad } from '@/components/ui/AmountKeypad';
 import { CategoryGrid } from '@/components/ui/CategoryGrid';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
+import { TagSelector } from '@/components/ui/TagSelector';
 import { dateLabelOf } from '@/domain/dates';
 import { formatCents, parseAmountToCents } from '@/domain/money';
-import { useActiveLedger, useActiveCategories } from '@/hooks/useActiveLedgerData';
+import { useActiveLedger, useActiveCategories, useActiveTags } from '@/hooks/useActiveLedgerData';
 import { showAlert } from '@/lib/alert';
 import type { RootStackParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
+import { useTagStore } from '@/stores/tag.store';
 import { useToastStore } from '@/stores/toast.store';
 import { selectTransactionById, useTransactionStore } from '@/stores/transaction.store';
-import type { TxKind } from '@/types/domain';
-import { colors, fontSize, radius, space } from '@/theme';
+import type { Tag, TxKind } from '@/types/domain';
+import { createStyles, colors, fontSize, radius, space } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddTransaction'>;
 
@@ -39,14 +41,18 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   const [amount, setAmount] = useState(
     editing ? formatCents(editing.amount, { thousands: false }) : '',
   );
-  const [note, setNote] = useState(editing?.note ?? '');
+  const [tagId, setTagId] = useState<string | null>(editing?.tagId ?? null);
   const [date, setDate] = useState(editing ? new Date(editing.occurredAt) : new Date());
   const [showPicker, setShowPicker] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const ledger = useActiveLedger();
   const categories = useActiveCategories();
+  const tags = useActiveTags(kind);
   const loadCategories = useCategoryStore((state) => state.load);
+  const loadTags = useTagStore((state) => state.load);
+  const ensureTag = useTagStore((state) => state.ensure);
+  const removeTag = useTagStore((state) => state.remove);
   const addTransaction = useTransactionStore((state) => state.add);
   const updateTransaction = useTransactionStore((state) => state.update);
   const removeTransaction = useTransactionStore((state) => state.remove);
@@ -54,7 +60,9 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
 
   useFocusEffect(
     useCallback(() => {
-      if (ledger) void loadCategories(ledger.id);
+      if (!ledger) return;
+      void loadCategories(ledger.id);
+      void loadTags(ledger.id).catch(() => undefined);
     }, [ledger?.id]),
   );
 
@@ -73,6 +81,36 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   const changeKind = (next: TxKind) => {
     setKind(next);
     setCategoryId(null);
+    // 标签按收支类型区分，切换类型后原选中标签不再适用
+    setTagId(null);
+  };
+
+  const createTag = (name: string) => {
+    if (!ledger) return;
+    void ensureTag({ ledgerId: ledger.id, kind, name })
+      .then((tag) => setTagId(tag.id))
+      .catch((error: unknown) =>
+        showAlert('标签保存失败', error instanceof Error ? error.message : '请稍后再试'),
+      );
+  };
+
+  const confirmRemoveTag = (tag: Tag) => {
+    if (!ledger) return;
+    const ledgerId = ledger.id;
+    showAlert('删除标签', `删除后已有账单不再显示「${tag.name}」，确定删除吗？`, [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '删除',
+        style: 'destructive',
+        onPress: () => {
+          void removeTag(tag.id, ledgerId)
+            .then(() => setTagId((current) => (current === tag.id ? null : current)))
+            .catch((error: unknown) =>
+              showAlert('删除失败', error instanceof Error ? error.message : '请稍后再试'),
+            );
+        },
+      },
+    ]);
   };
 
   const submit = async () => {
@@ -89,24 +127,25 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
       showAlert('提示', '请输入正确的金额');
       return;
     }
+    const ledgerId = ledger.id;
     setSubmitting(true);
     try {
       if (editing) {
-        await updateTransaction(editing.id, ledger.id, {
+        await updateTransaction(editing.id, ledgerId, {
           categoryId,
           kind,
           amount: cents,
-          note: note.trim() === '' ? null : note.trim(),
+          tagId,
           occurredAt: date.toISOString(),
         });
         showToast('已保存');
       } else {
         await addTransaction({
-          ledgerId: ledger.id,
+          ledgerId,
           categoryId,
           kind,
           amount: cents,
-          note: note.trim() === '' ? null : note.trim(),
+          tagId,
           occurredAt: date.toISOString(),
         });
         showToast('记账成功');
@@ -121,13 +160,14 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
 
   const confirmRemove = () => {
     if (!editing || !ledger) return;
+    const ledgerId = ledger.id;
     showAlert('删除账单', '删除后不可恢复，确定删除吗？', [
       { text: '取消', style: 'cancel' },
       {
         text: '删除',
         style: 'destructive',
         onPress: () => {
-          void removeTransaction(editing.id, ledger.id)
+          void removeTransaction(editing.id, ledgerId)
             .then(() => navigation.goBack())
             .catch((error: unknown) =>
               showAlert('删除失败', error instanceof Error ? error.message : '请稍后再试'),
@@ -153,43 +193,46 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
         )}
       </View>
 
+      {/* 顶部：日期 + 金额，位于支出/收入之上，便于先确认时间与数额 */}
+      <View style={styles.topPanel}>
+        <Pressable style={styles.dateChip} onPress={() => setShowPicker(true)}>
+          <Ionicons name="calendar" size={18} color={colors.primary} />
+          <Text style={styles.dateText}>{dateLabelOf(date.toISOString())}</Text>
+          <Ionicons name="chevron-down" size={16} color={colors.primary} />
+        </Pressable>
+        <View style={styles.amountBox}>
+          <Text style={styles.amountSymbol}>¥</Text>
+          <Text style={styles.amountValue} numberOfLines={1} adjustsFontSizeToFit>
+            {amount === '' ? '0.00' : amount}
+          </Text>
+        </View>
+      </View>
+
       <View style={styles.tabsCard}>
         <SegmentedTabs items={KIND_TABS} value={kind} onChange={changeKind} />
       </View>
 
-      <View style={styles.body}>
+      <ScrollView
+        style={styles.body}
+        contentContainerStyle={styles.bodyContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <CategoryGrid
           categories={kindCategories}
           selectedId={categoryId}
           onSelect={(category) => setCategoryId(category.id)}
         />
-      </View>
+        <TagSelector
+          tags={tags}
+          selectedId={tagId}
+          onSelect={setTagId}
+          onCreate={createTag}
+          onRemove={confirmRemoveTag}
+        />
+      </ScrollView>
 
       <View style={styles.bottom}>
-        <View style={styles.metaRow}>
-          <Pressable style={styles.dateChip} onPress={() => setShowPicker(true)}>
-            <Ionicons name="calendar-outline" size={16} color={colors.textSecondary} />
-            <Text style={styles.dateText}>{dateLabelOf(date.toISOString())}</Text>
-            <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
-          </Pressable>
-          <View style={styles.noteBox}>
-            <Text style={styles.noteLabel}>备注:</Text>
-            <TextInput
-              style={styles.noteInput}
-              placeholder="点击填写"
-              placeholderTextColor={colors.textTertiary}
-              value={note}
-              maxLength={30}
-              onChangeText={setNote}
-            />
-          </View>
-        </View>
-
-        <View style={styles.amountRow}>
-          <Text style={styles.amountSymbol}>¥</Text>
-          <Text style={styles.amountValue}>{amount === '' ? '0.00' : amount}</Text>
-        </View>
-
         {showPicker ? (
           <RNDateTimePicker
             value={date}
@@ -213,17 +256,13 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   );
 };
 
-const styles = StyleSheet.create({
-  amountRow: {
+const styles = createStyles({
+  amountBox: {
     alignItems: 'flex-end',
-    backgroundColor: colors.card,
-    borderTopColor: colors.border,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    flex: 1,
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    paddingBottom: space(2),
-    paddingHorizontal: space(4),
-    paddingTop: space(3),
+    marginLeft: space(3),
   },
   amountSymbol: {
     color: colors.text,
@@ -233,13 +272,14 @@ const styles = StyleSheet.create({
   },
   amountValue: {
     color: colors.text,
-    flex: 1,
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: '700',
-    textAlign: 'right',
   },
   body: {
     flex: 1,
+  },
+  bodyContent: {
+    paddingBottom: space(2),
   },
   bottom: {
     backgroundColor: colors.card,
@@ -250,16 +290,17 @@ const styles = StyleSheet.create({
   },
   dateChip: {
     alignItems: 'center',
-    backgroundColor: colors.bg,
-    borderRadius: radius.md,
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.round,
     flexDirection: 'row',
-    gap: space(1),
-    paddingHorizontal: space(2),
-    paddingVertical: space(1.5),
+    gap: space(1.5),
+    paddingHorizontal: space(3.5),
+    paddingVertical: space(2),
   },
   dateText: {
-    color: colors.text,
-    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontSize: fontSize.md,
+    fontWeight: '600',
   },
   header: {
     alignItems: 'center',
@@ -268,29 +309,6 @@ const styles = StyleSheet.create({
     paddingBottom: space(3),
     paddingHorizontal: space(4),
   },
-  metaRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: space(2),
-    paddingHorizontal: space(4),
-    paddingTop: space(3),
-  },
-  noteBox: {
-    alignItems: 'center',
-    flex: 1,
-    flexDirection: 'row',
-  },
-  noteInput: {
-    color: colors.text,
-    flex: 1,
-    fontSize: fontSize.sm,
-    paddingVertical: 0,
-  },
-  noteLabel: {
-    color: colors.textSecondary,
-    fontSize: fontSize.sm,
-    marginRight: space(1),
-  },
   tabsCard: {
     backgroundColor: colors.card,
   },
@@ -298,5 +316,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: fontSize.lg,
     fontWeight: '600',
+  },
+  topPanel: {
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    flexDirection: 'row',
+    paddingBottom: space(3),
+    paddingHorizontal: space(4),
   },
 });

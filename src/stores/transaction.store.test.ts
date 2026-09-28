@@ -30,7 +30,7 @@ const tx = (id: string, day: number, overrides: Partial<Transaction> = {}): Tran
   categoryId: 'c1',
   kind: 'expense',
   amount: 100,
-  note: null,
+  tagId: null,
   occurredAt: new Date(2024, 4, day, 10, 0).toISOString(),
   createdBy: 'u1',
   ...overrides,
@@ -69,7 +69,7 @@ describe('useTransactionStore', () => {
       categoryId: 'c1',
       kind: 'expense',
       amount: 500,
-      note: null,
+      tagId: null,
       occurredAt: new Date(2024, 4, 21, 10, 0).toISOString(),
     });
     expect(created.id).toBe('t2');

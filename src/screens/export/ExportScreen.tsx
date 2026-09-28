@@ -8,11 +8,12 @@ import { AppHeader } from '@/components/ui/AppHeader';
 import { MonthPickerSheet } from '@/components/ui/MonthPickerSheet';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { currentMonth, monthKey, monthLabel, type MonthRef } from '@/domain/dates';
-import { useActiveLedger, useCategoryOf } from '@/hooks/useActiveLedgerData';
+import { useActiveLedger, useCategoryOf, useTagNameOf } from '@/hooks/useActiveLedgerData';
 import { showAlert } from '@/lib/alert';
 import type { RootStackParamList } from '@/navigation/types';
+import { useTagStore } from '@/stores/tag.store';
 import { selectMonthTransactions, useTransactionStore } from '@/stores/transaction.store';
-import { colors, fontSize, radius, space } from '@/theme';
+import { createStyles, colors, fontSize, radius, space } from '@/theme';
 import {
   EXPORT_FORMAT_LABEL,
   exportTransactions,
@@ -29,6 +30,8 @@ export const ExportScreen = ({ navigation }: Props) => {
 
   const ledger = useActiveLedger();
   const categoryOf = useCategoryOf();
+  const tagNameOf = useTagNameOf();
+  const loadTags = useTagStore((state) => state.load);
   const transactions = useTransactionStore((state) =>
     selectMonthTransactions(state, ledger?.id, month),
   );
@@ -38,6 +41,7 @@ export const ExportScreen = ({ navigation }: Props) => {
     useCallback(() => {
       if (!ledger) return;
       void loadMonth(ledger.id, month);
+      void loadTags(ledger.id).catch(() => undefined);
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [ledger?.id, monthKey(month)]),
   );
@@ -49,11 +53,12 @@ export const ExportScreen = ({ navigation }: Props) => {
     }
     setExporting(true);
     try {
-      await exportTransactions(transactions, (id) => categoryOf(id)?.name ?? '未知分类', {
-        ledgerName: ledger.name,
-        month,
-        format,
-      });
+      await exportTransactions(
+        transactions,
+        (id) => categoryOf(id)?.name ?? '未知分类',
+        (id) => tagNameOf(id),
+        { ledgerName: ledger.name, month, format },
+      );
       showAlert('导出成功', '文件已生成，可在系统分享面板中选择保存位置');
     } catch (error) {
       showAlert('导出失败', error instanceof Error ? error.message : '请稍后再试');
@@ -122,7 +127,7 @@ const OptionRow = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   card: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,
