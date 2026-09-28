@@ -79,7 +79,8 @@ keytool -genkeypair -v -storetype PKCS12 \
 | `ANDROID_KEYSTORE_PASSWORD` | keystore 密码（PKCS12 下 key 密码与其相同） |
 | `ANDROID_KEY_ALIAS` | keystore 别名（示例中为 `family-piggy`） |
 
-4. **（可选）应用图标与启动图**：`app.config.js` 目前未配置 `icon / adaptiveIcon / splash`，未配置时使用 Expo 默认图标。
+4. **应用图标**：`app.config.js` 已配置 `icon: ./assets/icon.png` 与 `android.adaptiveIcon`（`foregroundImage: ./assets/adaptive-icon.png`、`backgroundColor: #9DD9BE`）。两张图都由设计稿裁掉白边生成——圆角方块外的白底用边界色无缝延续成满幅；自适应图标的主体（笔记本 / 铅笔 / 叶子 / 金币）额外收在安全区内，圆形与圆角方形遮罩都不会裁到。`app.config.test.js` 守住「文件存在、1024×1024、最外圈无白边、主体在安全区」。
+   - 换图标直接覆盖 `assets/` 下两个 PNG（保持 1024×1024 正方形）即可，无需改代码。
 
 ### 触发与产物
 
@@ -162,6 +163,7 @@ src/
   theme/       设计令牌与图标映射
   types/       领域类型与数据库行映射
   lib/         supabase client 与通用工具
+assets/        应用图标（icon.png 通用图标 / adaptive-icon.png Android 自适应前景）
 supabase/      schema.sql（表结构 / RLS / 触发器 / Realtime）+ migrations/（增量迁移）
 ```
 

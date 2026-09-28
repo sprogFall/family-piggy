@@ -11,6 +11,8 @@ module.exports = {
     version: process.env.APP_VERSION || '0.1.0',
     orientation: 'portrait',
     userInterfaceStyle: 'light',
+    // 应用图标：由设计稿裁掉白边生成（圆角方块外的白底用边界色无缝延续成满幅）
+    icon: './assets/icon.png',
     // 原生资源 / 字体嵌入（expo install 提示需显式声明，动态配置无法自动写入）
     plugins: ['expo-asset', 'expo-font'],
     ios: {
@@ -24,6 +26,12 @@ module.exports = {
       package: 'com.familypiggy.app',
       // 版本号：CI 中由工作流运行序号注入，保证后续 APK 可覆盖升级
       versionCode: Number(process.env.ANDROID_VERSION_CODE || 1),
+      // 自适应图标（Android 8+）：前景同为满幅无缝图，主体内容收在安全区内，
+      // 圆形 / 圆角方形遮罩都不会裁到笔记本、铅笔与叶子
+      adaptiveIcon: {
+        foregroundImage: './assets/adaptive-icon.png',
+        backgroundColor: '#9DD9BE',
+      },
     },
   },
 };
