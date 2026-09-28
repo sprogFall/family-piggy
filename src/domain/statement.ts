@@ -4,6 +4,7 @@
 
 import type { Transaction, TxKind } from '@/types/domain';
 
+import { dominantCurrency, type CurrencyCode } from './currency';
 import { dayKeyOf, dayLabelOf, daysInMonth, type MonthRef } from './dates';
 
 export interface Summary {
@@ -12,10 +13,23 @@ export interface Summary {
   balance: number;
 }
 
-export const monthSummary = (transactions: Transaction[]): Summary => {
+/**
+ * 取某币种的流水子集（不同币种的最小单位不可直接相加）。
+ * 不传币种时取该批流水的主币种（出现次数最多，次数相同取最近一笔）。
+ */
+export const scopeToCurrency = (
+  transactions: Transaction[],
+  currency: CurrencyCode = dominantCurrency(transactions),
+): Transaction[] => transactions.filter((tx) => tx.currency === currency);
+
+export const monthSummary = (
+  transactions: Transaction[],
+  currency: CurrencyCode = dominantCurrency(transactions),
+): Summary => {
   let expense = 0;
   let income = 0;
   for (const tx of transactions) {
+    if (tx.currency !== currency) continue;
     if (tx.kind === 'expense') expense += tx.amount;
     else income += tx.amount;
   }
@@ -28,6 +42,8 @@ export interface DayGroup {
   /** 组内最新一条的时间，用于排序与展示 */
   occurredAt: string;
   transactions: Transaction[];
+  /** 当日汇总币种（当天出现次数最多的币种），组内金额只统计该币种 */
+  currency: CurrencyCode;
   expense: number;
   income: number;
 }
@@ -44,15 +60,23 @@ export const groupByDay = (transactions: Transaction[]): DayGroup[] => {
         label: dayLabelOf(tx.occurredAt),
         occurredAt: tx.occurredAt,
         transactions: [],
+        currency: tx.currency,
         expense: 0,
         income: 0,
       };
       map.set(key, group);
     }
     group.transactions.push(tx);
-    if (tx.kind === 'expense') group.expense += tx.amount;
-    else group.income += tx.amount;
     if (tx.occurredAt > group.occurredAt) group.occurredAt = tx.occurredAt;
+  }
+  for (const group of map.values()) {
+    group.currency = dominantCurrency(group.transactions);
+    // 不跨币种相加：当日汇总只统计主币种，其余币种仍按各自符号展示在明细行
+    for (const tx of group.transactions) {
+      if (tx.currency !== group.currency) continue;
+      if (tx.kind === 'expense') group.expense += tx.amount;
+      else group.income += tx.amount;
+    }
   }
   return [...map.values()].sort((a, b) => (a.key < b.key ? 1 : -1));
 };
@@ -118,10 +142,11 @@ export interface TrendPoint {
   income: number;
 }
 
-/** 整月每日收支（缺失天补 0） */
+/** 整月每日收支（缺失天补 0）；默认只统计主币种，避免跨币种相加 */
 export const trendByDay = (
   transactions: Transaction[],
   month: MonthRef,
+  currency: CurrencyCode = dominantCurrency(transactions),
 ): TrendPoint[] => {
   const points: TrendPoint[] = Array.from({ length: daysInMonth(month) }, (_, i) => ({
     day: i + 1,
@@ -129,6 +154,7 @@ export const trendByDay = (
     income: 0,
   }));
   for (const tx of transactions) {
+    if (tx.currency !== currency) continue;
     const day = new Date(tx.occurredAt).getDate();
     const point = points[day - 1];
     if (!point) continue;

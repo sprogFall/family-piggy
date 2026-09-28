@@ -8,7 +8,7 @@ const fromMock = supabase.from as unknown as jest.Mock;
 const tagRow = {
   id: 'g1',
   ledger_id: 'l1',
-  kind: 'expense',
+  category_id: 'c1',
   name: '午饭',
   created_at: '2024-01-01T00:00:00Z',
 };
@@ -32,41 +32,47 @@ describe('tagService', () => {
     expect(fromMock).toHaveBeenCalledWith('tags');
     expect(chain.eq).toHaveBeenCalledWith('ledger_id', 'l1');
     expect(tags).toEqual([
-      { id: 'g1', ledgerId: 'l1', kind: 'expense', name: '午饭', createdAt: '2024-01-01T00:00:00Z' },
+      {
+        id: 'g1',
+        ledgerId: 'l1',
+        categoryId: 'c1',
+        name: '午饭',
+        createdAt: '2024-01-01T00:00:00Z',
+      },
     ]);
   });
 
-  it('ensureMany 去重归一化后用 upsert 幂等写入', async () => {
+  it('ensureMany 去重归一化后按分类 upsert 幂等写入', async () => {
     const chain = createQueryChain({ data: [tagRow], error: null });
     fromMock.mockReturnValue(chain);
 
-    const tags = await tagService.ensureMany('l1', 'expense', ['午饭', ' 午饭 ', '', '  夜宵']);
+    const tags = await tagService.ensureMany('l1', 'c1', ['午饭', ' 午饭 ', '', '  夜宵']);
 
     expect(chain.upsert).toHaveBeenCalledWith(
       [
-        { ledger_id: 'l1', kind: 'expense', name: '午饭' },
-        { ledger_id: 'l1', kind: 'expense', name: '夜宵' },
+        { ledger_id: 'l1', category_id: 'c1', name: '午饭' },
+        { ledger_id: 'l1', category_id: 'c1', name: '夜宵' },
       ],
-      { onConflict: 'ledger_id,kind,name' },
+      { onConflict: 'ledger_id,category_id,name' },
     );
     expect(tags[0].name).toBe('午饭');
   });
 
   it('ensureMany 空名称直接返回且不发起请求', async () => {
     fromMock.mockReturnValue(createQueryChain({ data: [], error: null }));
-    expect(await tagService.ensureMany('l1', 'income', ['  '])).toEqual([]);
+    expect(await tagService.ensureMany('l1', 'c2', ['  '])).toEqual([]);
     expect(fromMock).not.toHaveBeenCalled();
   });
 
   it('ensure 返回单个标签', async () => {
     fromMock.mockReturnValue(createQueryChain({ data: [tagRow], error: null }));
-    const tag = await tagService.ensure({ ledgerId: 'l1', kind: 'expense', name: '午饭' });
+    const tag = await tagService.ensure({ ledgerId: 'l1', categoryId: 'c1', name: '午饭' });
     expect(tag.id).toBe('g1');
   });
 
   it('ensureMany 失败时抛出友好错误', async () => {
     fromMock.mockReturnValue(createQueryChain(queryError('boom')));
-    await expect(tagService.ensureMany('l1', 'expense', ['午饭'])).rejects.toThrow('保存标签失败');
+    await expect(tagService.ensureMany('l1', 'c1', ['午饭'])).rejects.toThrow('保存标签失败');
   });
 
   it('remove 按 ID 删除', async () => {

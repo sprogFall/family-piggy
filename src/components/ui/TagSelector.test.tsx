@@ -7,7 +7,7 @@ import { TagSelector } from './TagSelector';
 const tag = (id: string, name: string): Tag => ({
   id,
   ledgerId: 'l1',
-  kind: 'expense',
+  categoryId: 'c1',
   name,
   createdAt: '2024-01-01T00:00:00Z',
 });
@@ -32,7 +32,14 @@ const openCreator = () => {
 };
 
 describe('TagSelector', () => {
-  it('展示同类型下已有标签供复用', () => {
+  it('未选择分类时整块不渲染（标签与「新标签」都不可见）', () => {
+    setup({ disabled: true });
+    expect(screen.queryByText('午饭')).toBeNull();
+    expect(screen.queryByText('标签')).toBeNull();
+    expect(screen.queryByLabelText('新增标签')).toBeNull();
+  });
+
+  it('展示同分类下已有标签供复用', () => {
     setup();
     expect(screen.getByText('午饭')).toBeTruthy();
     expect(screen.getByText('夜宵')).toBeTruthy();

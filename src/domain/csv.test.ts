@@ -11,11 +11,12 @@ describe('draftsToCsv', () => {
         categoryName: '餐饮',
         amountCents: 1230,
         tagName: '午饭',
+        currency: 'CNY',
       },
     ]);
     expect(csv.startsWith('\uFEFF')).toBe(true);
-    expect(csv).toContain('日期,类型,分类,金额(元),标签');
-    expect(csv).toContain('2024-05-20 14:30,支出,餐饮,12.30,午饭');
+    expect(csv).toContain('日期,类型,分类,金额,标签,币种');
+    expect(csv).toContain('2024-05-20 14:30,支出,餐饮,12.30,午饭,CNY');
     expect(csv.endsWith('\r\n')).toBe(false);
   });
 
@@ -27,6 +28,7 @@ describe('draftsToCsv', () => {
         categoryName: '工资',
         amountCents: 100,
         tagName: '含,逗号"引号"',
+        currency: 'USD',
       },
     ]);
     expect(csv).toContain('"含,逗号""引号"""');
@@ -41,6 +43,7 @@ describe('transactionToDraft', () => {
       categoryId: 'c1',
       kind: 'expense',
       amount: 1230,
+      currency: 'CNY',
       tagId: 'g1',
       occurredAt: new Date(2024, 4, 20, 14, 30).toISOString(),
       createdBy: 'u1',
@@ -56,6 +59,7 @@ describe('transactionToDraft', () => {
       categoryName: '餐饮',
       amountCents: 1230,
       tagName: '午饭',
+      currency: 'CNY',
     });
   });
 });
@@ -92,6 +96,21 @@ describe('csvToDrafts', () => {
     expect(drafts).toHaveLength(2);
     expect(drafts[0]).toMatchObject({ kind: 'expense', categoryName: '餐饮', amountCents: 1230 });
     expect(drafts[1]).toMatchObject({ kind: 'income', categoryName: '工资', amountCents: 380000 });
+  });
+
+  it('旧版 5 列文件缺省按 CNY 导入', () => {
+    const { drafts } = csvToDrafts([['2024-05-20', '支出', '餐饮', '10', '午饭']]);
+    expect(drafts[0].currency).toBe('CNY');
+  });
+
+  it('解析币种列并转为大写，非法币种按行报错', () => {
+    const { drafts, errors } = csvToDrafts([
+      ['2024-05-20', '支出', '餐饮', '10', '午饭', 'usd'],
+      ['2024-05-21', '支出', '餐饮', '10', '', 'RMB'],
+    ]);
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0].currency).toBe('USD');
+    expect(errors).toEqual([{ line: 2, message: '币种无效：RMB' }]);
   });
 
   it('逐行报告错误但不中断', () => {

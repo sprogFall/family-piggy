@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native';
 
-import { formatCents } from '@/domain/money';
+import { formatMoney } from '@/domain/money';
 import type { DayGroup } from '@/domain/statement';
 import type { Category, Transaction } from '@/types/domain';
 import { createStyles, colors, fontSize, space } from '@/theme';
@@ -25,10 +25,12 @@ export const DaySection = ({ group, categories, tagNameOf, onRowPress, creatorNa
         <Text style={styles.day}>{group.label}</Text>
         <View style={styles.headerRight}>
           {group.expense > 0 ? (
-            <Text style={styles.sum}>支出 {formatCents(group.expense)}</Text>
+            <Text style={styles.sum}>支出 {formatMoney(group.expense, group.currency)}</Text>
           ) : null}
           {group.income > 0 ? (
-            <Text style={[styles.sum, styles.income]}>收入 {formatCents(group.income)}</Text>
+            <Text style={[styles.sum, styles.income]}>
+              收入 {formatMoney(group.income, group.currency)}
+            </Text>
           ) : null}
         </View>
       </View>

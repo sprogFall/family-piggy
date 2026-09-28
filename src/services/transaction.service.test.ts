@@ -13,6 +13,7 @@ const row = {
   category_id: 'c1',
   kind: 'expense',
   amount: '1230',
+  currency: 'USD',
   tag_id: 'g1',
   occurred_at: '2024-05-20T04:00:00.000Z',
   created_by: 'u1',
@@ -34,6 +35,18 @@ describe('transactionService', () => {
     expect(chain.gte).toHaveBeenCalledWith('occurred_at', '2024-05-01T00:00:00.000Z');
     expect(chain.lt).toHaveBeenCalledWith('occurred_at', '2024-06-01T00:00:00.000Z');
     expect(txs[0].amount).toBe(1230);
+    expect(txs[0].currency).toBe('USD');
+  });
+
+  it('库中币种缺失或非法时回落 CNY', async () => {
+    const chain = createQueryChain({ data: [{ ...row, currency: null }], error: null });
+    fromMock.mockReturnValue(chain);
+    const txs = await transactionService.listMonth(
+      'l1',
+      '2024-05-01T00:00:00.000Z',
+      '2024-06-01T00:00:00.000Z',
+    );
+    expect(txs[0].currency).toBe('CNY');
   });
 
   it('create 携带创建人', async () => {
@@ -45,21 +58,22 @@ describe('transactionService', () => {
         categoryId: 'c1',
         kind: 'expense',
         amount: 1230,
+        currency: 'JPY',
         tagId: 'g1',
         occurredAt: '2024-05-20T04:00:00.000Z',
       },
       'u1',
     );
     expect(chain.insert).toHaveBeenCalledWith(
-      expect.objectContaining({ created_by: 'u1', amount: 1230 }),
+      expect.objectContaining({ created_by: 'u1', amount: 1230, currency: 'JPY' }),
     );
   });
 
   it('update 只映射传入字段', async () => {
     const chain = createQueryChain({ data: null, error: null });
     fromMock.mockReturnValue(chain);
-    await transactionService.update('t1', { amount: 100, tagId: null });
-    expect(chain.update).toHaveBeenCalledWith({ amount: 100, tag_id: null });
+    await transactionService.update('t1', { amount: 100, tagId: null, currency: 'EUR' });
+    expect(chain.update).toHaveBeenCalledWith({ amount: 100, tag_id: null, currency: 'EUR' });
   });
 
   it('失败时抛出友好错误', async () => {

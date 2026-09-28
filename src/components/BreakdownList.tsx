@@ -1,16 +1,19 @@
 import { Text, View } from 'react-native';
 
-import { formatCents, formatRatio } from '@/domain/money';
+import type { CurrencyCode } from '@/domain/currency';
+import { formatMoney, formatRatio } from '@/domain/money';
 import type { BreakdownItem } from '@/domain/statement';
 import { createStyles, CHART_PALETTE, colors, fontSize, space } from '@/theme';
 
 interface Props {
   items: BreakdownItem[];
+  /** 汇总币种（明细金额按该币种展示） */
+  currency: CurrencyCode;
   /** 是否展示金额（统计页展示，首页仅占比） */
   showAmount?: boolean;
 }
 
-export const BreakdownList = ({ items, showAmount = false }: Props) => (
+export const BreakdownList = ({ items, currency, showAmount = false }: Props) => (
   <View>
     {items.map((item, index) => (
       <View key={`${item.categoryId}-${index}`} style={styles.row}>
@@ -19,7 +22,7 @@ export const BreakdownList = ({ items, showAmount = false }: Props) => (
         <Text style={styles.name}>{item.name}</Text>
         <Text style={styles.ratio}>{formatRatio(item.ratio)}</Text>
         {showAmount ? (
-          <Text style={styles.amount}>{formatCents(item.amount)}</Text>
+          <Text style={styles.amount}>{formatMoney(item.amount, currency)}</Text>
         ) : null}
       </View>
     ))}
@@ -33,7 +36,7 @@ const styles = createStyles({
     fontSize: fontSize.sm,
     fontWeight: '600',
     textAlign: 'right',
-    width: 84,
+    width: 96,
   },
   dot: {
     borderRadius: 4,

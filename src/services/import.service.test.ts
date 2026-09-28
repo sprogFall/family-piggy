@@ -31,13 +31,14 @@ const draft = (partial: Partial<CsvDraft>): CsvDraft => ({
   categoryName: '餐饮',
   amountCents: 1230,
   tagName: '',
+  currency: 'CNY',
   ...partial,
 });
 
 describe('parseCsvContent', () => {
   it('解析合法 CSV（含标签列）', () => {
     const result = parseCsvContent(
-      '\uFEFF日期,类型,分类,金额(元),标签\r\n2024-05-20 14:30,支出,餐饮,12.30,午饭\r\n',
+      '\uFEFF日期,类型,分类,金额(元),标签,币种\r\n2024-05-20 14:30,支出,餐饮,12.30,午饭,USD\r\n',
     );
     expect(result.total).toBe(2);
     expect(result.errors).toEqual([]);
@@ -47,6 +48,7 @@ describe('parseCsvContent', () => {
       categoryName: '餐饮',
       amountCents: 1230,
       tagName: '午饭',
+      currency: 'USD',
     });
   });
 
@@ -83,11 +85,11 @@ describe('importDrafts', () => {
       kind: 'income',
       sortOrder: 2,
     });
-    tagMock.ensureMany.mockImplementation(async (_ledgerId, kind, names) =>
+    tagMock.ensureMany.mockImplementation(async (_ledgerId, categoryId, names) =>
       names.map((name, index) => ({
-        id: `${kind}-g${index}`,
+        id: `${categoryId}-g${index}`,
         ledgerId: 'l1',
-        kind,
+        categoryId,
         name,
         createdAt: '2024-01-01T00:00:00Z',
       })),
@@ -95,7 +97,7 @@ describe('importDrafts', () => {
     txMock.createMany.mockResolvedValue(undefined);
   });
 
-  it('标签按收支类型复用，并随流水写入 tag_id', async () => {
+  it('标签按分类复用（同名标签在不同分类下相互独立），并随流水写入 tag_id', async () => {
     const count = await importDrafts(
       'l1',
       [draft({ tagName: '午饭' }), draft({ tagName: '午饭', kind: 'income', categoryName: '工资' })],
@@ -103,20 +105,29 @@ describe('importDrafts', () => {
     );
 
     expect(count).toBe(2);
-    expect(tagMock.ensureMany).toHaveBeenCalledWith('l1', 'expense', ['午饭']);
-    expect(tagMock.ensureMany).toHaveBeenCalledWith('l1', 'income', ['午饭']);
+    // 餐饮 -> c1；工资分类缺失被新建 -> c-created
+    expect(tagMock.ensureMany).toHaveBeenCalledWith('l1', 'c1', ['午饭']);
+    expect(tagMock.ensureMany).toHaveBeenCalledWith('l1', 'c-created', ['午饭']);
     expect(categoryMock.create).toHaveBeenCalledTimes(1); // 「工资」分类缺失 → 自动创建
     expect(txMock.createMany).toHaveBeenCalledWith([
-      expect.objectContaining({ tagId: 'expense-g0', categoryId: 'c1' }),
-      expect.objectContaining({ tagId: 'income-g0', categoryId: 'c-created' }),
+      expect.objectContaining({ tagId: 'c1-g0', categoryId: 'c1', currency: 'CNY' }),
+      expect.objectContaining({ tagId: 'c-created-g0', categoryId: 'c-created' }),
     ]);
   });
 
-  it('无标签的流水 tag_id 为 null；空草稿不写库', async () => {
+  it('无标签的流水不请求标签且 tag_id 为 null；空草稿不写库', async () => {
     await importDrafts('l1', [draft({ tagName: '  ' })], 'u1');
 
-    expect(tagMock.ensureMany).toHaveBeenCalledWith('l1', 'expense', []);
+    expect(tagMock.ensureMany).not.toHaveBeenCalled();
     expect(txMock.createMany).toHaveBeenCalledWith([expect.objectContaining({ tagId: null })]);
     expect(await importDrafts('l1', [], 'u1')).toBe(0);
+  });
+
+  it('导入时带上每行的币种', async () => {
+    await importDrafts('l1', [draft({ tagName: '', currency: 'USD' })], 'u1');
+
+    expect(txMock.createMany).toHaveBeenCalledWith([
+      expect.objectContaining({ currency: 'USD' }),
+    ]);
   });
 });

@@ -2,7 +2,7 @@ import { Pressable, Text, View } from 'react-native';
 
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { timeLabelOf } from '@/domain/dates';
-import { formatCents } from '@/domain/money';
+import { formatMoney } from '@/domain/money';
 import type { Transaction } from '@/types/domain';
 import { createStyles, colors, fontSize, space } from '@/theme';
 
@@ -48,7 +48,7 @@ export const TransactionRow = ({
         </Text>
       </View>
       <Text style={[styles.amount, isIncome ? styles.income : null]}>
-        {formatCents(transaction.amount, { signed: isIncome })}
+        {formatMoney(transaction.amount, transaction.currency, { signed: isIncome })}
       </Text>
     </Pressable>
   );

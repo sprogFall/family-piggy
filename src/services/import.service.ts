@@ -5,7 +5,7 @@ import { categoryService } from '@/services/category.service';
 import { normalizeTagName, tagService } from '@/services/tag.service';
 import { transactionService } from '@/services/transaction.service';
 import { supabase } from '@/lib/supabase';
-import type { Category, TxKind } from '@/types/domain';
+import type { Category } from '@/types/domain';
 import { toCategory, type CategoryRow } from '@/types/db';
 
 export interface ImportParseResult {
@@ -33,7 +33,7 @@ export const parseXlsxBase64 = (base64: string): ImportParseResult => {
   return { drafts, errors, total: stringRows.length };
 };
 
-/** 导入草稿：缺失分类自动创建，标签按「账本 + 类型 + 名称」复用，批量写入流水，返回导入条数 */
+/** 导入草稿：缺失分类自动创建，标签按「账本 + 分类 + 名称」复用，批量写入流水，返回导入条数 */
 export const importDrafts = async (
   ledgerId: string,
   drafts: CsvDraft[],
@@ -68,15 +68,25 @@ export const importDrafts = async (
     }
   }
 
-  const tagIdByKey = await ensureDraftTags(ledgerId, drafts);
+  // 分类可能在上一步刚创建，这里一次性解析出每行最终归属的分类
+  const rows = drafts.map((draft) => ({
+    draft,
+    categoryId: idByKey.get(`${draft.kind}:${draft.categoryName}`)!.id,
+  }));
+
+  const tagIdByKey = await ensureDraftTags(
+    ledgerId,
+    rows.map(({ draft, categoryId }) => ({ categoryId, tagName: draft.tagName })),
+  );
 
   await transactionService.createMany(
-    drafts.map((draft) => ({
+    rows.map(({ draft, categoryId }) => ({
       ledgerId,
-      categoryId: idByKey.get(`${draft.kind}:${draft.categoryName}`)!.id,
+      categoryId,
       kind: draft.kind,
       amount: draft.amountCents,
-      tagId: tagIdByKey.get(`${draft.kind}:${normalizeTagName(draft.tagName)}`) ?? null,
+      currency: draft.currency,
+      tagId: tagIdByKey.get(`${categoryId}:${normalizeTagName(draft.tagName)}`) ?? null,
       occurredAt: draft.occurredAt,
       createdBy: userId,
     })),
@@ -84,20 +94,29 @@ export const importDrafts = async (
   return drafts.length;
 };
 
-/** 按收支类型批量创建/复用标签，返回 `${kind}:${name}` -> 标签 ID */
+/** 导入行里的标签引用（标签隶属于分类，先按分类分组） */
+interface DraftTagRef {
+  categoryId: string;
+  tagName: string;
+}
+
+/** 按分类批量创建/复用标签，返回 `${categoryId}:${name}` -> 标签 ID */
 const ensureDraftTags = async (
   ledgerId: string,
-  drafts: CsvDraft[],
+  refs: DraftTagRef[],
 ): Promise<Map<string, string>> => {
-  const namesByKind: Record<TxKind, string[]> = { expense: [], income: [] };
-  for (const draft of drafts) {
-    if (normalizeTagName(draft.tagName) !== '') namesByKind[draft.kind].push(draft.tagName);
+  const namesByCategory = new Map<string, string[]>();
+  for (const ref of refs) {
+    if (normalizeTagName(ref.tagName) === '') continue;
+    const names = namesByCategory.get(ref.categoryId) ?? [];
+    names.push(ref.tagName);
+    namesByCategory.set(ref.categoryId, names);
   }
 
   const idByKey = new Map<string, string>();
-  for (const kind of ['expense', 'income'] as const) {
-    const tags = await tagService.ensureMany(ledgerId, kind, namesByKind[kind]);
-    for (const tag of tags) idByKey.set(`${tag.kind}:${tag.name}`, tag.id);
+  for (const [categoryId, names] of namesByCategory) {
+    const tags = await tagService.ensureMany(ledgerId, categoryId, names);
+    for (const tag of tags) idByKey.set(`${tag.categoryId}:${tag.name}`, tag.id);
   }
   return idByKey;
 };

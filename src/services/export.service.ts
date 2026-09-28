@@ -23,6 +23,7 @@ export const buildExportAoa = (drafts: CsvDraft[]): (string | number)[][] => [
     draft.categoryName,
     formatCents(draft.amountCents, { thousands: false }),
     draft.tagName,
+    draft.currency,
   ]),
 ];
 

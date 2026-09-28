@@ -1,5 +1,7 @@
 /** 领域类型（与数据库解耦，金额单位一律为“分”） */
 
+import type { CurrencyCode } from '@/domain/currency';
+
 export type LedgerType = 'personal' | 'family';
 export type TxKind = 'expense' | 'income';
 export type FamilyRole = 'owner' | 'member';
@@ -52,11 +54,12 @@ export interface Category {
   sortOrder: number;
 }
 
-/** 记账标签：属于账本且区分收支类型，可在同类型下反复选用 */
+/** 记账标签：属于账本的某个分类，可在同分类下反复选用 */
 export interface Tag {
   id: string;
   ledgerId: string;
-  kind: TxKind;
+  /** 所属分类 ID（标签只在所属分类下展示与新增） */
+  categoryId: string;
   name: string;
   createdAt: string;
 }
@@ -66,8 +69,10 @@ export interface Transaction {
   ledgerId: string;
   categoryId: string;
   kind: TxKind;
-  /** 金额，单位：分 */
+  /** 金额，单位：该币种的最小单位（人民币/美元为分） */
   amount: number;
+  /** 币种，默认 CNY */
+  currency: CurrencyCode;
   /** 标签 ID，null 表示未打标签 */
   tagId: string | null;
   /** ISO 8601 */
@@ -80,6 +85,7 @@ export interface CreateTransactionInput {
   categoryId: string;
   kind: TxKind;
   amount: number;
+  currency: CurrencyCode;
   tagId: string | null;
   occurredAt: string;
 }
@@ -88,13 +94,14 @@ export interface UpdateTransactionInput {
   categoryId?: string;
   kind?: TxKind;
   amount?: number;
+  currency?: CurrencyCode;
   tagId?: string | null;
   occurredAt?: string;
 }
 
 export interface TagInput {
   ledgerId: string;
-  kind: TxKind;
+  categoryId: string;
   name: string;
 }
 

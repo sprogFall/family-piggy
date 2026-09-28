@@ -1,7 +1,7 @@
 import {
   addMonths,
   currentMonth,
-  dateLabelOf,
+  entryDateLabel,
   dayKeyOf,
   dayLabelOf,
   daysInMonth,
@@ -50,6 +50,23 @@ describe('month 计算', () => {
   });
 });
 
+describe('entryDateLabel（记账页顶部日期）', () => {
+  const now = new Date(2024, 4, 20, 21, 25);
+
+  it('今天展示「今天 HH:mm」', () => {
+    expect(entryDateLabel(new Date(2024, 4, 20, 9, 5).toISOString(), now)).toBe('今天 09:05');
+  });
+
+  it('同年其它日期省略年份', () => {
+    expect(entryDateLabel(new Date(2024, 4, 3, 12, 0).toISOString(), now)).toBe('5月3日');
+    expect(entryDateLabel(new Date(2024, 0, 1, 12, 0).toISOString(), now)).toBe('1月1日');
+  });
+
+  it('跨年日期展示完整年月日', () => {
+    expect(entryDateLabel(new Date(2023, 11, 31, 23, 0).toISOString(), now)).toBe('2023年12月31日');
+  });
+});
+
 describe('标签', () => {
   const iso = new Date(2024, 4, 20, 14, 30).toISOString();
 
@@ -61,8 +78,7 @@ describe('标签', () => {
     expect(dayLabelOf(iso)).toBe('5月20日 星期一');
   });
 
-  it('dateLabelOf / timeLabelOf', () => {
-    expect(dateLabelOf(iso)).toBe('2024年5月20日');
+  it('timeLabelOf', () => {
     expect(timeLabelOf(iso)).toBe('14:30');
   });
 });

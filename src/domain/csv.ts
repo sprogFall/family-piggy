@@ -4,11 +4,16 @@
 
 import type { Transaction, TxKind } from '@/types/domain';
 
+import { DEFAULT_CURRENCY, isCurrencyCode, type CurrencyCode } from './currency';
 import { formatCents, parseAmountToCents } from './money';
 import { parseDateTimeCN } from './dates';
 
 export const CSV_BOM = '\uFEFF';
-export const CSV_HEADERS = ['日期', '类型', '分类', '金额(元)', '标签'] as const;
+/**
+ * 币种固定放在**最后一列**：旧版本导出的 5 列文件仍可导入（缺省按 CNY），
+ * 列顺序变化只影响新增列，不会让老文件错位。
+ */
+export const CSV_HEADERS = ['日期', '类型', '分类', '金额', '标签', '币种'] as const;
 
 export const KIND_BY_LABEL: Record<string, TxKind> = {
   支出: 'expense',
@@ -21,6 +26,7 @@ export interface CsvDraft {
   categoryName: string;
   amountCents: number;
   tagName: string;
+  currency: CurrencyCode;
 }
 
 const escapeCell = (value: string): string =>
@@ -37,6 +43,7 @@ export const draftsToCsv = (drafts: CsvDraft[]): string => {
         draft.categoryName,
         formatCents(draft.amountCents, { thousands: false }),
         escapeCell(draft.tagName),
+        draft.currency,
       ].join(','),
     );
   }
@@ -53,6 +60,7 @@ export const transactionToDraft = (
   categoryName: categoryNameOf(tx.categoryId),
   amountCents: tx.amount,
   tagName: tx.tagId ? tagNameOf(tx.tagId) : '',
+  currency: tx.currency,
 });
 
 const formatDateTimeCN = (iso: string): string => {
@@ -133,7 +141,14 @@ export const csvToDrafts = (rows: string[][]): CsvParseResult => {
     if (index === 0 && isHeaderRow(row)) return;
     if (row.every((c) => c.trim() === '')) return;
 
-    const [dateCell = '', kindCell = '', nameCell = '', amountCell = '', tagCell = ''] = row;
+    const [
+      dateCell = '',
+      kindCell = '',
+      nameCell = '',
+      amountCell = '',
+      tagCell = '',
+      currencyCell = '',
+    ] = row;
 
     const date = parseDateTimeCN(dateCell);
     if (!date) {
@@ -155,12 +170,20 @@ export const csvToDrafts = (rows: string[][]): CsvParseResult => {
       errors.push({ line: lineNo, message: `金额无效：${amountCell}` });
       return;
     }
+    // 旧文件没有币种列：缺省按人民币
+    const currencyRaw = currencyCell.trim().toUpperCase();
+    if (currencyRaw !== '' && !isCurrencyCode(currencyRaw)) {
+      errors.push({ line: lineNo, message: `币种无效：${currencyCell}` });
+      return;
+    }
+
     drafts.push({
       occurredAt: date.toISOString(),
       kind,
       categoryName,
       amountCents,
       tagName: tagCell.trim(),
+      currency: currencyRaw === '' ? DEFAULT_CURRENCY : currencyRaw,
     });
   });
 

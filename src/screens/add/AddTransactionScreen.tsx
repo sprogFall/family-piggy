@@ -8,14 +8,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AmountKeypad } from '@/components/ui/AmountKeypad';
 import { CategoryGrid } from '@/components/ui/CategoryGrid';
+import { CurrencyPickerSheet } from '@/components/ui/CurrencyPickerSheet';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { TagSelector } from '@/components/ui/TagSelector';
-import { dateLabelOf } from '@/domain/dates';
+import type { CurrencyCode } from '@/domain/currency';
+import { entryDateLabel } from '@/domain/dates';
 import { formatCents, parseAmountToCents } from '@/domain/money';
 import { useActiveLedger, useActiveCategories, useActiveTags } from '@/hooks/useActiveLedgerData';
 import { showAlert } from '@/lib/alert';
 import type { RootStackParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
+import { useSettingsStore } from '@/stores/settings.store';
 import { useTagStore } from '@/stores/tag.store';
 import { useToastStore } from '@/stores/toast.store';
 import { selectTransactionById, useTransactionStore } from '@/stores/transaction.store';
@@ -44,11 +47,13 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   const [tagId, setTagId] = useState<string | null>(editing?.tagId ?? null);
   const [date, setDate] = useState(editing ? new Date(editing.occurredAt) : new Date());
   const [showPicker, setShowPicker] = useState(false);
+  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const ledger = useActiveLedger();
   const categories = useActiveCategories();
-  const tags = useActiveTags(kind);
+  /** 标签隶属于分类：未选分类时不展示、也不能新增 */
+  const tags = useActiveTags(categoryId);
   const loadCategories = useCategoryStore((state) => state.load);
   const loadTags = useTagStore((state) => state.load);
   const ensureTag = useTagStore((state) => state.ensure);
@@ -57,6 +62,9 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   const updateTransaction = useTransactionStore((state) => state.update);
   const removeTransaction = useTransactionStore((state) => state.remove);
   const showToast = useToastStore((state) => state.show);
+  const defaultCurrency = useSettingsStore((state) => state.currency);
+  const rememberCurrency = useSettingsStore((state) => state.setCurrency);
+  const [currency, setCurrency] = useState<CurrencyCode>(editing?.currency ?? defaultCurrency);
 
   useFocusEffect(
     useCallback(() => {
@@ -81,13 +89,25 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   const changeKind = (next: TxKind) => {
     setKind(next);
     setCategoryId(null);
-    // 标签按收支类型区分，切换类型后原选中标签不再适用
+    // 标签隶属于分类，切换类型后原分类与标签都不再适用
     setTagId(null);
   };
 
+  const changeCategory = (nextId: string) => {
+    setCategoryId(nextId);
+    // 每个分类有自己的标签集合，换分类后清空已选标签
+    setTagId(null);
+  };
+
+  const changeCurrency = (next: CurrencyCode) => {
+    setCurrency(next);
+    // 记住本次选择，下次记账默认沿用
+    rememberCurrency(next);
+  };
+
   const createTag = (name: string) => {
-    if (!ledger) return;
-    void ensureTag({ ledgerId: ledger.id, kind, name })
+    if (!ledger || !categoryId) return;
+    void ensureTag({ ledgerId: ledger.id, categoryId, name })
       .then((tag) => setTagId(tag.id))
       .catch((error: unknown) =>
         showAlert('标签保存失败', error instanceof Error ? error.message : '请稍后再试'),
@@ -135,6 +155,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
           categoryId,
           kind,
           amount: cents,
+          currency,
           tagId,
           occurredAt: date.toISOString(),
         });
@@ -145,6 +166,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
           categoryId,
           kind,
           amount: cents,
+          currency,
           tagId,
           occurredAt: date.toISOString(),
         });
@@ -193,19 +215,23 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
         )}
       </View>
 
-      {/* 顶部：日期 + 金额，位于支出/收入之上，便于先确认时间与数额 */}
+      {/* 顶部：左侧币种 + 金额，右侧日期，位于支出/收入之上，便于先确认币种、数额与时间 */}
       <View style={styles.topPanel}>
-        <Pressable style={styles.dateChip} onPress={() => setShowPicker(true)}>
-          <Ionicons name="calendar" size={18} color={colors.primary} />
-          <Text style={styles.dateText}>{dateLabelOf(date.toISOString())}</Text>
-          <Ionicons name="chevron-down" size={16} color={colors.primary} />
+        <Pressable style={styles.currencyChip} onPress={() => setShowCurrencyPicker(true)}>
+          <Text style={styles.currencyCode}>{currency}</Text>
+          <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
         </Pressable>
+        <View style={styles.divider} />
         <View style={styles.amountBox}>
-          <Text style={styles.amountSymbol}>¥</Text>
           <Text style={styles.amountValue} numberOfLines={1} adjustsFontSizeToFit>
             {amount === '' ? '0.00' : amount}
           </Text>
         </View>
+        <Pressable style={styles.dateChip} onPress={() => setShowPicker(true)}>
+          <Ionicons name="calendar-outline" size={16} color={colors.textSecondary} />
+          <Text style={styles.dateText}>{entryDateLabel(date.toISOString())}</Text>
+          <Ionicons name="chevron-down" size={14} color={colors.textTertiary} />
+        </Pressable>
       </View>
 
       <View style={styles.tabsCard}>
@@ -221,15 +247,19 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
         <CategoryGrid
           categories={kindCategories}
           selectedId={categoryId}
-          onSelect={(category) => setCategoryId(category.id)}
+          onSelect={(category) => changeCategory(category.id)}
         />
-        <TagSelector
-          tags={tags}
-          selectedId={tagId}
-          onSelect={setTagId}
-          onCreate={createTag}
-          onRemove={confirmRemoveTag}
-        />
+        {categoryId ? (
+          <TagSelector
+            tags={tags}
+            selectedId={tagId}
+            onSelect={setTagId}
+            onCreate={createTag}
+            onRemove={confirmRemoveTag}
+          />
+        ) : (
+          <Text style={styles.tagHint}>选择分类后可为该分类添加标签</Text>
+        )}
       </ScrollView>
 
       <View style={styles.bottom}>
@@ -244,6 +274,12 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
           />
         ) : null}
 
+        <CurrencyPickerSheet
+          visible={showCurrencyPicker}
+          onClose={() => setShowCurrencyPicker(false)}
+          value={currency}
+          onSelect={changeCurrency}
+        />
         <AmountKeypad
           value={amount}
           onChange={setAmount}
@@ -258,21 +294,14 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
 
 const styles = createStyles({
   amountBox: {
-    alignItems: 'flex-end',
+    alignItems: 'center',
     flex: 1,
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginLeft: space(3),
-  },
-  amountSymbol: {
-    color: colors.text,
-    fontSize: fontSize.lg,
-    fontWeight: '600',
-    marginRight: space(1),
+    marginRight: space(3),
   },
   amountValue: {
     color: colors.text,
-    fontSize: 34,
+    fontSize: 30,
     fontWeight: '700',
   },
   body: {
@@ -288,19 +317,36 @@ const styles = createStyles({
     backgroundColor: colors.bg,
     flex: 1,
   },
+  currencyChip: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space(1),
+    paddingVertical: space(1),
+  },
+  currencyCode: {
+    color: colors.text,
+    fontSize: fontSize.lg,
+    fontWeight: '600',
+  },
   dateChip: {
     alignItems: 'center',
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.bg,
     borderRadius: radius.round,
     flexDirection: 'row',
-    gap: space(1.5),
-    paddingHorizontal: space(3.5),
-    paddingVertical: space(2),
+    gap: space(1),
+    paddingHorizontal: space(3),
+    paddingVertical: space(1.5),
   },
   dateText: {
-    color: colors.primary,
-    fontSize: fontSize.md,
+    color: colors.text,
+    fontSize: fontSize.sm,
     fontWeight: '600',
+  },
+  divider: {
+    backgroundColor: colors.border,
+    height: 22,
+    marginHorizontal: space(3),
+    width: 1,
   },
   header: {
     alignItems: 'center',
@@ -311,6 +357,12 @@ const styles = createStyles({
   },
   tabsCard: {
     backgroundColor: colors.card,
+  },
+  tagHint: {
+    color: colors.textTertiary,
+    fontSize: fontSize.sm,
+    paddingHorizontal: space(4),
+    paddingVertical: space(3),
   },
   title: {
     color: colors.text,

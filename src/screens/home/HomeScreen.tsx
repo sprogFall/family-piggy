@@ -3,7 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { BreakdownList } from '@/components/BreakdownList';
@@ -15,9 +15,10 @@ import { SummaryCard } from '@/components/SummaryCard';
 import { MonthPickerSheet } from '@/components/ui/MonthPickerSheet';
 import { PromptModal } from '@/components/ui/PromptModal';
 import { ScreenTopBar } from '@/components/ui/ScreenTopBar';
+import { dominantCurrency } from '@/domain/currency';
 import { currentMonth, monthKey, monthLabel, type MonthRef } from '@/domain/dates';
-import { formatCents } from '@/domain/money';
-import { breakdownWithOther, monthSummary, trendByDay } from '@/domain/statement';
+import { formatMoney } from '@/domain/money';
+import { breakdownWithOther, monthSummary, scopeToCurrency, trendByDay } from '@/domain/statement';
 import { useActiveLedger, useCategoryOf, useMonthTransactions } from '@/hooks/useActiveLedgerData';
 import { showAlert } from '@/lib/alert';
 import { getErrorMessage } from '@/lib/errors';
@@ -58,13 +59,22 @@ export const HomeScreen = ({ navigation }: Props) => {
     }, [ledger?.id, monthKeyValue]),
   );
 
-  const summary = monthSummary(transactions);
-  const trendValues = trendByDay(transactions, month).map((point) => point.expense);
-  const breakdownItems = breakdownWithOther(
-    transactions,
-    'expense',
-    (id) => categoryOf(id)?.name ?? '未知分类',
-  );
+  /** 汇总 / 占比 / 趋势都只统计主币种：不同币种的最小单位不可直接相加 */
+  const { currency, foreignCount, summary, trendPoints, breakdownItems } = useMemo(() => {
+    const base = dominantCurrency(transactions);
+    const scoped = scopeToCurrency(transactions, base);
+    return {
+      currency: base,
+      foreignCount: transactions.length - scoped.length,
+      summary: monthSummary(scoped, base),
+      trendPoints: trendByDay(scoped, month, base),
+      breakdownItems: breakdownWithOther(
+        scoped,
+        'expense',
+        (id) => categoryOf(id)?.name ?? '未知分类',
+      ),
+    };
+  }, [transactions, month, categoryOf]);
 
   return (
     <View style={styles.container}>
@@ -89,13 +99,19 @@ export const HomeScreen = ({ navigation }: Props) => {
               expense={summary.expense}
               income={summary.income}
               balance={summary.balance}
+              currency={currency}
               budget={ledger.monthlyBudget}
               onPressBudget={() => navigation.navigate('Budget')}
             />
+            {foreignCount > 0 ? (
+              <Text style={styles.foreignHint}>
+                另有 {foreignCount} 笔外币记录未计入本月汇总
+              </Text>
+            ) : null}
 
             <View style={styles.card}>
               <Text style={styles.cardTitle}>本月收支趋势</Text>
-              <TrendChart values={trendValues} />
+              <TrendChart points={trendPoints} month={month.month} currency={currency} />
             </View>
 
             <View style={styles.card}>
@@ -107,11 +123,11 @@ export const HomeScreen = ({ navigation }: Props) => {
                       value: item.amount,
                       color: CHART_PALETTE[index % CHART_PALETTE.length],
                     }))}
-                    centerLabel={formatCents(summary.expense)}
+                    centerLabel={formatMoney(summary.expense, currency)}
                     centerSub="本月支出"
                   />
                   <View style={styles.legend}>
-                    <BreakdownList items={breakdownItems} />
+                    <BreakdownList items={breakdownItems} currency={currency} />
                   </View>
                 </View>
               ) : (
@@ -174,6 +190,13 @@ const styles = createStyles({
   },
   content: {
     padding: space(4),
+  },
+  foreignHint: {
+    color: colors.textSecondary,
+    fontSize: fontSize.xs,
+    marginBottom: space(3),
+    marginTop: -space(1),
+    paddingHorizontal: space(1),
   },
   donutRow: {
     alignItems: 'center',

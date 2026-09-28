@@ -101,19 +101,24 @@ export interface LineChartGeometry {
   coords: { x: number; y: number }[];
 }
 
-/** 折线图：values 映射到 viewBox 内坐标，含面积填充路径 */
+/**
+ * 折线图：values 映射到 viewBox 内坐标，含面积填充路径。
+ * 纵轴上限 `max` 由调用方给出（单位与 values 一致）：多条线共享同一上限才能横向比较，
+ * 非正值按 1 处理避免除零。
+ */
 export const lineGeometry = (
   values: number[],
   width: number,
   height: number,
   padding: number,
+  max: number,
 ): LineChartGeometry => {
   const innerW = width - padding * 2;
   const innerH = height - padding * 2;
-  const max = Math.max(1, ...values);
+  const scale = max > 0 ? max : 1;
   const coords = values.map((v, i) => ({
     x: values.length === 1 ? width / 2 : padding + (innerW * i) / (values.length - 1),
-    y: height - padding - (v / max) * innerH,
+    y: height - padding - (v / scale) * innerH,
   }));
   const points = coords.map((c) => `${fmt(c.x)},${fmt(c.y)}`).join(' ');
   const baseline = height - padding;
@@ -125,3 +130,84 @@ export const lineGeometry = (
         ` L ${fmt(coords[coords.length - 1].x)} ${fmt(baseline)} Z`;
   return { points, area, coords };
 };
+
+/**
+ * 触摸交互：把容器内的触点 x（像素）换算到 viewBox 后，取最近的数据点下标。
+ *
+ * Svg 宽度为 100% 且 `preserveAspectRatio="none"`，横向会被拉伸到容器宽度，
+ * 所以必须先按 onLayout 量到的容器宽度换算，不能按 viewBox 宽度直接取。
+ * 无数据返回 -1；容器宽度未量到（<= 0）时退化为 1:1 换算。
+ */
+export const nearestPointIndex = (
+  locationX: number,
+  count: number,
+  containerWidth: number,
+  viewWidth: number,
+  padding: number,
+): number => {
+  if (count <= 0) return -1;
+  if (count === 1) return 0;
+  const width = containerWidth > 0 ? containerWidth : viewWidth;
+  const x = (locationX / width) * viewWidth;
+  const innerWidth = viewWidth - padding * 2;
+  const ratio = innerWidth > 0 ? (x - padding) / innerWidth : 0;
+  return Math.min(count - 1, Math.max(0, Math.round(ratio * (count - 1))));
+};
+
+/** 浮层与数据点的默认间距（viewBox 单位） */
+const TOOLTIP_GAP = 8;
+
+export interface TooltipLayout {
+  /** 相对图表容器左上角的偏移 */
+  left: number;
+  top: number;
+}
+
+export interface TooltipPlacementInput {
+  /** 选中数据点在 viewBox 中的坐标 */
+  point: { x: number; y: number };
+  viewWidth: number;
+  viewHeight: number;
+  /** onLayout 量到的图表容器尺寸 */
+  containerWidth: number;
+  containerHeight: number;
+  tooltipWidth: number;
+  tooltipHeight: number;
+  /** 浮层与数据点的间距 */
+  gap?: number;
+}
+
+/** 偏移量收敛到 [0, container - size]；容器尚未量到（<= 0）时不收敛 */
+const clampOffset = (value: number, size: number, container: number): number => {
+  if (container <= 0) return value;
+  if (size >= container) return 0;
+  return Math.min(Math.max(value, 0), container - size);
+};
+
+/**
+ * 半透明浮层的绝对定位：水平以数据点居中并收敛在容器内，
+ * 垂直优先放在数据点上方，上方空间不足时落到下方，始终不超出容器。
+ */
+export const tooltipPlacement = ({
+  point,
+  viewWidth,
+  viewHeight,
+  containerWidth,
+  containerHeight,
+  tooltipWidth,
+  tooltipHeight,
+  gap = TOOLTIP_GAP,
+}: TooltipPlacementInput): TooltipLayout => {
+  const anchorX =
+    viewWidth > 0 && containerWidth > 0 ? (point.x * containerWidth) / viewWidth : point.x;
+  const anchorY =
+    viewHeight > 0 && containerHeight > 0 ? (point.y * containerHeight) / viewHeight : point.y;
+  const above = anchorY - gap - tooltipHeight;
+  return {
+    left: clampOffset(anchorX - tooltipWidth / 2, tooltipWidth, containerWidth),
+    top: clampOffset(above >= 0 ? above : anchorY + gap, tooltipHeight, containerHeight),
+  };
+};
+
+/** 折线图浮层日期文案，如 (8, 3) -> "8月3日" */
+export const trendDayLabel = (month: number, day: number): string => `${month}月${day}日`;

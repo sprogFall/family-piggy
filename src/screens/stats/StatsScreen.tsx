@@ -11,9 +11,10 @@ import { EmptyState } from '@/components/EmptyState';
 import { MonthSwitcher } from '@/components/ui/MonthSwitcher';
 import { ScreenTopBar } from '@/components/ui/ScreenTopBar';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
+import { dominantCurrency } from '@/domain/currency';
 import { currentMonth, monthKey, type MonthRef } from '@/domain/dates';
-import { formatCents } from '@/domain/money';
-import { breakdownWithOther, monthSummary } from '@/domain/statement';
+import { formatMoney } from '@/domain/money';
+import { breakdownWithOther, monthSummary, scopeToCurrency } from '@/domain/statement';
 import { useActiveLedger, useCategoryOf } from '@/hooks/useActiveLedgerData';
 import type { RootStackParamList, TabParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
@@ -51,9 +52,13 @@ export const StatsScreen = (_props: Props) => {
     }, [ledger?.id, monthKeyValue]),
   );
 
-  const summary = monthSummary(transactions);
+  /** 汇总与构成只统计主币种：不同币种的最小单位不可直接相加 */
+  const currency = dominantCurrency(transactions);
+  const scoped = scopeToCurrency(transactions, currency);
+  const foreignCount = transactions.length - scoped.length;
+  const summary = monthSummary(scoped, currency);
   const items = breakdownWithOther(
-    transactions,
+    scoped,
     kind,
     (id) => categoryOf(id)?.name ?? '未知分类',
   );
@@ -67,6 +72,10 @@ export const StatsScreen = (_props: Props) => {
         <MonthSwitcher month={month} onChange={setMonth} />
       </ScreenTopBar>
 
+      {foreignCount > 0 ? (
+        <Text style={styles.foreignHint}>另有 {foreignCount} 笔外币记录未计入本月统计</Text>
+      ) : null}
+
       <View style={styles.tabs}>
         <SegmentedTabs items={KIND_TABS} value={kind} onChange={setKind} />
       </View>
@@ -77,7 +86,7 @@ export const StatsScreen = (_props: Props) => {
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>支出</Text>
             <Text style={[styles.summaryAmount, { flex: 1, textAlign: 'right' }]}>
-              {formatCents(summary.expense)}
+              {formatMoney(summary.expense, currency)}
             </Text>
           </View>
           <View style={styles.track}>
@@ -87,7 +96,7 @@ export const StatsScreen = (_props: Props) => {
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>收入</Text>
             <Text style={[styles.summaryAmount, { flex: 1, textAlign: 'right' }]}>
-              {formatCents(summary.income)}
+              {formatMoney(summary.income, currency)}
             </Text>
           </View>
         </View>
@@ -103,12 +112,15 @@ export const StatsScreen = (_props: Props) => {
                   value: item.amount,
                   color: CHART_PALETTE[index % CHART_PALETTE.length],
                 }))}
-                centerLabel={formatCents(kind === 'expense' ? summary.expense : summary.income)}
+                centerLabel={formatMoney(
+                  kind === 'expense' ? summary.expense : summary.income,
+                  currency,
+                )}
                 centerSub={kind === 'expense' ? '总支出' : '总收入'}
               />
               {/* alignSelf: stretch 让明细撑满整卡宽度，长分类名换行而非省略 */}
               <View style={styles.legend}>
-                <BreakdownList items={items} showAmount />
+                <BreakdownList items={items} currency={currency} showAmount />
               </View>
             </View>
           ) : (
@@ -126,6 +138,13 @@ const styles = createStyles({
     borderRadius: radius.lg,
     marginBottom: space(3),
     padding: space(4),
+  },
+  foreignHint: {
+    backgroundColor: colors.card,
+    color: colors.textSecondary,
+    fontSize: fontSize.xs,
+    paddingBottom: space(2),
+    paddingHorizontal: space(4),
   },
   cardTitle: {
     color: colors.text,

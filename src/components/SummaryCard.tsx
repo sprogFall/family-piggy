@@ -1,32 +1,42 @@
 import { Pressable, Text, View } from 'react-native';
 
 import { budgetProgress } from '@/domain/budget';
-import { formatCents } from '@/domain/money';
+import type { CurrencyCode } from '@/domain/currency';
+import { formatMoney } from '@/domain/money';
 import { createStyles, colors, fontSize, space } from '@/theme';
 
 interface Props {
   expense: number;
   income: number;
   balance: number;
+  /** 汇总币种（不同币种的最小单位不可直接相加，金额均为该币种） */
+  currency: CurrencyCode;
   /** 月度预算（分），0/未传表示未设置 */
   budget?: number;
   onPressBudget?: () => void;
 }
 
-export const SummaryCard = ({ expense, income, balance, budget = 0, onPressBudget }: Props) => {
+export const SummaryCard = ({
+  expense,
+  income,
+  balance,
+  currency,
+  budget = 0,
+  onPressBudget,
+}: Props) => {
   const progress = budgetProgress(expense, budget);
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>本月支出(元)</Text>
-      <Text style={styles.expense}>{formatCents(expense)}</Text>
+      <Text style={styles.label}>本月支出</Text>
+      <Text style={styles.expense}>{formatMoney(expense, currency)}</Text>
       <View style={styles.row}>
         <View style={styles.item}>
-          <Text style={styles.subLabel}>本月收入(元)</Text>
-          <Text style={styles.subValue}>{formatCents(income)}</Text>
+          <Text style={styles.subLabel}>本月收入</Text>
+          <Text style={styles.subValue}>{formatMoney(income, currency)}</Text>
         </View>
         <View style={styles.item}>
-          <Text style={styles.subLabel}>结余(元)</Text>
-          <Text style={styles.subValue}>{formatCents(balance, { signed: true })}</Text>
+          <Text style={styles.subLabel}>结余</Text>
+          <Text style={styles.subValue}>{formatMoney(balance, currency, { signed: true })}</Text>
         </View>
       </View>
 
@@ -38,8 +48,8 @@ export const SummaryCard = ({ expense, income, balance, budget = 0, onPressBudge
           </View>
           <Text style={styles.budgetText}>
             {progress.isOver
-              ? `已超支 ${formatCents(-progress.remainingCents)} / ${formatCents(budget)}`
-              : `剩余 ${formatCents(progress.remainingCents)} / ${formatCents(budget)}`}
+              ? `已超支 ${formatMoney(-progress.remainingCents, currency)} / ${formatMoney(budget, currency)}`
+              : `剩余 ${formatMoney(progress.remainingCents, currency)} / ${formatMoney(budget, currency)}`}
           </Text>
         </Pressable>
       ) : (

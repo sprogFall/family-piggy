@@ -12,9 +12,10 @@ import { LedgerSwitcherSheet } from '@/components/LedgerSwitcherSheet';
 import { MonthSwitcher } from '@/components/ui/MonthSwitcher';
 import { PromptModal } from '@/components/ui/PromptModal';
 import { ScreenTopBar } from '@/components/ui/ScreenTopBar';
+import { dominantCurrency } from '@/domain/currency';
 import { currentMonth, monthKey, type MonthRef } from '@/domain/dates';
-import { formatCents } from '@/domain/money';
-import { groupByDay, monthSummary } from '@/domain/statement';
+import { formatMoney } from '@/domain/money';
+import { groupByDay, monthSummary, scopeToCurrency } from '@/domain/statement';
 import { showAlert } from '@/lib/alert';
 import { getErrorMessage } from '@/lib/errors';
 import {
@@ -68,7 +69,10 @@ export const BillsScreen = ({ navigation }: Props) => {
   );
 
   const groups = groupByDay(transactions);
-  const summary = monthSummary(transactions);
+  /** 顶部汇总只统计主币种：不同币种的最小单位不可直接相加 */
+  const currency = dominantCurrency(transactions);
+  const summary = monthSummary(transactions, currency);
+  const foreignCount = transactions.length - scopeToCurrency(transactions, currency).length;
 
   return (
     <View style={styles.container}>
@@ -84,10 +88,16 @@ export const BillsScreen = ({ navigation }: Props) => {
       </ScreenTopBar>
 
       <View style={styles.summaryBar}>
-        <SummaryItem label="支出" value={formatCents(summary.expense)} />
-        <SummaryItem label="收入" value={formatCents(summary.income)} />
-        <SummaryItem label="结余" value={formatCents(summary.balance, { signed: true })} />
+        <SummaryItem label="支出" value={formatMoney(summary.expense, currency)} />
+        <SummaryItem label="收入" value={formatMoney(summary.income, currency)} />
+        <SummaryItem
+          label="结余"
+          value={formatMoney(summary.balance, currency, { signed: true })}
+        />
       </View>
+      {foreignCount > 0 ? (
+        <Text style={styles.foreignHint}>另有 {foreignCount} 笔外币记录未计入上方汇总</Text>
+      ) : null}
 
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
         {groups.length === 0 ? (
@@ -144,6 +154,13 @@ const styles = createStyles({
   container: {
     backgroundColor: colors.bg,
     flex: 1,
+  },
+  foreignHint: {
+    backgroundColor: colors.card,
+    color: colors.textSecondary,
+    fontSize: fontSize.xs,
+    paddingBottom: space(2),
+    paddingHorizontal: space(4),
   },
   ledgerChip: {
     alignItems: 'center',

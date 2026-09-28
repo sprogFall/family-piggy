@@ -42,7 +42,7 @@ export const BudgetScreen = ({ navigation }: Props) => {
     setSaving(true);
     try {
       await setBudget(ledger.id, cents);
-      showAlert('已保存', `本月预算 ${formatCents(cents)} 元`, [
+      showAlert('已保存', `本月预算 ${formatCents(cents)}`, [
         { text: '好的', onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
@@ -74,7 +74,7 @@ export const BudgetScreen = ({ navigation }: Props) => {
       <AppHeader title="预算设置" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content}>
         <TextField
-          label={`${ledger.name} · 月度预算（元）`}
+          label={`${ledger.name} · 月度预算`}
           placeholder="例如：3000"
           keyboardType="decimal-pad"
           value={amount}
@@ -83,10 +83,12 @@ export const BudgetScreen = ({ navigation }: Props) => {
         <PrimaryButton title="保存预算" onPress={() => void handleSave()} loading={saving} />
         {ledger.monthlyBudget > 0 ? (
           <Pressable style={styles.clear} onPress={handleClear}>
-            <Text style={styles.clearText}>清除预算（当前 {formatCents(ledger.monthlyBudget)} 元）</Text>
+            <Text style={styles.clearText}>清除预算（当前 {formatCents(ledger.monthlyBudget)}）</Text>
           </Pressable>
         ) : null}
-        <Text style={styles.tip}>预算按自然月统计，首页汇总卡会展示本月使用进度。</Text>
+        <Text style={styles.tip}>
+          预算按自然月统计，与首页汇总使用同一币种（当月主币种）；首页汇总卡会展示本月使用进度。
+        </Text>
       </ScrollView>
     </View>
   );

@@ -7,7 +7,7 @@ import { selectCategories, useCategoryStore } from '@/stores/category.store';
 import { selectActiveLedger, selectMembers, useLedgerStore } from '@/stores/ledger.store';
 import { selectTags, useTagStore } from '@/stores/tag.store';
 import { selectMonthTransactions, useTransactionStore } from '@/stores/transaction.store';
-import type { Category, FamilyMember, Tag, TxKind } from '@/types/domain';
+import type { Category, FamilyMember, Tag } from '@/types/domain';
 
 export const useActiveLedger = () => useLedgerStore(selectActiveLedger);
 
@@ -24,10 +24,10 @@ export const useCategoryOf = (): ((categoryId: string) => Category | undefined) 
   );
 };
 
-/** 当前账本某收支类型下的标签（记账时点选复用） */
-export const useActiveTags = (kind: TxKind): Tag[] => {
+/** 当前账本某分类下的标签（记账时点选复用）；未选分类返回空数组 */
+export const useActiveTags = (categoryId: string | null): Tag[] => {
   const ledger = useActiveLedger();
-  return useTagStore((state) => selectTags(state, ledger?.id, kind));
+  return useTagStore((state) => selectTags(state, ledger?.id, categoryId));
 };
 
 /** 标签 ID -> 标签名；未加载或已删除时返回空串 */
@@ -38,8 +38,8 @@ export const useTagNameOf = (): ((tagId: string) => string) => {
   );
   return useMemo(() => {
     const nameById = new Map<string, string>();
-    for (const tag of [...(ledgerTags?.expense ?? []), ...(ledgerTags?.income ?? [])]) {
-      nameById.set(tag.id, tag.name);
+    for (const tags of Object.values(ledgerTags ?? {})) {
+      for (const tag of tags) nameById.set(tag.id, tag.name);
     }
     return (tagId: string) => nameById.get(tagId) ?? '';
   }, [ledgerTags]);

@@ -10,6 +10,8 @@ import { PromptModal } from './PromptModal';
 interface Props {
   tags: Tag[];
   selectedId: string | null;
+  /** 已选分类下的标签；未选分类时不展示任何标签、也不允许新增 */
+  disabled?: boolean;
   /** 选中 / 取消选中（再点一次已选中的标签即取消） */
   onSelect: (tagId: string | null) => void;
   /** 新建标签（由调用方落库并选中，下次记账可直接复用） */
@@ -22,14 +24,25 @@ interface Props {
 const MAX_TAG_LENGTH = 8;
 
 /**
- * 记账标签选择器：展示当前收支类型下已有的标签（点击复用、长按删除），
+ * 记账标签选择器：展示**当前所选分类**下已有的标签（点击复用、长按删除），
  * 「新标签」通过**弹窗**输入。
+ *
+ * 未选分类时整块隐藏：标签隶属于分类，没有分类就没有归属，也不允许新增。
  *
  * 输入框刻意不内联在标签行里：标签行是 `flexWrap` 容器，Android 上把 `TextInput`
  * 放进换行容器会触发反复测量（画面闪烁）且被挤成一条缝，用弹窗既稳定又能自动聚焦。
  */
-export const TagSelector = ({ tags, selectedId, onSelect, onCreate, onRemove }: Props) => {
+export const TagSelector = ({
+  tags,
+  selectedId,
+  disabled = false,
+  onSelect,
+  onCreate,
+  onRemove,
+}: Props) => {
   const [creatorVisible, setCreatorVisible] = useState(false);
+
+  if (disabled) return null;
 
   return (
     <View style={styles.container}>

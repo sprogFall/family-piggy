@@ -1,4 +1,13 @@
-import { arcPath, donutArcs, donutCenterBox, lineGeometry, polar } from './charts';
+import {
+  arcPath,
+  donutArcs,
+  donutCenterBox,
+  lineGeometry,
+  nearestPointIndex,
+  polar,
+  tooltipPlacement,
+  trendDayLabel,
+} from './charts';
 
 describe('donutArcs', () => {
   it('按比例分配角度', () => {
@@ -58,7 +67,7 @@ describe('donutCenterBox', () => {
 
 describe('lineGeometry', () => {
   it('两点映射到 viewBox 角落', () => {
-    const { points, coords } = lineGeometry([0, 100], 100, 100, 10);
+    const { points, coords } = lineGeometry([0, 100], 100, 100, 10, 100);
     expect(points).toBe('10,90 90,10');
     expect(coords).toEqual([
       { x: 10, y: 90 },
@@ -66,14 +75,109 @@ describe('lineGeometry', () => {
     ]);
   });
 
-  it('全零数据不至于除零，基线在底部', () => {
-    const { coords } = lineGeometry([0, 0], 100, 100, 10);
+  it('按调用方给定的纵轴上限归一化（多序列共享刻度方可横向比较）', () => {
+    const expense = lineGeometry([50], 100, 100, 10, 100);
+    const income = lineGeometry([100], 100, 100, 10, 100);
+    expect(expense.coords[0].y).toBeGreaterThan(income.coords[0].y);
+    // 上限即峰值时贴顶
+    expect(income.coords[0].y).toBe(10);
+  });
+
+  it('上限非正时退化为 1，不至于除零', () => {
+    const { coords } = lineGeometry([0, 0], 100, 100, 10, 0);
     expect(coords.every((c) => c.y === 90)).toBe(true);
   });
 
   it('area 是闭合路径', () => {
-    const { area } = lineGeometry([5, 10], 100, 100, 10);
+    const { area } = lineGeometry([5, 10], 100, 100, 10, 10);
     expect(area.startsWith('M 10 90')).toBe(true);
     expect(area.endsWith('Z')).toBe(true);
+  });
+});
+
+describe('nearestPointIndex', () => {
+  const VIEW_WIDTH = 320;
+  const PADDING = 18;
+
+  it('无数据返回 -1', () => {
+    expect(nearestPointIndex(100, 0, 300, VIEW_WIDTH, PADDING)).toBe(-1);
+  });
+
+  it('只有一个点时恒为 0', () => {
+    expect(nearestPointIndex(0, 1, 300, VIEW_WIDTH, PADDING)).toBe(0);
+    expect(nearestPointIndex(299, 1, 300, VIEW_WIDTH, PADDING)).toBe(0);
+  });
+
+  it('按容器实际宽度换算 viewBox 坐标后取最近下标', () => {
+    // 31 天，容器 300px、viewBox 320px、左右各 18 内边距
+    expect(nearestPointIndex(0, 31, 300, VIEW_WIDTH, PADDING)).toBe(0);
+    expect(nearestPointIndex(300, 31, 300, VIEW_WIDTH, PADDING)).toBe(30);
+    // 容器中点 -> 第 16 天（下标 15）
+    expect(nearestPointIndex(150, 31, 300, VIEW_WIDTH, PADDING)).toBe(15);
+    // 同一个 viewBox 点在不同容器宽度下落到同一下标（横向被拉伸）
+    expect(nearestPointIndex(75, 31, 150, VIEW_WIDTH, PADDING)).toBe(15);
+  });
+
+  it('容器宽度为 0（onLayout 未量到）时退化为 1:1 换算', () => {
+    expect(nearestPointIndex(160, 31, 0, VIEW_WIDTH, PADDING)).toBe(15);
+  });
+
+  it('越界触摸收敛到首尾', () => {
+    expect(nearestPointIndex(-40, 31, 300, VIEW_WIDTH, PADDING)).toBe(0);
+    expect(nearestPointIndex(9999, 31, 300, VIEW_WIDTH, PADDING)).toBe(30);
+  });
+});
+
+describe('tooltipPlacement', () => {
+  const base = {
+    viewWidth: 320,
+    viewHeight: 120,
+    containerWidth: 300,
+    containerHeight: 120,
+    tooltipWidth: 120,
+    tooltipHeight: 60,
+    gap: 8,
+  };
+
+  it('中间点：水平以数据点居中，垂直放在数据点上方', () => {
+    const { left, top } = tooltipPlacement({ ...base, point: { x: 160, y: 100 } });
+    // 160 * 300 / 320 = 150，再各减半个浮层宽度
+    expect(left).toBe(90);
+    expect(top).toBe(32);
+  });
+
+  it('贴近左右边界时收敛，浮层不超出容器', () => {
+    expect(tooltipPlacement({ ...base, point: { x: 0, y: 10 } }).left).toBe(0);
+    expect(tooltipPlacement({ ...base, point: { x: 320, y: 10 } }).left).toBe(300 - 120);
+  });
+
+  it('上方空间不足时落到数据点下方并夹在容器内', () => {
+    const { top } = tooltipPlacement({ ...base, point: { x: 160, y: 10 } });
+    expect(top).toBe(10 + 8);
+  });
+
+  it('浮层比容器还大时贴左上角，不产生负偏移', () => {
+    expect(tooltipPlacement({ ...base, containerWidth: 100, point: { x: 160, y: 10 } }).left).toBe(0);
+    expect(
+      tooltipPlacement({ ...base, tooltipHeight: 200, point: { x: 160, y: 100 } }).top,
+    ).toBe(0);
+  });
+
+  it('未量到容器尺寸时退化为 viewBox 1:1 定位', () => {
+    const { left, top } = tooltipPlacement({
+      ...base,
+      containerWidth: 0,
+      containerHeight: 0,
+      point: { x: 160, y: 100 },
+    });
+    expect(left).toBe(160 - 60);
+    expect(top).toBe(32);
+  });
+});
+
+describe('trendDayLabel', () => {
+  it('生成浮层日期文案', () => {
+    expect(trendDayLabel(8, 3)).toBe('8月3日');
+    expect(trendDayLabel(12, 31)).toBe('12月31日');
   });
 });

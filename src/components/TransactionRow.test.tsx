@@ -10,6 +10,7 @@ const tx: Transaction = {
   categoryId: 'c1',
   kind: 'expense',
   amount: 236800,
+  currency: 'CNY',
   tagId: 'g1',
   occurredAt: new Date(2024, 4, 20, 14, 30).toISOString(),
   createdBy: 'u1',
@@ -22,7 +23,7 @@ describe('TransactionRow', () => {
     );
     expect(screen.getByText('餐饮')).toBeTruthy();
     expect(screen.getByText('#和朋友聚餐')).toBeTruthy();
-    expect(screen.getByText('2,368.00')).toBeTruthy();
+    expect(screen.getByText('¥2,368.00')).toBeTruthy();
   });
 
   it('未打标签时不展示标签文案', () => {
@@ -41,8 +42,19 @@ describe('TransactionRow', () => {
         showTime
       />,
     );
-    expect(screen.getByText('+3,800.00')).toBeTruthy();
+    expect(screen.getByText('+¥3,800.00')).toBeTruthy();
     expect(screen.getByText('14:30 · #月薪')).toBeTruthy();
+  });
+
+  it('金额按流水自身币种展示符号', () => {
+    render(
+      <TransactionRow
+        transaction={{ ...tx, currency: 'USD', amount: 1200 }}
+        categoryName="餐饮"
+        iconKey="restaurant"
+      />,
+    );
+    expect(screen.getByText('$12.00')).toBeTruthy();
   });
 
   it('家庭账本在时间与标签后追加记录人标注', () => {

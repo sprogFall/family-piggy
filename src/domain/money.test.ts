@@ -1,4 +1,4 @@
-import { formatCents, formatRatio, parseAmountToCents } from './money';
+import { formatCents, formatMoney, formatRatio, parseAmountToCents } from './money';
 
 describe('parseAmountToCents', () => {
   it('解析整数元', () => {
@@ -49,6 +49,24 @@ describe('formatCents', () => {
   it('signed 为正数加 +', () => {
     expect(formatCents(380000, { signed: true })).toBe('+3,800.00');
     expect(formatCents(-380000, { signed: true })).toBe('-3,800.00');
+  });
+});
+
+describe('formatMoney', () => {
+  it('符号紧跟正负号', () => {
+    expect(formatMoney(236800, 'CNY')).toBe('¥2,368.00');
+    expect(formatMoney(-1200, 'CNY')).toBe('-¥12.00');
+    expect(formatMoney(3000, 'EUR', { signed: true })).toBe('+€30.00');
+    expect(formatMoney(-3000, 'USD', { signed: true })).toBe('-$30.00');
+  });
+
+  it('支持多字符符号与关闭千分位', () => {
+    expect(formatMoney(123456, 'HKD', { thousands: false })).toBe('HK$1234.56');
+    expect(formatMoney(0, 'JPY')).toBe('¥0.00');
+  });
+
+  it('未知币种回显代码，避免出现空白', () => {
+    expect(formatMoney(100, 'XYZ')).toBe('XYZ1.00');
   });
 });
 

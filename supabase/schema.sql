@@ -117,30 +117,32 @@ comment on column public.categories.kind       is '分类类型：expense=支出
 comment on column public.categories.sort_order is '排序序号（同类型内升序展示）';
 comment on column public.categories.created_at is '创建时间';
 
--- 标签（属于账本且区分收支类型；记账时随流水一并记录，下次可直接复用）
+-- 标签（隶属于账本的某个分类；记账时随流水一并记录，下次可在同分类下复用）
 create table if not exists public.tags (
-  id         uuid primary key default gen_random_uuid(),                     -- 标签 ID
-  ledger_id  uuid        not null references public.ledgers (id) on delete cascade, -- 所属账本 ID
-  kind       text        not null check (kind in ('expense', 'income')),      -- 类型：expense=支出，income=收入
-  name       text        not null,                                            -- 标签名称（同账本同类型内唯一）
-  created_at timestamptz not null default now(),                              -- 创建时间
-  unique (ledger_id, kind, name)                                              -- 同账本同类型下标签名唯一，保证「复用」幂等
+  id          uuid primary key default gen_random_uuid(),                     -- 标签 ID
+  ledger_id   uuid        not null references public.ledgers (id) on delete cascade,    -- 所属账本 ID
+  category_id uuid        not null references public.categories (id) on delete cascade, -- 所属分类 ID
+  name        text        not null,                                           -- 标签名称（同账本同分类内唯一）
+  created_at  timestamptz not null default now(),                             -- 创建时间
+  unique (ledger_id, category_id, name)                                       -- 同账本同分类下标签名唯一，保证「复用」幂等
 );
 
-comment on table public.tags is '记账标签（属于账本，按收支类型区分，可在记账时复用）';
-comment on column public.tags.id         is '标签 ID';
-comment on column public.tags.ledger_id  is '所属账本 ID';
-comment on column public.tags.kind       is '类型：expense=支出，income=收入';
-comment on column public.tags.name       is '标签名称（同账本同类型内唯一）';
-comment on column public.tags.created_at is '创建时间';
+comment on table public.tags is '记账标签（隶属于账本的某个分类，可在记账时复用）';
+comment on column public.tags.id          is '标签 ID';
+comment on column public.tags.ledger_id   is '所属账本 ID';
+comment on column public.tags.category_id is '所属分类 ID（标签只在所属分类下展示与新增）';
+comment on column public.tags.name        is '标签名称（同账本同分类内唯一）';
+comment on column public.tags.created_at  is '创建时间';
 
--- 流水（amount 单位：分，正整数）
+-- 流水（amount 以「该币种的最小单位」存储，正整数）
 create table if not exists public.transactions (
   id          uuid primary key default gen_random_uuid(),                    -- 流水 ID
   ledger_id   uuid        not null references public.ledgers (id) on delete cascade, -- 所属账本 ID
   category_id uuid        not null references public.categories (id),        -- 分类 ID
   kind        text        not null check (kind in ('expense', 'income')),    -- 类型：expense=支出，income=收入
-  amount      bigint      not null check (amount > 0),                       -- 金额（单位：分，正整数，避免浮点误差）
+  amount      bigint      not null check (amount > 0),                       -- 金额（该币种最小单位的整数，避免浮点误差）
+  currency    text        not null default 'CNY'
+                          check (currency in ('CNY', 'USD', 'EUR', 'JPY', 'HKD', 'GBP')), -- 币种（默认人民币）
   tag_id      uuid        references public.tags (id) on delete set null,    -- 标签 ID（可空；标签被删除后自动置空）
   occurred_at timestamptz not null default now(),                            -- 发生时间
   created_by  uuid        not null references auth.users (id),               -- 记录人用户 ID（家庭账本中可区分谁记的）
@@ -148,24 +150,24 @@ create table if not exists public.transactions (
   updated_at  timestamptz not null default now()                             -- 更新时间
 );
 
--- 历史库升级（旧版本用 note 存备注）：按「账本 + 类型 + 备注」建标签 → 回填 tag_id → 删除 note 列
+-- 历史库升级（旧版本用 note 存备注）：按「账本 + 分类 + 备注」建标签 → 回填 tag_id → 删除 note 列
 do $$
 begin
   if exists (
     select 1 from information_schema.columns
     where table_schema = 'public' and table_name = 'transactions' and column_name = 'note'
   ) then
-    insert into public.tags (ledger_id, kind, name)
-    select distinct t.ledger_id, t.kind, btrim(t.note)
+    insert into public.tags (ledger_id, category_id, name)
+    select distinct t.ledger_id, t.category_id, btrim(t.note)
     from public.transactions t
     where t.note is not null and btrim(t.note) <> ''
-    on conflict (ledger_id, kind, name) do nothing;
+    on conflict (ledger_id, category_id, name) do nothing;
 
     update public.transactions t
     set tag_id = g.id
     from public.tags g
     where t.note is not null and btrim(t.note) <> ''
-      and g.ledger_id = t.ledger_id and g.kind = t.kind and g.name = btrim(t.note);
+      and g.ledger_id = t.ledger_id and g.category_id = t.category_id and g.name = btrim(t.note);
 
     alter table public.transactions drop column note;
   end if;
@@ -173,7 +175,7 @@ end $$;
 
 create index if not exists idx_transactions_ledger_time on public.transactions (ledger_id, occurred_at desc);
 create index if not exists idx_categories_ledger on public.categories (ledger_id, kind, sort_order);
-create index if not exists idx_tags_ledger on public.tags (ledger_id, kind, name);
+create index if not exists idx_tags_ledger on public.tags (ledger_id, category_id, name);
 create index if not exists idx_family_members_user on public.family_members (user_id);
 
 comment on table public.transactions is '收支流水';
@@ -181,7 +183,8 @@ comment on column public.transactions.id          is '流水 ID';
 comment on column public.transactions.ledger_id   is '所属账本 ID';
 comment on column public.transactions.category_id is '分类 ID';
 comment on column public.transactions.kind        is '类型：expense=支出，income=收入';
-comment on column public.transactions.amount      is '金额（单位：分，正整数，避免浮点误差）';
+comment on column public.transactions.amount      is '金额（该币种最小单位的整数，避免浮点误差）';
+comment on column public.transactions.currency    is '币种（默认 CNY；金额单位为该币种的最小单位）';
 comment on column public.transactions.tag_id      is '标签 ID（可空；标签被删除后自动置空）';
 comment on column public.transactions.occurred_at is '发生时间';
 comment on column public.transactions.created_by  is '记录人用户 ID（家庭账本中可区分谁记的）';

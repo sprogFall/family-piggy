@@ -55,16 +55,31 @@ export const dayLabelOf = (iso: string): string => {
   return `${d.getMonth() + 1}月${d.getDate()}日 星期${WEEKDAYS[d.getDay()]}`;
 };
 
-/** ISO -> "2024年5月20日" */
-export const dateLabelOf = (iso: string): string => {
-  const d = new Date(iso);
-  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
-};
-
 /** ISO -> "14:30" */
 export const timeLabelOf = (iso: string): string => {
   const d = new Date(iso);
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};
+
+/**
+ * 记账页顶部的日期文案：
+ * - 今天 -> "今天 21:25"（带时间，方便确认刚发生的时间）
+ * - 今年其它日期 -> "8月3日"（省略年份，提高显示效率）
+ * - 跨年日期 -> "2024年8月3日"
+ */
+export const entryDateLabel = (iso: string, now: Date = new Date()): string => {
+  const d = new Date(iso);
+  if (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  ) {
+    return `今天 ${timeLabelOf(iso)}`;
+  }
+  if (d.getFullYear() === now.getFullYear()) {
+    return `${d.getMonth() + 1}月${d.getDate()}日`;
+  }
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
 };
 
 /** 解析 "yyyy-MM-dd HH:mm"（本地时区），失败返回 null */

@@ -1,12 +1,21 @@
 import type { Transaction } from '@/types/domain';
 
-import { breakdown, breakdownWithOther, groupByDay, monthSummary, trendByDay } from './statement';
+import { dominantCurrency } from './currency';
+import {
+  breakdown,
+  breakdownWithOther,
+  groupByDay,
+  monthSummary,
+  scopeToCurrency,
+  trendByDay,
+} from './statement';
 
 const tx = (partial: Partial<Transaction> & { id: string }): Transaction => ({
   ledgerId: 'l1',
   categoryId: 'c1',
   kind: 'expense',
   amount: 100,
+  currency: 'CNY',
   tagId: null,
   occurredAt: new Date(2024, 4, 20, 12, 0).toISOString(),
   createdBy: 'u1',
@@ -37,6 +46,25 @@ describe('monthSummary', () => {
   it('空数据', () => {
     expect(monthSummary([])).toEqual({ expense: 0, income: 0, balance: 0 });
   });
+
+  it('不跨币种相加：默认只汇总主币种', () => {
+    const list = [
+      tx({ id: '1', amount: 1000 }),
+      tx({ id: '2', amount: 200 }),
+      tx({ id: '3', amount: 9999, currency: 'USD', kind: 'income' }),
+    ];
+    expect(monthSummary(list)).toEqual({ expense: 1200, income: 0, balance: -1200 });
+    expect(monthSummary(list, 'USD')).toEqual({ expense: 0, income: 9999, balance: 9999 });
+  });
+});
+
+describe('scopeToCurrency', () => {
+  it('按币种过滤，不传时取主币种', () => {
+    const list = [tx({ id: '1' }), tx({ id: '2', currency: 'EUR' })];
+    expect(scopeToCurrency(list, 'EUR').map((item) => item.id)).toEqual(['2']);
+    expect(scopeToCurrency(list).map((item) => item.id)).toEqual(['1']);
+    expect(dominantCurrency(list)).toBe('CNY');
+  });
 });
 
 describe('groupByDay', () => {
@@ -51,6 +79,24 @@ describe('groupByDay', () => {
     expect(groups[0].expense).toBe(300);
     expect(groups[1].expense).toBe(500);
     expect(groups[0].label).toBe('5月20日 星期一');
+    expect(groups[0].currency).toBe('CNY');
+  });
+
+  it('组内汇总只统计当天主币种，明细仍保留全部流水', () => {
+    const groups = groupByDay([
+      tx({ id: '1', occurredAt: new Date(2024, 4, 20, 8).toISOString(), amount: 100 }),
+      tx({
+        id: '2',
+        occurredAt: new Date(2024, 4, 20, 9).toISOString(),
+        amount: 9999,
+        currency: 'USD',
+      }),
+      tx({ id: '3', occurredAt: new Date(2024, 4, 20, 10).toISOString(), amount: 50, currency: 'USD' }),
+    ]);
+
+    expect(groups[0].currency).toBe('USD');
+    expect(groups[0].transactions).toHaveLength(3);
+    expect(groups[0].expense).toBe(10049);
   });
 
   it('空数据返回空数组', () => {
@@ -109,5 +155,21 @@ describe('trendByDay', () => {
     expect(points).toHaveLength(31);
     expect(points[0]).toEqual({ day: 1, expense: 0, income: 0 });
     expect(points[1]).toEqual({ day: 2, expense: 100, income: 0 });
+  });
+
+  it('只统计指定币种，不把不同币种加在一起', () => {
+    const list = [
+      tx({ id: '1', occurredAt: new Date(2024, 4, 2, 8).toISOString(), amount: 100 }),
+      tx({
+        id: '2',
+        occurredAt: new Date(2024, 4, 2, 9).toISOString(),
+        amount: 500,
+        currency: 'USD',
+      }),
+    ];
+    const month = { year: 2024, month: 5 };
+
+    expect(trendByDay(list, month, 'CNY')[1]).toEqual({ day: 2, expense: 100, income: 0 });
+    expect(trendByDay(list, month, 'USD')[1]).toEqual({ day: 2, expense: 500, income: 0 });
   });
 });

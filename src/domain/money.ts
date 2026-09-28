@@ -3,6 +3,8 @@
  * 仅在与用户输入/展示交互时进行转换。
  */
 
+import { currencySymbol } from './currency';
+
 const MAX_INTEGER_DIGITS = 9;
 
 /** 解析用户输入的“元”字符串为分。非法或非正数返回 null。 */
@@ -30,6 +32,20 @@ export const formatCents = (cents: number, options: FormatCentsOptions = {}): st
     options.thousands === false ? String(yuan) : yuan.toLocaleString('en-US');
   const fen = String(abs % 100).padStart(2, '0');
   return `${sign}${yuanStr}.${fen}`;
+};
+
+/**
+ * 带币种符号的金额文本，如 `¥2,368.00`、`-$12.00`、`+€30.00`。
+ * 符号紧跟正负号，保证「-¥12.00」而不是「¥-12.00」。
+ */
+export const formatMoney = (
+  cents: number,
+  currency: string,
+  options: FormatCentsOptions = {},
+): string => {
+  const sign = cents < 0 ? '-' : options.signed ? '+' : '';
+  const body = formatCents(Math.abs(cents), { ...options, signed: false });
+  return `${sign}${currencySymbol(currency)}${body}`;
 };
 
 /** 格式化为百分比文本，ratio 取值 0~1 */

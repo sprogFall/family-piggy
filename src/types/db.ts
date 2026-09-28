@@ -1,5 +1,6 @@
 /** Supabase 行类型 -> 领域类型映射 */
 
+import { DEFAULT_CURRENCY, isCurrencyCode } from '@/domain/currency';
 import type {
   Category,
   Family,
@@ -52,7 +53,7 @@ export interface CategoryRow {
 export interface TagRow {
   id: string;
   ledger_id: string;
-  kind: 'expense' | 'income';
+  category_id: string;
   name: string;
   created_at: string;
 }
@@ -64,6 +65,7 @@ export interface TransactionRow {
   kind: 'expense' | 'income';
   /** Postgres bigint 经 supabase-js 可能返回 string */
   amount: number | string;
+  currency: string;
   tag_id: string | null;
   occurred_at: string;
   created_by: string;
@@ -105,7 +107,7 @@ export const toCategory = (row: CategoryRow): Category => ({
 export const toTag = (row: TagRow): Tag => ({
   id: row.id,
   ledgerId: row.ledger_id,
-  kind: row.kind,
+  categoryId: row.category_id,
   name: row.name,
   createdAt: row.created_at,
 });
@@ -116,6 +118,7 @@ export const toTransaction = (row: TransactionRow): Transaction => ({
   categoryId: row.category_id,
   kind: row.kind,
   amount: Number(row.amount),
+  currency: isCurrencyCode(row.currency) ? row.currency : DEFAULT_CURRENCY,
   tagId: row.tag_id,
   occurredAt: row.occurred_at,
   createdBy: row.created_by,

@@ -10,6 +10,7 @@ describe('buildExportAoa', () => {
         categoryName: '餐饮',
         amountCents: 236800,
         tagName: '聚餐',
+        currency: 'CNY',
       },
       {
         occurredAt: '2024-05-21 09:00',
@@ -17,16 +18,17 @@ describe('buildExportAoa', () => {
         categoryName: '工资',
         amountCents: 5,
         tagName: '',
+        currency: 'USD',
       },
     ];
     const aoa = buildExportAoa(drafts);
-    expect(aoa[0]).toEqual(['日期', '类型', '分类', '金额(元)', '标签']);
-    expect(aoa[1]).toEqual(['2024-05-20 14:30', '支出', '餐饮', '2368.00', '聚餐']);
-    expect(aoa[2]).toEqual(['2024-05-21 09:00', '收入', '工资', '0.05', '']);
+    expect(aoa[0]).toEqual(['日期', '类型', '分类', '金额', '标签', '币种']);
+    expect(aoa[1]).toEqual(['2024-05-20 14:30', '支出', '餐饮', '2368.00', '聚餐', 'CNY']);
+    expect(aoa[2]).toEqual(['2024-05-21 09:00', '收入', '工资', '0.05', '', 'USD']);
   });
 
   it('空数据仅表头', () => {
-    expect(buildExportAoa([])).toEqual([['日期', '类型', '分类', '金额(元)', '标签']]);
+    expect(buildExportAoa([])).toEqual([['日期', '类型', '分类', '金额', '标签', '币种']]);
   });
 });
 
