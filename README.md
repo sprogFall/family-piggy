@@ -16,6 +16,7 @@
 
 1. 在 [supabase.com](https://supabase.com) 创建项目；
 2. 打开 Dashboard → SQL Editor，整体执行 `supabase/schema.sql`（幂等脚本，可重复执行；每张表和字段均带中文注释）；
+   - 若数据库是**旧版本**初始化的（记账用 `note` 存备注、无 `tags` 表），再执行 `supabase/migrations/` 下的增量脚本：历史备注会自动迁移为标签，并修复「创建家庭 / 新建个人账本报错」的 RLS 策略问题；
 3. 复制 `.env.example` 为 `.env`，填入项目 URL 与 Anon Key：
 
 ```bash
@@ -25,7 +26,9 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
 
 > Supabase 信息一律通过 `EXPO_PUBLIC_*` 环境变量注入（由 `app.config.js` 与 `src/lib/supabase.ts` 读取），**仓库中不提交任何真实连接信息**；`.env` 已被 `.gitignore` 忽略，仅提交 `.env.example` 模板。
 
-数据库脚本包含：用户资料/家庭/家庭成员/账本/分类/流水六张表（含月度预算列）、RLS 行级安全策略、注册自动建档（资料 + 个人账本 + 默认分类）、新账本自动播种默认分类、邀请码生成与 `join_family` RPC、流水表 Realtime 发布、头像存储桶与策略，并为所有表和字段写了中文注释。
+数据库脚本包含：用户资料/家庭/家庭成员/账本/分类/标签/流水七张表（含月度预算列）、RLS 行级安全策略、注册自动建档（资料 + 个人账本 + 默认分类）、新账本自动播种默认分类、邀请码生成与 `join_family` RPC、流水表 Realtime 发布、头像存储桶与策略，并为所有表和字段写了中文注释。
+
+> `ledgers` 的 SELECT 策略特意写成 `owner_id = auth.uid() or can_access_ledger(id)`：`can_access_ledger` 是 stable security definer 函数，在同一条 `INSERT` 语句内看不到刚插入的行，若策略只依赖它，`.insert().select()` 会被过滤成 0 行（PostgREST 报 PGRST116），表现为「账本已写入却提示创建失败」。
 
 ### 2. 启动
 
@@ -132,7 +135,8 @@ npm run typecheck # tsc --noEmit
 
 - 邮箱注册 / 登录（注册即自动创建「个人账本」与默认分类）
 - 多账本：个人账本、家庭账本自由切换，可新建个人账本
-- 记一笔：支出/收入切换、分类九宫格、备注、日期选择、金额键盘
+- 记一笔：顶部「日期 + 金额」区、支出/收入切换、分类九宫格、标签选择（可新增 / 复用 / 长按删除）、金额键盘
+- 标签：记账时随手打标签，下次记账可点选同类型下的历史标签，账单列表与导出均携带标签
 - 账单列表：按天分组、日小计、月汇总；点击账单可编辑 / 删除
 - 成员记账标注：家庭账本的每条账单标明「谁记的」（本人显示「我」，他人显示成员昵称）
 - 月度预算：按账本设置，首页汇总卡展示使用进度与超支提醒
@@ -141,8 +145,9 @@ npm run typecheck # tsc --noEmit
 - 家庭：创建家庭（自动建家庭账本）、邀请码加入、成员管理、退出 / 解散
 - 多人共同记账：家庭账本全员可记账，流水 Realtime 实时同步
 - 头像：从相册选择上传至 Supabase Storage，个人资料实时更新
-- 导出：当月流水导出 Excel(.xlsx) / CSV，系统分享
-- 导入：Excel / CSV 解析预览，缺失分类自动创建后批量入库
+- 导出：当月流水导出 Excel(.xlsx) / CSV（表头为 日期/类型/分类/金额(元)/标签），系统分享
+- 导入：Excel / CSV 解析预览，缺失分类与标签自动创建（同名标签复用）后批量入库
+- 设置：全局字体大小四档（小 / 标准 / 大 / 超大，标准为设计基准），本地持久化并对整个应用立即生效
 
 ## 目录结构
 
@@ -157,7 +162,7 @@ src/
   theme/       设计令牌与图标映射
   types/       领域类型与数据库行映射
   lib/         supabase client 与通用工具
-supabase/      schema.sql（表结构 / RLS / 触发器 / Realtime）
+supabase/      schema.sql（表结构 / RLS / 触发器 / Realtime）+ migrations/（增量迁移）
 ```
 
 ## 开发约定
