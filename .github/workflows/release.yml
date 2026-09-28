@@ -92,6 +92,11 @@ jobs:
       - name: 生成 Android 工程（expo prebuild）
         run: npx expo prebuild --platform android --no-install
 
+      # 应用统一的 Gradle 调优：并行、build cache、关闭 release lint。
+      # 该脚本同时供 warm-android-cache.yml 使用，保证预热缓存与发布构建同 key。
+      - name: 调优 Gradle 构建参数
+        run: bash .github/scripts/configure-android-gradle.sh
+
       # Gradle 官方建议 CI 使用 -bin 分发包（仅运行时，不含源码 / 文档）；
       # Expo 模板默认是 -all.zip，体积约多 100MB，每次冷启动都要重新下载
       - name: 切换 Gradle 分发包为 -bin
@@ -107,7 +112,8 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew --no-daemon assembleRelease \
+          ./gradlew assembleRelease \
+            --build-cache \
             -Pandroid.injected.signing.store.file="$KEYSTORE_FILE" \
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \

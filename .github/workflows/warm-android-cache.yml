@@ -21,6 +21,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'app.config.js'
+      - '.github/scripts/configure-android-gradle.sh'
       - '.github/workflows/warm-android-cache.yml'
 
 concurrency:
@@ -58,6 +59,11 @@ jobs:
       - name: 生成 Android 工程（expo prebuild）
         run: npx expo prebuild --platform android --no-install
 
+      # 应用统一的 Gradle 调优参数。必须与 release.yml 完全一致，否则本地
+      # build cache 的任务 key 不一致，发布构建无法复用预热的产物。
+      - name: 调优 Gradle 构建参数
+        run: bash .github/scripts/configure-android-gradle.sh
+
       # 与 release.yml 保持一致：必须预热与发布构建相同的分发包，否则缓存命中不了
       - name: 切换 Gradle 分发包为 -bin
         run: |
@@ -70,4 +76,4 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew --no-daemon assembleRelease
+          ./gradlew assembleRelease --build-cache
