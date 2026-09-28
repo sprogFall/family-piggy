@@ -85,6 +85,37 @@ describe('useLedgerStore', () => {
     expect(useLedgerStore.getState().activeLedgerId).toBe('lf1');
   });
 
+  it('createPersonalLedger 落库并切换到新增的账本', async () => {
+    ledgerMock.listLedgers.mockResolvedValue([ledger('l1')]);
+    familyMock.listMyFamilies.mockResolvedValue([]);
+    await useLedgerStore.getState().load();
+
+    ledgerMock.createLedger.mockResolvedValue(undefined);
+    ledgerMock.listLedgers.mockResolvedValue([ledger('l1'), ledger('l2', { name: '旅行账本' })]);
+
+    await useLedgerStore.getState().createPersonalLedger('旅行账本');
+
+    expect(ledgerMock.createLedger).toHaveBeenCalledWith({
+      name: '旅行账本',
+      type: 'personal',
+      ownerId: 'u1',
+      familyId: null,
+    });
+    expect(useLedgerStore.getState().activeLedgerId).toBe('l2');
+  });
+
+  it('createPersonalLedger 失败时向上抛错（供 UI 提示）', async () => {
+    ledgerMock.listLedgers.mockResolvedValue([ledger('l1')]);
+    familyMock.listMyFamilies.mockResolvedValue([]);
+    await useLedgerStore.getState().load();
+
+    ledgerMock.createLedger.mockRejectedValue(new Error('创建账本失败'));
+    await expect(useLedgerStore.getState().createPersonalLedger('旅行账本')).rejects.toThrow(
+      '创建账本失败',
+    );
+    expect(useLedgerStore.getState().activeLedgerId).toBe('l1');
+  });
+
   it('joinFamily 后切换到家庭账本', async () => {
     familyMock.joinFamily.mockResolvedValue({ family: {} as never, ledgerId: 'lf1' });
     ledgerMock.listLedgers.mockResolvedValue([ledger('lf1', { type: 'family', familyId: 'f1' })]);

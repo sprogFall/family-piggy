@@ -59,6 +59,41 @@ describe('familyService', () => {
       fromMock.mockReturnValue(createQueryChain(queryError('boom')));
       await expect(familyService.createFamily('幸福之家', 'u1')).rejects.toThrow('创建家庭失败');
     });
+
+    it('账本写入失败时回滚家庭，避免残留半成品数据', async () => {
+      const ledgersChain = createQueryChain({ data: null, error: { message: 'boom' } });
+      const chains: Record<string, any> = {
+        families: createQueryChain({ data: familyRow, error: null }),
+        family_members: createQueryChain({ data: null, error: null }),
+        ledgers: ledgersChain,
+      };
+      fromMock.mockImplementation((table: string) => chains[table]);
+
+      await expect(familyService.createFamily('幸福之家', 'u1')).rejects.toThrow('创建家庭账本失败');
+      expect(chains.families.delete).toHaveBeenCalled();
+      expect(chains.families.eq).toHaveBeenCalledWith('id', 'f1');
+    });
+
+    it('账本 ID 通过回读获取（新建账本不使用 INSERT ... RETURNING）', async () => {
+      const chains: Record<string, any> = {
+        families: createQueryChain({ data: familyRow, error: null }),
+        family_members: createQueryChain({ data: null, error: null }),
+        ledgers: createQueryChain({ data: ledgerRow, error: null }),
+      };
+      fromMock.mockImplementation((table: string) => chains[table]);
+
+      const result = await familyService.createFamily('幸福之家', 'u1');
+
+      expect(chains.ledgers.insert).toHaveBeenCalledWith({
+        name: '幸福之家',
+        type: 'family',
+        owner_id: 'u1',
+        family_id: 'f1',
+      });
+      expect(chains.ledgers.select).toHaveBeenCalled();
+      expect(chains.ledgers.eq).toHaveBeenCalledWith('family_id', 'f1');
+      expect(result.ledgerId).toBe('l1');
+    });
   });
 
   describe('joinFamily', () => {

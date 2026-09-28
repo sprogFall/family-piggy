@@ -69,6 +69,7 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
   },
 
   createPersonalLedger: async (name) => {
+    const before = new Set(get().ledgers.map((ledger) => ledger.id));
     await ledgerService.createLedger({
       name,
       type: 'personal',
@@ -76,6 +77,9 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
       familyId: null,
     });
     await get().load();
+    // 新建账本无法用 INSERT ... RETURNING 取回（见 ledger.service），故按新增的 ID 切换
+    const created = get().ledgers.find((ledger) => !before.has(ledger.id));
+    if (created) set({ activeLedgerId: created.id });
   },
 
   createFamily: async (name) => {

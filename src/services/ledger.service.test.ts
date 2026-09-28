@@ -27,10 +27,10 @@ describe('ledgerService', () => {
     ]);
   });
 
-  it('createLedger 写入 snake_case 字段', async () => {
+  it('createLedger 写入 snake_case 字段（不用 INSERT ... RETURNING）', async () => {
     const chain = createQueryChain({ data: ledgerRow, error: null });
     fromMock.mockReturnValue(chain);
-    const ledger = await ledgerService.createLedger({
+    await ledgerService.createLedger({
       name: '新账本',
       type: 'personal',
       ownerId: 'u1',
@@ -42,7 +42,20 @@ describe('ledgerService', () => {
       owner_id: 'u1',
       family_id: null,
     });
-    expect(ledger.id).toBe('l1');
+    // 新账本由调用方重新加载列表获取（RETURNING 会被 RLS SELECT 策略过滤），故不调用 select
+    expect(chain.select).not.toHaveBeenCalled();
+  });
+
+  it('createLedger 失败时抛出友好错误', async () => {
+    fromMock.mockReturnValue(createQueryChain(queryError('boom')));
+    await expect(
+      ledgerService.createLedger({
+        name: '新账本',
+        type: 'personal',
+        ownerId: 'u1',
+        familyId: null,
+      }),
+    ).rejects.toThrow('创建账本失败');
   });
 
   it('失败时抛出友好错误', async () => {

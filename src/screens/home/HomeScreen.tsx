@@ -4,7 +4,7 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { BreakdownList } from '@/components/BreakdownList';
 import { DonutChart } from '@/components/charts/DonutChart';
@@ -18,16 +18,14 @@ import { ScreenTopBar } from '@/components/ui/ScreenTopBar';
 import { currentMonth, monthKey, monthLabel, type MonthRef } from '@/domain/dates';
 import { formatCents } from '@/domain/money';
 import { breakdownWithOther, monthSummary, trendByDay } from '@/domain/statement';
-import {
-  useActiveLedger,
-  useCategoryOf,
-  useMonthTransactions,
-} from '@/hooks/useActiveLedgerData';
+import { useActiveLedger, useCategoryOf, useMonthTransactions } from '@/hooks/useActiveLedgerData';
+import { showAlert } from '@/lib/alert';
+import { getErrorMessage } from '@/lib/errors';
 import type { RootStackParamList, TabParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
 import { useLedgerStore } from '@/stores/ledger.store';
 import { useTransactionStore } from '@/stores/transaction.store';
-import { CHART_PALETTE, colors, fontSize, radius, space } from '@/theme';
+import { createStyles, CHART_PALETTE, colors, fontSize, radius, space } from '@/theme';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<TabParamList, 'Home'>,
@@ -148,14 +146,16 @@ export const HomeScreen = ({ navigation }: Props) => {
         title="新建个人账本"
         placeholder="账本名称"
         onSubmit={(name) => {
-          void createPersonalLedger(name);
+          void createPersonalLedger(name).catch((error: unknown) =>
+            showAlert('创建失败', getErrorMessage(error)),
+          );
         }}
       />
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   card: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,

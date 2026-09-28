@@ -10,8 +10,24 @@ export interface FamilyWithLedger {
   ledgerId: string | null;
 }
 
+/** 家庭账本 ID 回读：一个家庭只有一个家庭账本（不使用 INSERT ... RETURNING，原因见 ledger.service） */
+const findFamilyLedgerId = async (familyId: string): Promise<string | null> => {
+  const { data: ledgerRow } = await supabase
+    .from('ledgers')
+    .select('*')
+    .eq('family_id', familyId)
+    .maybeSingle();
+  return ledgerRow ? toLedger(ledgerRow as LedgerRow).id : null;
+};
+
 export const familyService = {
-  /** 创建家庭：家庭 + 创建者成员记录 + 家庭账本 */
+  /**
+   * 创建家庭：家庭 + 创建者成员记录 + 家庭账本。
+   *
+   * 家庭账本写入不使用 `.insert().select()`（原因见 ledger.service.createLedger），
+   * 插入后按 family_id 回读；任一步失败立即回滚家庭（级联删除成员与账本），
+   * 避免「提示创建失败但我的家庭里已多出一个家庭」的半成品数据。
+   */
   async createFamily(name: string, userId: string): Promise<FamilyWithLedger> {
     const { data: familyRow, error: familyError } = await supabase
       .from('families')
@@ -22,19 +38,22 @@ export const familyService = {
 
     const family = toFamily(familyRow as FamilyRow);
 
-    const { error: memberError } = await supabase
-      .from('family_members')
-      .insert({ family_id: family.id, user_id: userId, role: 'owner' });
-    if (memberError) throw new Error('创建家庭失败');
+    try {
+      const { error: memberError } = await supabase
+        .from('family_members')
+        .insert({ family_id: family.id, user_id: userId, role: 'owner' });
+      if (memberError) throw new Error('创建家庭失败');
 
-    const { data: ledgerRow, error: ledgerError } = await supabase
-      .from('ledgers')
-      .insert({ name, type: 'family', owner_id: userId, family_id: family.id })
-      .select('*')
-      .single();
-    if (ledgerError || !ledgerRow) throw new Error('创建家庭账本失败');
+      const { error: ledgerError } = await supabase
+        .from('ledgers')
+        .insert({ name, type: 'family', owner_id: userId, family_id: family.id });
+      if (ledgerError) throw new Error('创建家庭账本失败');
+    } catch (error) {
+      await supabase.from('families').delete().eq('id', family.id);
+      throw error;
+    }
 
-    return { family, ledgerId: toLedger(ledgerRow as LedgerRow).id };
+    return { family, ledgerId: await findFamilyLedgerId(family.id) };
   },
 
   /** 凭邀请码加入家庭 */
@@ -52,13 +71,7 @@ export const familyService = {
     if (familyError || !familyRow) throw new Error('加载家庭信息失败');
     const family = toFamily(familyRow as FamilyRow);
 
-    const { data: ledgerRow } = await supabase
-      .from('ledgers')
-      .select('*')
-      .eq('family_id', family.id)
-      .maybeSingle();
-
-    return { family, ledgerId: ledgerRow ? toLedger(ledgerRow as LedgerRow).id : null };
+    return { family, ledgerId: await findFamilyLedgerId(family.id) };
   },
 
   /** 我加入的所有家庭及其家庭账本 */
