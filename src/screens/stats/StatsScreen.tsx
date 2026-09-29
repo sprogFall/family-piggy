@@ -2,8 +2,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { BreakdownList } from '@/components/BreakdownList';
 import { DonutChart } from '@/components/charts/DonutChart';
@@ -14,7 +15,7 @@ import { ScreenTopBar } from '@/components/ui/ScreenTopBar';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { YearSwitcher } from '@/components/ui/YearSwitcher';
 import { dominantCurrency } from '@/domain/currency';
-import { currentMonth, monthKey, type MonthRef } from '@/domain/dates';
+import { currentMonth, dayKeyOf, monthKey, type MonthRef } from '@/domain/dates';
 import { formatMoney } from '@/domain/money';
 import {
   breakdownWithOther,
@@ -104,6 +105,24 @@ export const StatsScreen = (_props: Props) => {
   const total = summary.expense + summary.income;
   const expenseRatio = total > 0 ? summary.expense / total : 0;
   const monthPoints = granularity === 'year' ? monthlySummaryPoints(scoped, currency) : [];
+  const ranked = useMemo(
+    () => scoped.filter((tx) => tx.kind === kind).sort((a, b) => b.amount - a.amount),
+    [kind, scoped],
+  );
+  const [rankingVisible, setRankingVisible] = useState(10);
+
+  useEffect(() => {
+    setRankingVisible(10);
+  }, [granularity, kind, monthKeyValue, year]);
+
+  const visibleRanking = ranked.slice(0, rankingVisible);
+  const hasMoreRanking = rankingVisible < ranked.length;
+  const loadMoreRanking = () => setRankingVisible((count) => Math.min(count + 10, ranked.length));
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!hasMoreRanking) return;
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 80) loadMoreRanking();
+  };
   const emptyMessage = granularity === 'year' ? '本年暂无数据' : '本月暂无数据';
 
   return (
@@ -146,7 +165,12 @@ export const StatsScreen = (_props: Props) => {
       {loadingInitial ? (
         <LoadingView message="正在加载统计数据…" />
       ) : (
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={120}
+        onScroll={handleScroll}
+      >
         <View style={styles.card}>
           <Text style={styles.cardTitle}>
             {granularity === 'month' ? '本月收支' : '年度收支'}
@@ -174,11 +198,6 @@ export const StatsScreen = (_props: Props) => {
                   value: item.amount,
                   color: CHART_PALETTE[index % CHART_PALETTE.length],
                 }))}
-                centerLabel={formatMoney(
-                  kind === 'expense' ? summary.expense : summary.income,
-                  currency,
-                )}
-                centerSub={kind === 'expense' ? '总支出' : '总收入'}
               />
               <View style={styles.legend}>
                 <BreakdownList items={items} currency={currency} showAmount />
@@ -210,6 +229,39 @@ export const StatsScreen = (_props: Props) => {
             ))}
           </View>
         ) : null}
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>
+            {kind === 'expense' ? '支出' : '收入'}排行（{granularity === 'month' ? '当月' : '当年'}倒序）
+          </Text>
+          {visibleRanking.length > 0 ? (
+            <>
+              {visibleRanking.map((tx, index) => (
+                <View key={tx.id} style={styles.rankRow}>
+                  <Text style={styles.rankIndex}>{index + 1}</Text>
+                  <View style={styles.rankInfo}>
+                    <Text style={styles.rankCategory} numberOfLines={1}>
+                      {categoryOf(tx.categoryId)?.name ?? '未知分类'}
+                    </Text>
+                    <Text style={styles.rankMeta}>{dayKeyOf(tx.occurredAt)}</Text>
+                  </View>
+                  <Text style={styles.rankAmount}>
+                    {formatMoney(tx.amount, tx.currency, { signed: kind === 'income' })}
+                  </Text>
+                </View>
+              ))}
+              {hasMoreRanking ? (
+                <Pressable accessibilityRole="button" onPress={loadMoreRanking}>
+                  <Text style={styles.rankMore}>继续下拉加载更多…</Text>
+                </Pressable>
+              ) : ranked.length > 10 ? (
+                <Text style={styles.rankMore}>已显示全部 {ranked.length} 条</Text>
+              ) : null}
+            </>
+          ) : (
+            <EmptyState icon="trophy-outline" message="暂无排行数据" />
+          )}
+        </View>
       </ScrollView>
       )}
     </View>
@@ -299,6 +351,44 @@ const useStyles = makeStyles((colors) => ({
     borderTopWidth: 1,
     flexDirection: 'row',
     paddingVertical: space(2),
+  },
+  rankAmount: {
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+  },
+  rankCategory: {
+    color: colors.text,
+    fontSize: fontSize.sm,
+  },
+  rankIndex: {
+    color: colors.textTertiary,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+    width: 24,
+  },
+  rankInfo: {
+    flex: 1,
+    marginHorizontal: space(2),
+  },
+  rankMeta: {
+    color: colors.textTertiary,
+    fontSize: fontSize.xs,
+    marginTop: 2,
+  },
+  rankMore: {
+    color: colors.primary,
+    fontSize: fontSize.xs,
+    marginTop: space(3),
+    textAlign: 'center',
+  },
+  rankRow: {
+    alignItems: 'center',
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    minHeight: 48,
+    paddingVertical: space(1.5),
   },
   summaryAmount: {
     color: colors.text,

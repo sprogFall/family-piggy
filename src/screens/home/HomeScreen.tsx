@@ -136,8 +136,6 @@ export const HomeScreen = ({ navigation }: Props) => {
                       value: item.amount,
                       color: CHART_PALETTE[index % CHART_PALETTE.length],
                     }))}
-                    centerLabel={formatMoney(summary.expense, currency)}
-                    centerSub="本月支出"
                   />
                   <View style={styles.legend}>
                     <BreakdownList items={breakdownItems} currency={currency} />

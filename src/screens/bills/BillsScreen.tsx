@@ -472,11 +472,11 @@ const useStyles = makeStyles((colors) => ({
   },
   summaryLabel: {
     color: colors.textSecondary,
-    fontSize: fontSize.xs,
+    fontSize: fontSize.sm,
   },
   summaryValue: {
     color: colors.text,
-    fontSize: fontSize.sm,
+    fontSize: fontSize.md,
     fontWeight: '600',
     marginTop: 2,
   },
