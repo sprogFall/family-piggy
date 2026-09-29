@@ -133,6 +133,12 @@ export const ProfileScreen = ({ navigation }: Props) => {
         />
         <MenuItem
           icon="wallet-outline"
+          label="账单管理"
+          hint="个人账单改名 / 新增 / 删除"
+          onPress={() => navigation.navigate('LedgerManager')}
+        />
+        <MenuItem
+          icon="calculator-outline"
           label="预算设置"
           onPress={() => navigation.navigate('Budget')}
         />

@@ -452,6 +452,69 @@ begin
 end;
 $$;
 
+
+-- 家庭创建者修改家庭名称：同步家庭账本名称
+create or replace function public.rename_family(p_family_id uuid, p_name text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid  uuid := auth.uid();
+  v_name text := btrim(p_name);
+begin
+  if v_uid is null then
+    raise exception '未登录';
+  end if;
+  if v_name is null or v_name = '' or length(v_name) > 12 then
+    raise exception '家庭名称需 1-12 个字符';
+  end if;
+  if not exists (
+    select 1 from public.families
+    where id = p_family_id and owner_id = v_uid
+  ) then
+    raise exception '只有家庭创建者可以修改家庭名称';
+  end if;
+
+  update public.families set name = v_name where id = p_family_id;
+  update public.ledgers set name = v_name where family_id = p_family_id;
+end;
+$$;
+
+-- 家庭创建者重新生成邀请码（碰撞时自动重试）
+create or replace function public.regenerate_family_invite_code(p_family_id uuid)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid  uuid := auth.uid();
+  v_code text;
+begin
+  if v_uid is null then
+    raise exception '未登录';
+  end if;
+  if not exists (
+    select 1 from public.families
+    where id = p_family_id and owner_id = v_uid
+  ) then
+    raise exception '只有家庭创建者可以重新生成邀请码';
+  end if;
+
+  loop
+    v_code := public.generate_invite_code();
+    begin
+      update public.families set invite_code = v_code where id = p_family_id;
+      return v_code;
+    exception when unique_violation then
+      -- 8 位随机码碰撞概率极低，但生成到唯一值为止
+    end;
+  end loop;
+end;
+$$;
+
 -- ----------------------------------------------------------------------------
 -- 5. 行级安全（RLS）
 -- ----------------------------------------------------------------------------

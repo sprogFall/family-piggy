@@ -19,6 +19,7 @@ import { FamilyHubScreen } from '@/screens/family/FamilyHubScreen';
 import { FamilyJoinScreen } from '@/screens/family/FamilyJoinScreen';
 import { HomeScreen } from '@/screens/home/HomeScreen';
 import { ImportScreen } from '@/screens/import/ImportScreen';
+import { LedgerManagerScreen } from '@/screens/ledger/LedgerManagerScreen';
 import { LoginScreen } from '@/screens/auth/LoginScreen';
 import { ProfileScreen } from '@/screens/profile/ProfileScreen';
 import { RegisterScreen } from '@/screens/auth/RegisterScreen';
@@ -143,6 +144,7 @@ export const MainNavigator = () => (
       options={{ animation: 'slide_from_right' }}
     />
     <RootStack.Screen name="CategoryManager" component={CategoryManagerScreen} />
+    <RootStack.Screen name="LedgerManager" component={LedgerManagerScreen} />
     <RootStack.Screen name="Budget" component={BudgetScreen} />
     <RootStack.Screen name="Export" component={ExportScreen} />
     <RootStack.Screen name="Import" component={ImportScreen} />

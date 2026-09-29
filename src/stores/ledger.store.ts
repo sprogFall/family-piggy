@@ -18,7 +18,11 @@ interface LedgerState {
   setActive: (id: string) => void;
   setBudget: (ledgerId: string, monthlyBudget: number) => Promise<void>;
   createPersonalLedger: (name: string) => Promise<void>;
+  renameLedger: (id: string, name: string) => Promise<void>;
+  removeLedger: (id: string) => Promise<void>;
   createFamily: (name: string) => Promise<void>;
+  renameFamily: (familyId: string, name: string) => Promise<void>;
+  regenerateInviteCode: (familyId: string) => Promise<string>;
   joinFamily: (code: string) => Promise<void>;
   loadMembers: (familyId: string) => Promise<void>;
   removeMember: (familyId: string, userId: string) => Promise<void>;
@@ -106,10 +110,46 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
     if (created) get().setActive(created.id);
   },
 
+  renameLedger: async (id, name) => {
+    await ledgerService.updateName(id, name);
+    set({
+      ledgers: get().ledgers.map((ledger) =>
+        ledger.id === id ? { ...ledger, name } : ledger,
+      ),
+    });
+  },
+
+  removeLedger: async (id) => {
+    await ledgerService.removeLedger(id);
+    await get().load();
+  },
+
   createFamily: async (name) => {
     const { ledgerId } = await familyService.createFamily(name, currentUserId());
     await get().load();
     if (ledgerId) get().setActive(ledgerId);
+  },
+
+  renameFamily: async (familyId, name) => {
+    await familyService.renameFamily(familyId, name);
+    set({
+      families: get().families.map((item) =>
+        item.family.id === familyId ? { ...item, family: { ...item.family, name } } : item,
+      ),
+      ledgers: get().ledgers.map((ledger) =>
+        ledger.familyId === familyId ? { ...ledger, name } : ledger,
+      ),
+    });
+  },
+
+  regenerateInviteCode: async (familyId) => {
+    const inviteCode = await familyService.regenerateInviteCode(familyId);
+    set({
+      families: get().families.map((item) =>
+        item.family.id === familyId ? { ...item, family: { ...item.family, inviteCode } } : item,
+      ),
+    });
+    return inviteCode;
   },
 
   joinFamily: async (code) => {

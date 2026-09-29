@@ -2,6 +2,7 @@ jest.mock('@/services/ledger.service', () => ({
   ledgerService: {
     listLedgers: jest.fn(),
     createLedger: jest.fn(),
+    updateName: jest.fn(),
     removeLedger: jest.fn(),
     updateBudget: jest.fn(),
   },
@@ -10,6 +11,8 @@ jest.mock('@/services/ledger.service', () => ({
 jest.mock('@/services/family.service', () => ({
   familyService: {
     createFamily: jest.fn(),
+    renameFamily: jest.fn(),
+    regenerateInviteCode: jest.fn(),
     joinFamily: jest.fn(),
     listMyFamilies: jest.fn(),
     listMembers: jest.fn(),
@@ -178,6 +181,64 @@ describe('useLedgerStore', () => {
   it('selectMembers 未加载时返回稳定引用（zustand v5 快照稳定性）', () => {
     const state = useLedgerStore.getState();
     expect(selectMembers(state, 'f1')).toBe(selectMembers(state, 'f1'));
+  });
+
+  it('renameLedger 落库并同步本地账本名', async () => {
+    ledgerMock.listLedgers.mockResolvedValue([ledger('l1')]);
+    familyMock.listMyFamilies.mockResolvedValue([]);
+    await useLedgerStore.getState().load();
+    ledgerMock.updateName.mockResolvedValue(undefined);
+
+    await useLedgerStore.getState().renameLedger('l1', '旅行账本');
+
+    expect(ledgerMock.updateName).toHaveBeenCalledWith('l1', '旅行账本');
+    expect(useLedgerStore.getState().ledgers[0].name).toBe('旅行账本');
+  });
+
+  it('removeLedger 删除后重新加载', async () => {
+    ledgerMock.listLedgers.mockResolvedValue([ledger('l1'), ledger('l2')]);
+    familyMock.listMyFamilies.mockResolvedValue([]);
+    await useLedgerStore.getState().load();
+    ledgerMock.removeLedger.mockResolvedValue(undefined);
+    ledgerMock.listLedgers.mockResolvedValue([ledger('l2')]);
+
+    await useLedgerStore.getState().removeLedger('l1');
+
+    expect(ledgerMock.removeLedger).toHaveBeenCalledWith('l1');
+    expect(useLedgerStore.getState().ledgers.map((item) => item.id)).toEqual(['l2']);
+  });
+
+  it('renameFamily 同步家庭与家庭账本名称', async () => {
+    const family = {
+      family: { id: 'f1', name: '旧家庭', ownerId: 'u1', inviteCode: 'AAAA1111', createdAt: '' },
+      ledgerId: 'lf1',
+    };
+    useLedgerStore.setState({
+      families: [family],
+      ledgers: [ledger('lf1', { type: 'family', familyId: 'f1', name: '旧家庭' })],
+    });
+    familyMock.renameFamily.mockResolvedValue(undefined);
+
+    await useLedgerStore.getState().renameFamily('f1', '新家庭');
+
+    expect(familyMock.renameFamily).toHaveBeenCalledWith('f1', '新家庭');
+    expect(useLedgerStore.getState().families[0].family.name).toBe('新家庭');
+    expect(useLedgerStore.getState().ledgers[0].name).toBe('新家庭');
+  });
+
+  it('regenerateInviteCode 更新本地邀请码', async () => {
+    useLedgerStore.setState({
+      families: [
+        {
+          family: { id: 'f1', name: '家庭', ownerId: 'u1', inviteCode: 'OLDCODE1', createdAt: '' },
+          ledgerId: 'lf1',
+        },
+      ],
+    });
+    familyMock.regenerateInviteCode.mockResolvedValue('NEWCODE1');
+
+    await expect(useLedgerStore.getState().regenerateInviteCode('f1')).resolves.toBe('NEWCODE1');
+    expect(useLedgerStore.getState().families[0].family.inviteCode).toBe('NEWCODE1');
   });
 
   it('setBudget 落库并同步本地账本', async () => {

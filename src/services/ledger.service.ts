@@ -38,6 +38,11 @@ export const ledgerService = {
     if (error) throw new Error('创建账本失败');
   },
 
+  async updateName(id: string, name: string): Promise<void> {
+    const { error } = await supabase.from('ledgers').update({ name }).eq('id', id);
+    if (error) throw new Error('修改账本名称失败');
+  },
+
   async removeLedger(id: string): Promise<void> {
     const { error } = await supabase.from('ledgers').delete().eq('id', id);
     if (error) throw new Error('删除账本失败');

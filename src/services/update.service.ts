@@ -23,8 +23,8 @@ export const LATEST_RELEASE_URL = `https://api.github.com/repos/${UPDATE_REPOSIT
 export const GITHUB_PROXY_PREFIX = 'https://gh-proxy.com/';
 /** 下载目录（App 私有目录，安装器通过 FileProvider 读取） */
 export const UPDATE_DIRECTORY = `${FileSystem.documentDirectory ?? ''}updates/`;
-/** 哈希校验的分块大小：512KB 的 base64 字符串在内存与耗时之间折中 */
-const HASH_CHUNK_SIZE = 512 * 1024;
+/** 哈希校验的分块大小：4MB 减少 readAsStringAsync 调用与 base64 解码次数，明显快于 512KB */
+const HASH_CHUNK_SIZE = 4 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 30_000;
 
 export interface DownloadProgress {
@@ -238,6 +238,13 @@ export const verifyDownloadedApk = async (
   if (!info.exists) throw new Error('安装包不存在，请重新下载');
 
   const actualSize = typeof info.size === 'number' ? info.size : 0;
+  if (release.apkSize !== null && actualSize !== release.apkSize) {
+    await FileSystem.deleteAsync(uri, { idempotent: true });
+    throw new Error('安装包大小与发布信息不一致，请重新下载');
+  }
+  // Release 说明里没有 SHA256 时只做大小校验，避免用户为一次无意义哈希等待
+  if (release.sha256 === null) return;
+
   const actualSha256 = await sha256OfFile(uri, onProgress);
   const problem = describeIntegrityProblem({
     actualSize,

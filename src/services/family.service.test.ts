@@ -143,6 +143,32 @@ describe('familyService', () => {
     });
   });
 
+  describe('家庭管理', () => {
+    it('renameFamily 调用 RPC', async () => {
+      rpcMock.mockResolvedValue({ data: null, error: null });
+      await familyService.renameFamily('f1', '新家庭名');
+      expect(rpcMock).toHaveBeenCalledWith('rename_family', {
+        p_family_id: 'f1',
+        p_name: '新家庭名',
+      });
+    });
+
+    it('renameFamily 失败透传后端文案', async () => {
+      rpcMock.mockResolvedValue({ data: null, error: { message: '只有家庭创建者可以修改家庭名称' } });
+      await expect(familyService.renameFamily('f1', '新家庭名')).rejects.toThrow(
+        '只有家庭创建者可以修改家庭名称',
+      );
+    });
+
+    it('regenerateInviteCode 返回新邀请码', async () => {
+      rpcMock.mockResolvedValue({ data: 'ABCD12EF', error: null });
+      await expect(familyService.regenerateInviteCode('f1')).resolves.toBe('ABCD12EF');
+      expect(rpcMock).toHaveBeenCalledWith('regenerate_family_invite_code', {
+        p_family_id: 'f1',
+      });
+    });
+  });
+
   describe('成员守卫', () => {
     it('创建者不能退出家庭', async () => {
       const chains: Record<string, any> = {

@@ -91,11 +91,6 @@ export const SettingsScreen = ({ navigation }: Props) => {
             ])
           }
         />
-        <MenuItem
-          icon="information-circle-outline"
-          label="关于我们"
-          onPress={() => navigation.navigate('About')}
-        />
       </ScrollView>
     </View>
   );

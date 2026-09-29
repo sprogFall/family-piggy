@@ -18,6 +18,7 @@ export type RootStackParamList = {
   /** 账单预览：删除 / 修改入口 */
   TransactionPreview: { transactionId: string };
   CategoryManager: undefined;
+  LedgerManager: undefined;
   Budget: undefined;
   Export: undefined;
   Import: undefined;

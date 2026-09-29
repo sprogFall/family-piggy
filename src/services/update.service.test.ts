@@ -196,7 +196,7 @@ describe('sha256OfFile', () => {
   });
 
   it('上报递增的校验进度，最后一笔恰好等于文件总长度', async () => {
-    const size = 1_200_000;
+    const size = 5_000_000;
     mockFile(size);
     const progress: VerifyProgress[] = [];
 

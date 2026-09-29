@@ -20,3 +20,8 @@ export const validateFamilyName = (value: string): string | null => {
   const trimmed = value.trim();
   return trimmed.length >= 1 && trimmed.length <= 12 ? null : '家庭名称需 1-12 个字符';
 };
+
+export const validateLedgerName = (value: string): string | null => {
+  const trimmed = value.trim();
+  return trimmed.length >= 1 && trimmed.length <= 12 ? null : '账本名称需 1-12 个字符';
+};

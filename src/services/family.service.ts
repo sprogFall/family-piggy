@@ -135,6 +135,24 @@ export const familyService = {
     }));
   },
 
+  /** 家庭创建者修改家庭名称，RPC 内同步更新家庭账本名称 */
+  async renameFamily(familyId: string, name: string): Promise<void> {
+    const { error } = await supabase.rpc('rename_family', {
+      p_family_id: familyId,
+      p_name: name,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  /** 家庭创建者重新生成邀请码 */
+  async regenerateInviteCode(familyId: string): Promise<string> {
+    const { data, error } = await supabase.rpc('regenerate_family_invite_code', {
+      p_family_id: familyId,
+    });
+    if (error || !data) throw new Error(error?.message ?? '重新生成邀请码失败');
+    return data as string;
+  },
+
   async leaveFamily(familyId: string, userId: string): Promise<void> {
     const { data: familyRow } = await supabase
       .from('families')

@@ -6,7 +6,6 @@ import { useCallback, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 import { BreakdownList } from '@/components/BreakdownList';
-import { TrendChart } from '@/components/charts/TrendChart';
 import { DonutChart } from '@/components/charts/DonutChart';
 import { EmptyState } from '@/components/EmptyState';
 import { MonthSwitcher } from '@/components/ui/MonthSwitcher';
@@ -21,7 +20,6 @@ import {
   monthSummary,
   monthlySummaryPoints,
   scopeToCurrency,
-  trendByDay,
 } from '@/domain/statement';
 import { useActiveLedger, useCategoryOf } from '@/hooks/useActiveLedgerData';
 import type { RootStackParamList, TabParamList } from '@/navigation/types';
@@ -39,10 +37,9 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<RootStackParamList>
 >;
 
-type StatsGranularity = 'day' | 'month' | 'year';
+type StatsGranularity = 'month' | 'year';
 
 const GRANULARITY_TABS: { key: StatsGranularity; label: string }[] = [
-  { key: 'day', label: '日' },
   { key: 'month', label: '月' },
   { key: 'year', label: '年' },
 ];
@@ -92,7 +89,6 @@ export const StatsScreen = (_props: Props) => {
   const items = breakdownWithOther(scoped, kind, (id) => categoryOf(id)?.name ?? '未知分类');
   const total = summary.expense + summary.income;
   const expenseRatio = total > 0 ? summary.expense / total : 0;
-  const dayPoints = granularity === 'day' ? trendByDay(scoped, month, currency) : [];
   const monthPoints = granularity === 'year' ? monthlySummaryPoints(scoped, currency) : [];
   const emptyMessage = granularity === 'year' ? '本年暂无数据' : '本月暂无数据';
 
@@ -105,7 +101,7 @@ export const StatsScreen = (_props: Props) => {
             year={year}
             onChange={(nextYear) => {
               setYear(nextYear);
-              setMonth((current) => ({ ...current, year: nextYear }));
+              setMonth((currentMonth) => ({ ...currentMonth, year: nextYear }));
             }}
           />
         ) : (
@@ -136,45 +132,19 @@ export const StatsScreen = (_props: Props) => {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>
-            {granularity === 'day' ? '每日统计' : granularity === 'month' ? '本月收支' : '年度收支'}
+            {granularity === 'month' ? '本月收支' : '年度收支'}
           </Text>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>支出</Text>
-            <Text style={[styles.summaryAmount, { flex: 1, textAlign: 'right' }]}>
-              {formatMoney(summary.expense, currency)}
-            </Text>
-          </View>
+          <SummaryRow label="支出" value={formatMoney(summary.expense, currency)} />
           <View style={styles.track}>
             <View style={[styles.expenseBar, { flex: Math.max(expenseRatio, 0.001) }]} />
             <View style={[styles.incomeBar, { flex: Math.max(1 - expenseRatio, 0.001) }]} />
           </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>收入</Text>
-            <Text style={[styles.summaryAmount, { flex: 1, textAlign: 'right' }]}>
-              {formatMoney(summary.income, currency)}
-            </Text>
-          </View>
+          <SummaryRow label="收入" value={formatMoney(summary.income, currency)} />
+          <SummaryRow
+            label="结余"
+            value={formatMoney(summary.balance, currency, { signed: true })}
+          />
         </View>
-
-        {granularity === 'day' ? (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>每日收支趋势</Text>
-            <TrendChart points={dayPoints} month={month.month} currency={currency} />
-          </View>
-        ) : null}
-
-        {granularity === 'year' ? (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>月度明细</Text>
-            {monthPoints.map((point) => (
-              <View key={point.month} style={styles.monthRow}>
-                <Text style={styles.monthLabel}>{point.month}月</Text>
-                <Text style={styles.monthExpense}>支出 {formatMoney(point.expense, currency)}</Text>
-                <Text style={styles.monthIncome}>收入 {formatMoney(point.income, currency)}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{kind === 'expense' ? '支出' : '收入'}构成</Text>
@@ -201,24 +171,53 @@ export const StatsScreen = (_props: Props) => {
             <EmptyState icon="stats-chart-outline" message={emptyMessage} />
           )}
         </View>
+
+        {granularity === 'year' ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>月度明细</Text>
+            {monthPoints.map((point) => (
+              <View key={point.month} style={styles.monthRow}>
+                <Text style={styles.monthLabel}>{point.month}月</Text>
+                <View style={styles.monthMetrics}>
+                  <Text style={styles.monthExpense}>
+                    支出 {formatMoney(point.expense, currency)}
+                  </Text>
+                  <Text style={styles.monthIncome}>
+                    收入 {formatMoney(point.income, currency)}
+                  </Text>
+                  <Text style={styles.monthBalance}>
+                    结余 {formatMoney(point.balance, currency, { signed: true })}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : null}
       </ScrollView>
     </View>
   );
 };
 
+const SummaryRow = ({ label, value }: { label: string; value: string }) => {
+  const styles = useStyles();
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={[styles.summaryAmount, { flex: 1, textAlign: 'right' }]}>{value}</Text>
+    </View>
+  );
+};
+
 const useStyles = makeStyles((colors) => ({
+  breakdown: {
+    alignItems: 'center',
+    gap: space(4),
+  },
   card: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,
     marginBottom: space(3),
     padding: space(4),
-  },
-  foreignHint: {
-    backgroundColor: colors.card,
-    color: colors.textSecondary,
-    fontSize: fontSize.xs,
-    paddingBottom: space(2),
-    paddingHorizontal: space(4),
   },
   cardTitle: {
     color: colors.text,
@@ -233,42 +232,51 @@ const useStyles = makeStyles((colors) => ({
   content: {
     padding: space(3),
   },
-  breakdown: {
-    alignItems: 'center',
-    gap: space(4),
-  },
-  legend: {
-    alignSelf: 'stretch',
-  },
   expenseBar: {
     backgroundColor: colors.danger,
     borderRadius: radius.round,
     height: 6,
+  },
+  foreignHint: {
+    backgroundColor: colors.card,
+    color: colors.textSecondary,
+    fontSize: fontSize.xs,
+    paddingBottom: space(2),
+    paddingHorizontal: space(4),
   },
   incomeBar: {
     backgroundColor: colors.primary,
     borderRadius: radius.round,
     height: 6,
   },
+  legend: {
+    alignSelf: 'stretch',
+  },
+  monthBalance: {
+    color: colors.textSecondary,
+    fontSize: fontSize.xs,
+  },
   monthExpense: {
     color: colors.textSecondary,
     fontSize: fontSize.xs,
-    textAlign: 'right',
-    width: 92,
   },
   monthIncome: {
     color: colors.primary,
     fontSize: fontSize.xs,
-    textAlign: 'right',
-    width: 92,
   },
   monthLabel: {
     color: colors.text,
-    flex: 1,
     fontSize: fontSize.sm,
+    fontWeight: '500',
+    width: 42,
+  },
+  monthMetrics: {
+    alignItems: 'flex-end',
+    flex: 1,
+    gap: 2,
   },
   monthRow: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     borderTopColor: colors.border,
     borderTopWidth: 1,
     flexDirection: 'row',

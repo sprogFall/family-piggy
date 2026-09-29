@@ -63,6 +63,14 @@ describe('ledgerService', () => {
     await expect(ledgerService.listLedgers()).rejects.toThrow('加载账本失败');
   });
 
+  it('updateName 修改账本名称', async () => {
+    const chain = createQueryChain({ data: null, error: null });
+    fromMock.mockReturnValue(chain);
+    await ledgerService.updateName('l1', '旅行账本');
+    expect(chain.update).toHaveBeenCalledWith({ name: '旅行账本' });
+    expect(chain.eq).toHaveBeenCalledWith('id', 'l1');
+  });
+
   it('updateBudget 写入分单位的月度预算', async () => {
     const chain = createQueryChain({ data: null, error: null });
     fromMock.mockReturnValue(chain);
