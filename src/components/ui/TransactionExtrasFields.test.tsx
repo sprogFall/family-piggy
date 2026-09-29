@@ -11,6 +11,27 @@ describe('TransactionExtrasFields', () => {
     launchImageLibraryAsyncMock.mockResolvedValue({ canceled: true, assets: [] });
   });
 
+  it('记账类型使用边框勾选，且不展示冗余灰色注释', () => {
+    const onReimbursementChange = jest.fn();
+    render(
+      <TransactionExtrasFields
+        note=""
+        onNoteChange={jest.fn()}
+        reimbursement={false}
+        onReimbursementChange={onReimbursementChange}
+        images={[]}
+        onImagesChange={jest.fn()}
+      />,
+    );
+
+    expect(screen.queryByText('仅属于本笔，不会复用')).toBeNull();
+    expect(screen.queryByText('后续可继续扩展')).toBeNull();
+    expect(screen.getByLabelText('报销').props.accessibilityState).toEqual({ checked: false });
+
+    fireEvent.press(screen.getByLabelText('报销'));
+    expect(onReimbursementChange).toHaveBeenCalledWith(true);
+  });
+
   it('备注与是否报销分别回调', () => {
     const onNoteChange = jest.fn();
     const onReimbursementChange = jest.fn();
@@ -28,7 +49,7 @@ describe('TransactionExtrasFields', () => {
     fireEvent.changeText(screen.getByLabelText('备注'), '本笔备注');
     expect(onNoteChange).toHaveBeenCalledWith('本笔备注');
 
-    fireEvent(screen.getByLabelText('是否报销'), 'valueChange', true);
+    fireEvent.press(screen.getByLabelText('报销'));
     expect(onReimbursementChange).toHaveBeenCalledWith(true);
   });
 

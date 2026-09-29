@@ -12,10 +12,15 @@ import { LedgerSwitcherSheet } from '@/components/LedgerSwitcherSheet';
 import { MonthSwitcher } from '@/components/ui/MonthSwitcher';
 import { PromptModal } from '@/components/ui/PromptModal';
 import { ScreenTopBar } from '@/components/ui/ScreenTopBar';
+import { TransactionTypeFilter } from '@/components/ui/TransactionTypeFilter';
 import { dominantCurrency } from '@/domain/currency';
 import { currentMonth, monthKey, type MonthRef } from '@/domain/dates';
 import { formatMoney } from '@/domain/money';
 import { groupByDay, monthSummary, scopeToCurrency } from '@/domain/statement';
+import {
+  filterTransactionsByType,
+  type TransactionTypeFilterValue,
+} from '@/domain/transaction-filter';
 import { showAlert } from '@/lib/alert';
 import { getErrorMessage } from '@/lib/errors';
 import {
@@ -40,6 +45,7 @@ export const BillsScreen = ({ navigation }: Props) => {
   const styles = useStyles();
   const colors = useColors();
   const [month, setMonth] = useState<MonthRef>(currentMonth());
+  const [typeFilter, setTypeFilter] = useState<TransactionTypeFilterValue>('all');
   const [showLedgerSheet, setShowLedgerSheet] = useState(false);
   const [showCreateLedger, setShowCreateLedger] = useState(false);
 
@@ -70,7 +76,9 @@ export const BillsScreen = ({ navigation }: Props) => {
     }, [ledger?.id, monthKeyValue]),
   );
 
-  const groups = groupByDay(transactions);
+  /** 列表按记账类型筛选；顶部汇总仍保留当月全量，避免口径混淆 */
+  const visibleTransactions = filterTransactionsByType(transactions, typeFilter);
+  const groups = groupByDay(visibleTransactions);
   /** 顶部汇总只统计主币种：不同币种的最小单位不可直接相加 */
   const currency = dominantCurrency(transactions);
   const summary = monthSummary(transactions, currency);
@@ -101,9 +109,18 @@ export const BillsScreen = ({ navigation }: Props) => {
         <Text style={styles.foreignHint}>另有 {foreignCount} 笔外币记录未计入上方汇总</Text>
       ) : null}
 
+      <TransactionTypeFilter value={typeFilter} onChange={setTypeFilter} />
+
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
         {groups.length === 0 ? (
-          <EmptyState icon="receipt-outline" message="本月暂无账单，点击下方 + 记一笔" />
+          <EmptyState
+            icon="receipt-outline"
+            message={
+              typeFilter === 'all'
+                ? '本月暂无账单，点击下方 + 记一笔'
+                : '当前记账类型筛选下暂无账单'
+            }
+          />
         ) : (
           groups.map((group) => (
             <DaySection

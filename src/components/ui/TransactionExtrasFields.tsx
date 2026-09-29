@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { Pressable, Image, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import {
   MAX_TRANSACTION_IMAGES,
@@ -26,8 +26,8 @@ interface Props {
 }
 
 /**
- * 「记一笔」的扩展字段：备注（本笔独有）、记账类型（当前为是否报销）与账单图片。
- * 图片选择在组件内完成，上传由页面在提交时统一走 service，保证组件不直接访问 Supabase。
+ * 「记一笔」的扩展字段：记账类型（边框胶囊勾选）、备注与账单图片。
+ * 类型使用可横向扩展的胶囊按钮，后续新增类型只需继续加项，无需改布局。
  */
 export const TransactionExtrasFields = ({
   note,
@@ -70,10 +70,25 @@ export const TransactionExtrasFields = ({
   return (
     <View style={styles.container}>
       <View style={styles.section}>
-        <View style={styles.labelRow}>
-          <Text style={styles.label}>备注</Text>
-          <Text style={styles.hint}>仅属于本笔，不会复用</Text>
-        </View>
+        <Text style={styles.sectionLabel}>记账类型</Text>
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityLabel="报销"
+          accessibilityState={{ checked: reimbursement }}
+          style={[styles.typeChip, reimbursement ? styles.typeChipSelected : null]}
+          onPress={() => onReimbursementChange(!reimbursement)}
+        >
+          {reimbursement ? (
+            <Ionicons name="checkmark" size={14} color={colors.primary} />
+          ) : null}
+          <Text style={[styles.typeChipText, reimbursement ? styles.typeChipTextSelected : null]}>
+            报销
+          </Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>备注</Text>
         <TextInput
           accessibilityLabel="备注"
           value={note}
@@ -86,23 +101,6 @@ export const TransactionExtrasFields = ({
           multiline
           style={styles.noteInput}
         />
-      </View>
-
-      <View style={styles.section}>
-        <View style={styles.labelRow}>
-          <Text style={styles.label}>记账类型</Text>
-          <Text style={styles.hint}>后续可继续扩展</Text>
-        </View>
-        <View style={styles.typeRow}>
-          <Text style={styles.typeLabel}>是否报销</Text>
-          <Switch
-            accessibilityLabel="是否报销"
-            value={reimbursement}
-            onValueChange={onReimbursementChange}
-            trackColor={{ false: colors.border, true: colors.primary }}
-            thumbColor={colors.white}
-          />
-        </View>
       </View>
 
       <View style={styles.section}>
@@ -213,6 +211,12 @@ const useStyles = makeStyles((colors) => ({
     paddingHorizontal: space(4),
     paddingVertical: space(2),
   },
+  sectionLabel: {
+    color: colors.textSecondary,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+    marginBottom: space(2),
+  },
   thumb: {
     borderRadius: radius.md,
     height: 68,
@@ -222,19 +226,27 @@ const useStyles = makeStyles((colors) => ({
     height: 68,
     width: 68,
   },
-  typeLabel: {
-    color: colors.text,
-    fontSize: fontSize.md,
-  },
-  typeRow: {
+  typeChip: {
     alignItems: 'center',
-    backgroundColor: colors.card,
+    alignSelf: 'flex-start',
     borderColor: colors.border,
-    borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.round,
+    borderWidth: 1,
     flexDirection: 'row',
-    minHeight: 52,
-    paddingHorizontal: space(3),
-    justifyContent: 'space-between',
+    gap: space(1),
+    paddingHorizontal: space(4),
+    paddingVertical: space(2),
+  },
+  typeChipSelected: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
+  typeChipText: {
+    color: colors.textSecondary,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+  },
+  typeChipTextSelected: {
+    color: colors.primary,
   },
 }));
