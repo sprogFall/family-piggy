@@ -64,25 +64,25 @@ export const useActiveFamilyMembers = (): FamilyMember[] => {
 };
 
 /**
- * 记录人展示名：仅家庭账本返回标注（本人记的为「我」，他人为成员昵称）；
+ * 记录人展示名：仅家庭账本返回标注，统一展示成员昵称（本人也不显示「我」）；
  * 个人账本、成员资料未加载或成员已退出家庭时返回 null，由 UI 决定隐藏。
  */
 export const useCreatorLabel = (): ((createdBy: string) => string | null) => {
   const ledger = useActiveLedger();
   const viewerId = useAuthStore((state) => state.session?.user.id ?? null);
+  const profile = useAuthStore((state) => state.profile);
   const members = useActiveFamilyMembers();
   const isFamily = ledger?.type === 'family';
+  const profileNickname = profile?.nickname ?? null;
 
   return useCallback(
-    (createdBy: string) =>
-      isFamily
-        ? creatorLabel(
-            createdBy,
-            viewerId,
-            members.find((member) => member.userId === createdBy)?.nickname,
-          )
-        : null,
-    [isFamily, members, viewerId],
+    (createdBy: string) => {
+      if (!isFamily) return null;
+      const memberNickname = members.find((member) => member.userId === createdBy)?.nickname;
+      const fallbackNickname = createdBy === viewerId ? profileNickname : null;
+      return creatorLabel(createdBy, memberNickname ?? fallbackNickname);
+    },
+    [isFamily, members, profileNickname, viewerId],
   );
 };
 

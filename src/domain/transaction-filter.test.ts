@@ -2,11 +2,14 @@ import type { Transaction } from '@/types/domain';
 
 import {
   TRANSACTION_TYPE_FILTER_OPTIONS,
-  filterTransactionsByType,
+  filterTransactions,
   transactionMatchesTypeFilter,
 } from './transaction-filter';
 
-const tx = (id: string, reimbursement: boolean): Transaction => ({
+const tx = (
+  id: string,
+  partial: Partial<Transaction> = {},
+): Transaction => ({
   id,
   ledgerId: 'l1',
   categoryId: 'c1',
@@ -15,32 +18,82 @@ const tx = (id: string, reimbursement: boolean): Transaction => ({
   currency: 'CNY',
   tagIds: [],
   note: '',
-  attributes: { reimbursement },
+  attributes: { reimbursement: false },
   images: [],
   occurredAt: '2024-05-20T04:00:00.000Z',
   createdBy: 'u1',
+  ...partial,
 });
 
+const categoryNameOf = (id: string): string =>
+  id === 'c1' ? '餐饮' : id === 'c2' ? '交通' : '未知分类';
+const tagNameOf = (id: string): string =>
+  id === 'g1' ? '午餐' : id === 'g2' ? '奶茶' : '';
+
 describe('transaction-filter', () => {
-  it('提供全部 / 报销 / 未报销三个选项', () => {
+  it('提供全部 / 报销两个选项，不再包含未报销', () => {
     expect(TRANSACTION_TYPE_FILTER_OPTIONS.map((option) => option.value)).toEqual([
       'all',
       'reimbursement',
-      'non-reimbursement',
     ]);
   });
 
   it('按是否报销筛选', () => {
-    const list = [tx('t1', true), tx('t2', false)];
-    expect(filterTransactionsByType(list, 'all')).toHaveLength(2);
-    expect(filterTransactionsByType(list, 'reimbursement').map((item) => item.id)).toEqual(['t1']);
-    expect(filterTransactionsByType(list, 'non-reimbursement').map((item) => item.id)).toEqual([
-      't2',
-    ]);
+    const list = [tx('t1', { attributes: { reimbursement: true } }), tx('t2')];
+    expect(transactionMatchesTypeFilter(list[0], 'reimbursement')).toBe(true);
+    expect(transactionMatchesTypeFilter(list[1], 'reimbursement')).toBe(false);
   });
 
-  it('单条判断与列表筛选一致', () => {
-    expect(transactionMatchesTypeFilter(tx('t1', true), 'reimbursement')).toBe(true);
-    expect(transactionMatchesTypeFilter(tx('t1', true), 'non-reimbursement')).toBe(false);
+  it('支持收入 / 支出筛选', () => {
+    const list = [tx('t1'), tx('t2', { kind: 'income' })];
+    const filtered = filterTransactions(
+      list,
+      { type: 'all', kind: 'income', createdBy: 'all', keyword: '' },
+      categoryNameOf,
+      tagNameOf,
+    );
+    expect(filtered.map((item) => item.id)).toEqual(['t2']);
+  });
+
+  it('支持按记录人筛选', () => {
+    const list = [tx('t1'), tx('t2', { createdBy: 'u2' })];
+    const filtered = filterTransactions(
+      list,
+      { type: 'all', kind: 'all', createdBy: 'u2', keyword: '' },
+      categoryNameOf,
+      tagNameOf,
+    );
+    expect(filtered.map((item) => item.id)).toEqual(['t2']);
+  });
+
+  it('支持按分类名 / 标签名做关键词搜索', () => {
+    const list = [
+      tx('t1', { categoryId: 'c1', tagIds: ['g1'] }),
+      tx('t2', { categoryId: 'c2', tagIds: ['g2'] }),
+      tx('t3', { categoryId: 'c1', tagIds: [] }),
+    ];
+    const byCategory = filterTransactions(
+      list,
+      { type: 'all', kind: 'all', createdBy: 'all', keyword: '交通' },
+      categoryNameOf,
+      tagNameOf,
+    );
+    expect(byCategory.map((item) => item.id)).toEqual(['t2']);
+
+    const byTag = filterTransactions(
+      list,
+      { type: 'all', kind: 'all', createdBy: 'all', keyword: '奶茶' },
+      categoryNameOf,
+      tagNameOf,
+    );
+    expect(byTag.map((item) => item.id)).toEqual(['t2']);
+
+    const byCategoryKeyword = filterTransactions(
+      list,
+      { type: 'all', kind: 'all', createdBy: 'all', keyword: '餐饮' },
+      categoryNameOf,
+      tagNameOf,
+    );
+    expect(byCategoryKeyword.map((item) => item.id)).toEqual(['t1', 't3']);
   });
 });

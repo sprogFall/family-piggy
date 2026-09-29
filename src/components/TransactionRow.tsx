@@ -33,7 +33,6 @@ export const TransactionRow = ({
   const isIncome = transaction.kind === 'income';
   const sub = [
     showTime ? timeLabelOf(transaction.occurredAt) : '',
-    tagNames.map((name) => `#${name}`).join(' '),
     transaction.note,
     transaction.attributes.reimbursement ? '可报销' : '',
     createdByName ?? '',
@@ -46,6 +45,9 @@ export const TransactionRow = ({
       <View style={styles.center}>
         <Text style={styles.name} numberOfLines={1}>
           {categoryName}
+          {tagNames.length > 0 ? (
+            <Text style={styles.inlineTags}>[{tagNames.join(',')}]</Text>
+          ) : null}
         </Text>
         <Text style={styles.sub} numberOfLines={1}>
           {sub}
@@ -87,6 +89,11 @@ const useStyles = makeStyles((colors) => ({
   },
   income: {
     color: colors.income,
+  },
+  inlineTags: {
+    color: colors.primary,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
   },
   name: {
     color: colors.text,

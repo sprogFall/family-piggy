@@ -2,7 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -11,22 +11,26 @@ import { EmptyState } from '@/components/EmptyState';
 import { LedgerSwitcherSheet } from '@/components/LedgerSwitcherSheet';
 import { MonthSwitcher } from '@/components/ui/MonthSwitcher';
 import { PromptModal } from '@/components/ui/PromptModal';
+import { SearchBar } from '@/components/ui/SearchBar';
 import { ScreenTopBar } from '@/components/ui/ScreenTopBar';
+import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { TransactionTypeFilter } from '@/components/ui/TransactionTypeFilter';
 import { dominantCurrency } from '@/domain/currency';
 import { currentMonth, monthKey, type MonthRef } from '@/domain/dates';
 import { formatMoney } from '@/domain/money';
 import { groupByDay, monthSummary, scopeToCurrency } from '@/domain/statement';
 import {
-  filterTransactionsByType,
+  filterTransactions,
+  type TransactionKindFilterValue,
   type TransactionTypeFilterValue,
 } from '@/domain/transaction-filter';
 import { showAlert } from '@/lib/alert';
 import { getErrorMessage } from '@/lib/errors';
 import { transactionImageService } from '@/services/transaction-image.service';
 import {
-  useActiveLedger,
   useActiveCategories,
+  useActiveFamilyMembers,
+  useActiveLedger,
   useCreatorLabel,
   useTagNameOf,
 } from '@/hooks/useActiveLedgerData';
@@ -36,23 +40,33 @@ import { useLedgerStore } from '@/stores/ledger.store';
 import { useTagStore } from '@/stores/tag.store';
 import { selectMonthTransactions, useTransactionStore } from '@/stores/transaction.store';
 import type { Transaction } from '@/types/domain';
-import { makeStyles, useColors, fontSize, space } from '@/theme';
+import { makeStyles, useColors, fontSize, radius, space } from '@/theme';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<TabParamList, 'Bills'>,
   NativeStackScreenProps<RootStackParamList>
 >;
 
+const KIND_FILTER_ITEMS: { key: TransactionKindFilterValue; label: string }[] = [
+  { key: 'all', label: '全部' },
+  { key: 'expense', label: '支出' },
+  { key: 'income', label: '收入' },
+];
+
 export const BillsScreen = ({ navigation }: Props) => {
   const styles = useStyles();
   const colors = useColors();
   const [month, setMonth] = useState<MonthRef>(currentMonth());
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilterValue>('all');
+  const [kindFilter, setKindFilter] = useState<TransactionKindFilterValue>('all');
+  const [recorderFilter, setRecorderFilter] = useState<string>('all');
+  const [keyword, setKeyword] = useState('');
   const [showLedgerSheet, setShowLedgerSheet] = useState(false);
   const [showCreateLedger, setShowCreateLedger] = useState(false);
 
   const ledger = useActiveLedger();
   const categories = useActiveCategories();
+  const familyMembers = useActiveFamilyMembers();
   /** 家庭账本展示「谁记的」；个人账本恒为 null，不展示 */
   const creatorLabelOf = useCreatorLabel();
   const tagNameOf = useTagNameOf();
@@ -66,6 +80,44 @@ export const BillsScreen = ({ navigation }: Props) => {
   const loadTags = useTagStore((state) => state.load);
   const createPersonalLedger = useLedgerStore((state) => state.createPersonalLedger);
   const removeTransaction = useTransactionStore((state) => state.remove);
+
+  const recorderOptions = useMemo(
+    () =>
+      ledger?.type === 'family'
+        ? familyMembers.map((member) => ({ userId: member.userId, label: member.nickname }))
+        : [],
+    [familyMembers, ledger?.type],
+  );
+
+  useEffect(() => {
+    if (
+      recorderFilter !== 'all' &&
+      !recorderOptions.some((option) => option.userId === recorderFilter)
+    ) {
+      setRecorderFilter('all');
+    }
+  }, [recorderFilter, recorderOptions]);
+
+  const categoryNameOf = useCallback(
+    (categoryId: string) => categories.find((category) => category.id === categoryId)?.name ?? '未知分类',
+    [categories],
+  );
+
+  const visibleTransactions = useMemo(
+    () =>
+      filterTransactions(
+        transactions,
+        {
+          type: typeFilter,
+          kind: kindFilter,
+          createdBy: recorderFilter,
+          keyword,
+        },
+        categoryNameOf,
+        tagNameOf,
+      ),
+    [categoryNameOf, kindFilter, keyword, recorderFilter, tagNameOf, transactions, typeFilter],
+  );
 
   const confirmDeleteTransaction = (transaction: Transaction) => {
     if (!ledger) return;
@@ -100,13 +152,13 @@ export const BillsScreen = ({ navigation }: Props) => {
     }, [ledger?.id, monthKeyValue]),
   );
 
-  /** 列表按记账类型筛选；顶部汇总仍保留当月全量，避免口径混淆 */
-  const visibleTransactions = filterTransactionsByType(transactions, typeFilter);
   const groups = groupByDay(visibleTransactions);
   /** 顶部汇总只统计主币种：不同币种的最小单位不可直接相加 */
   const currency = dominantCurrency(transactions);
   const summary = monthSummary(transactions, currency);
   const foreignCount = transactions.length - scopeToCurrency(transactions, currency).length;
+  const hasActiveFilter =
+    typeFilter !== 'all' || kindFilter !== 'all' || recorderFilter !== 'all' || keyword.trim() !== '';
 
   return (
     <View style={styles.container}>
@@ -121,6 +173,8 @@ export const BillsScreen = ({ navigation }: Props) => {
         <MonthSwitcher month={month} onChange={setMonth} />
       </ScreenTopBar>
 
+      <SearchBar value={keyword} onChangeText={setKeyword} />
+
       <View style={styles.summaryBar}>
         <SummaryItem label="支出" value={formatMoney(summary.expense, currency)} />
         <SummaryItem label="收入" value={formatMoney(summary.income, currency)} />
@@ -133,17 +187,47 @@ export const BillsScreen = ({ navigation }: Props) => {
         <Text style={styles.foreignHint}>另有 {foreignCount} 笔外币记录未计入上方汇总</Text>
       ) : null}
 
+      <View style={styles.kindFilter}>
+        <SegmentedTabs items={KIND_FILTER_ITEMS} value={kindFilter} onChange={setKindFilter} />
+      </View>
+
       <TransactionTypeFilter value={typeFilter} onChange={setTypeFilter} />
+
+      {recorderOptions.length > 0 ? (
+        <View style={styles.recorderBar}>
+          <Text style={styles.recorderLabel}>记录人</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.recorderScroll}
+            contentContainerStyle={styles.recorderOptions}
+          >
+            {[{ userId: 'all', label: '全部' }, ...recorderOptions].map((option) => {
+              const selected = option.userId === recorderFilter;
+              return (
+                <Pressable
+                  key={option.userId}
+                  accessibilityRole="button"
+                  accessibilityLabel={option.label}
+                  accessibilityState={{ selected }}
+                  style={[styles.filterChip, selected ? styles.filterChipSelected : null]}
+                  onPress={() => setRecorderFilter(option.userId)}
+                >
+                  <Text style={[styles.filterChipText, selected ? styles.filterChipTextSelected : null]}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
 
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
         {groups.length === 0 ? (
           <EmptyState
             icon="receipt-outline"
-            message={
-              typeFilter === 'all'
-                ? '本月暂无账单，点击下方 + 记一笔'
-                : '当前记账类型筛选下暂无账单'
-            }
+            message={hasActiveFilter ? '没有符合条件的账单' : '本月暂无账单，点击下方 + 记一笔'}
           />
         ) : (
           groups.map((group) => (
@@ -205,12 +289,37 @@ const useStyles = makeStyles((colors) => ({
     backgroundColor: colors.bg,
     flex: 1,
   },
+  filterChip: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: radius.round,
+    borderWidth: 1,
+    paddingHorizontal: space(3),
+    paddingVertical: space(1),
+  },
+  filterChipSelected: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
+  filterChipText: {
+    color: colors.textSecondary,
+    fontSize: fontSize.sm,
+  },
+  filterChipTextSelected: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
   foreignHint: {
     backgroundColor: colors.card,
     color: colors.textSecondary,
     fontSize: fontSize.xs,
     paddingBottom: space(2),
     paddingHorizontal: space(4),
+  },
+  kindFilter: {
+    backgroundColor: colors.card,
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
   },
   ledgerChip: {
     alignItems: 'center',
@@ -229,6 +338,28 @@ const useStyles = makeStyles((colors) => ({
   },
   list: {
     padding: space(3),
+  },
+  recorderBar: {
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    paddingHorizontal: space(4),
+    paddingVertical: space(2),
+  },
+  recorderLabel: {
+    color: colors.textSecondary,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+    marginRight: space(2),
+  },
+  recorderOptions: {
+    gap: space(2),
+    paddingRight: space(2),
+  },
+  recorderScroll: {
+    flex: 1,
   },
   summaryBar: {
     backgroundColor: colors.card,

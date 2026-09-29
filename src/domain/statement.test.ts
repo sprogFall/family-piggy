@@ -6,6 +6,7 @@ import {
   breakdownWithOther,
   groupByDay,
   monthSummary,
+  monthlySummaryPoints,
   scopeToCurrency,
   trendByDay,
 } from './statement';
@@ -174,5 +175,59 @@ describe('trendByDay', () => {
 
     expect(trendByDay(list, month, 'CNY')[1]).toEqual({ day: 2, expense: 100, income: 0 });
     expect(trendByDay(list, month, 'USD')[1]).toEqual({ day: 2, expense: 500, income: 0 });
+  });
+});
+
+describe('monthlySummaryPoints', () => {
+  it('按 12 个月汇总，缺失月补 0', () => {
+    const transactions: Transaction[] = [
+      {
+        id: 't1',
+        ledgerId: 'l1',
+        categoryId: 'c1',
+        kind: 'expense',
+        amount: 100,
+        currency: 'CNY',
+        tagIds: [],
+        note: '',
+        attributes: { reimbursement: false },
+        images: [],
+        occurredAt: new Date(2024, 0, 15).toISOString(),
+        createdBy: 'u1',
+      },
+      {
+        id: 't2',
+        ledgerId: 'l1',
+        categoryId: 'c1',
+        kind: 'income',
+        amount: 300,
+        currency: 'CNY',
+        tagIds: [],
+        note: '',
+        attributes: { reimbursement: false },
+        images: [],
+        occurredAt: new Date(2024, 1, 10).toISOString(),
+        createdBy: 'u1',
+      },
+      {
+        id: 't3',
+        ledgerId: 'l1',
+        categoryId: 'c1',
+        kind: 'expense',
+        amount: 50,
+        currency: 'USD',
+        tagIds: [],
+        note: '',
+        attributes: { reimbursement: false },
+        images: [],
+        occurredAt: new Date(2024, 0, 20).toISOString(),
+        createdBy: 'u1',
+      },
+    ];
+    const points = monthlySummaryPoints(transactions, 'CNY');
+    expect(points).toHaveLength(12);
+    expect(points[0]).toMatchObject({ month: 1, expense: 100, income: 0, balance: -100 });
+    expect(points[1]).toMatchObject({ month: 2, expense: 0, income: 300, balance: 300 });
+    expect(points[2]).toMatchObject({ month: 3, expense: 0, income: 0, balance: 0 });
   });
 });

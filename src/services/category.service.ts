@@ -5,6 +5,7 @@ import { toCategory, type CategoryRow } from '@/types/db';
 export interface CategoryPatch {
   name?: string;
   icon?: string;
+  sortOrder?: number;
 }
 
 export const categoryService = {
@@ -36,7 +37,11 @@ export const categoryService = {
   },
 
   async update(id: string, patch: CategoryPatch): Promise<void> {
-    const { error } = await supabase.from('categories').update(patch).eq('id', id);
+    const row: Record<string, unknown> = {};
+    if (patch.name !== undefined) row.name = patch.name;
+    if (patch.icon !== undefined) row.icon = patch.icon;
+    if (patch.sortOrder !== undefined) row.sort_order = patch.sortOrder;
+    const { error } = await supabase.from('categories').update(row).eq('id', id);
     if (error) throw new Error('修改分类失败');
   },
 

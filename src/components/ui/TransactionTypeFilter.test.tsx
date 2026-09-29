@@ -3,12 +3,12 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { TransactionTypeFilter } from './TransactionTypeFilter';
 
 describe('TransactionTypeFilter', () => {
-  it('展示全部 / 报销 / 未报销选项并标出当前选中', () => {
+  it('展示全部 / 报销选项并标出当前选中，不再包含未报销', () => {
     render(<TransactionTypeFilter value="all" onChange={jest.fn()} />);
 
     expect(screen.getByText('全部')).toBeTruthy();
     expect(screen.getByText('报销')).toBeTruthy();
-    expect(screen.getByText('未报销')).toBeTruthy();
+    expect(screen.queryByText('未报销')).toBeNull();
     expect(screen.getByLabelText('全部').props.accessibilityState).toEqual({ selected: true });
   });
 

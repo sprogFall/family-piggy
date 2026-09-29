@@ -19,6 +19,7 @@ import type { Transaction } from '@/types/domain';
 import {
   selectMonthTransactions,
   selectTransactionById,
+  selectYearTransactions,
   useTransactionStore,
 } from './transaction.store';
 
@@ -151,5 +152,20 @@ describe('useTransactionStore', () => {
     expect(selectMonthTransactions(state, null, MAY)).toBe(
       selectMonthTransactions(state, undefined, MAY),
     );
+  });
+});
+
+describe('年份统计', () => {
+  it('loadYear 拉取整年范围并写入年桶', async () => {
+    txMock.listMonth.mockResolvedValue([tx('t1', 20)]);
+    await useTransactionStore.getState().loadYear('l1', 2024);
+    expect(txMock.listMonth).toHaveBeenCalledWith(
+      'l1',
+      new Date(2024, 0, 1, 0, 0, 0, 0).toISOString(),
+      new Date(2025, 0, 1, 0, 0, 0, 0).toISOString(),
+    );
+    expect(selectYearTransactions(useTransactionStore.getState(), 'l1', 2024).map((t) => t.id)).toEqual([
+      't1',
+    ]);
   });
 });

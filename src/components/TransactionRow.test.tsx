@@ -24,8 +24,7 @@ describe('TransactionRow', () => {
     render(
       <TransactionRow transaction={tx} categoryName="餐饮" iconKey="restaurant" tagNames={['和朋友聚餐']} />,
     );
-    expect(screen.getByText('餐饮')).toBeTruthy();
-    expect(screen.getByText('#和朋友聚餐')).toBeTruthy();
+    expect(screen.getByText('餐饮[和朋友聚餐]')).toBeTruthy();
     expect(screen.getByText('¥2,368.00')).toBeTruthy();
   });
 
@@ -46,7 +45,8 @@ describe('TransactionRow', () => {
       />,
     );
     expect(screen.getByText('+¥3,800.00')).toBeTruthy();
-    expect(screen.getByText('14:30 · #月薪')).toBeTruthy();
+    expect(screen.getByText('工资[月薪]')).toBeTruthy();
+    expect(screen.getByText('14:30')).toBeTruthy();
   });
 
   it('多个标签按顺序拼在副标题中', () => {
@@ -59,7 +59,8 @@ describe('TransactionRow', () => {
         showTime
       />,
     );
-    expect(screen.getByText('14:30 · #午餐 #晚餐')).toBeTruthy();
+    expect(screen.getByText('餐饮[午餐,晚餐]')).toBeTruthy();
+    expect(screen.getByText('14:30')).toBeTruthy();
   });
 
   it('金额按流水自身币种展示符号', () => {
@@ -84,7 +85,8 @@ describe('TransactionRow', () => {
         createdByName="我"
       />,
     );
-    expect(screen.getByText('14:30 · #聚餐 · 我')).toBeTruthy();
+    expect(screen.getByText('餐饮[聚餐]')).toBeTruthy();
+    expect(screen.getByText('14:30 · 我')).toBeTruthy();
   });
 
   it('备注、报销类型与图片和标签分开展示', () => {
@@ -102,7 +104,8 @@ describe('TransactionRow', () => {
         showTime
       />,
     );
-    expect(screen.getByText('14:30 · #聚餐 · 和客户吃饭 · 可报销')).toBeTruthy();
+    expect(screen.getByText('餐饮[聚餐]')).toBeTruthy();
+    expect(screen.getByText('14:30 · 和客户吃饭 · 可报销')).toBeTruthy();
     expect(screen.getByLabelText('账单图片 1')).toBeTruthy();
     expect(screen.getByLabelText('账单图片 2')).toBeTruthy();
   });

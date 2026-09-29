@@ -4,6 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { DraggableCategoryList } from '@/components/DraggableCategoryList';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
@@ -81,6 +82,22 @@ export const CategoryManagerScreen = ({ navigation }: Props) => {
     }
   };
 
+  const handleReorder = async (nextCategories: Category[]) => {
+    if (!ledger) return;
+    try {
+      for (let index = 0; index < nextCategories.length; index++) {
+        const category = nextCategories[index];
+        const sortOrder = index + 1;
+        if (category.sortOrder !== sortOrder) {
+          await update(category.id, ledger.id, { sortOrder });
+        }
+      }
+    } catch (error) {
+      showAlert('排序保存失败', error instanceof Error ? error.message : '请稍后再试');
+      void load(ledger.id);
+    }
+  };
+
   const handleDelete = (category: Category) => {
     if (!ledger) return;
     showAlert('删除分类', `确定删除「${category.name}」吗？`, [
@@ -109,17 +126,11 @@ export const CategoryManagerScreen = ({ navigation }: Props) => {
       <SegmentedTabs items={KIND_TABS} value={kind} onChange={setKind} />
 
       <ScrollView style={styles.list}>
-        {categories.map((category) => (
-          <Pressable
-            key={category.id}
-            style={styles.row}
-            onPress={() => setEditing({ category, kind: category.kind })}
-          >
-            <CategoryIcon iconKey={category.icon} size={38} />
-            <Text style={styles.name}>{category.name}</Text>
-            <Ionicons name="pencil" size={16} color={colors.textTertiary} />
-          </Pressable>
-        ))}
+        <DraggableCategoryList
+          categories={categories}
+          onPress={(category) => setEditing({ category, kind: category.kind })}
+          onReorder={(next) => void handleReorder(next)}
+        />
       </ScrollView>
 
       <View style={styles.footer}>
@@ -272,20 +283,6 @@ const useStyles = makeStyles((colors) => ({
     fontWeight: '600',
     marginBottom: space(4),
     textAlign: 'center',
-  },
-  name: {
-    color: colors.text,
-    flex: 1,
-    fontSize: fontSize.md,
-    marginHorizontal: space(3),
-  },
-  row: {
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    flexDirection: 'row',
-    marginBottom: StyleSheet.hairlineWidth,
-    paddingHorizontal: space(3),
-    paddingVertical: space(2.5),
   },
   saveButton: {
     flex: 2,

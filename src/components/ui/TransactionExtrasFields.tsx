@@ -79,7 +79,7 @@ export const TransactionExtrasFields = ({
           onPress={() => onReimbursementChange(!reimbursement)}
         >
           {reimbursement ? (
-            <Ionicons name="checkmark" size={14} color={colors.primary} />
+            <Ionicons name="checkmark" size={14} color={colors.white} />
           ) : null}
           <Text style={[styles.typeChipText, reimbursement ? styles.typeChipTextSelected : null]}>
             报销
@@ -229,7 +229,8 @@ const useStyles = makeStyles((colors) => ({
   typeChip: {
     alignItems: 'center',
     alignSelf: 'flex-start',
-    borderColor: colors.border,
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
     borderRadius: radius.round,
     borderWidth: 1,
     flexDirection: 'row',
@@ -238,15 +239,15 @@ const useStyles = makeStyles((colors) => ({
     paddingVertical: space(2),
   },
   typeChipSelected: {
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   typeChipText: {
-    color: colors.textSecondary,
+    color: colors.primaryDark,
     fontSize: fontSize.sm,
     fontWeight: '600',
   },
   typeChipTextSelected: {
-    color: colors.primary,
+    color: colors.white,
   },
 }));

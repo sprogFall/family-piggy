@@ -136,6 +136,37 @@ export const breakdownWithOther = (
   ];
 };
 
+
+export interface MonthlySummaryPoint {
+  /** 1-12 */
+  month: number;
+  expense: number;
+  income: number;
+  balance: number;
+}
+
+/** 某年 12 个月的收支汇总（缺失月补 0），默认只统计主币种 */
+export const monthlySummaryPoints = (
+  transactions: Transaction[],
+  currency: CurrencyCode = dominantCurrency(transactions),
+): MonthlySummaryPoint[] => {
+  const points: MonthlySummaryPoint[] = Array.from({ length: 12 }, (_, index) => ({
+    month: index + 1,
+    expense: 0,
+    income: 0,
+    balance: 0,
+  }));
+  for (const tx of transactions) {
+    if (tx.currency !== currency) continue;
+    const point = points[new Date(tx.occurredAt).getMonth()];
+    if (!point) continue;
+    if (tx.kind === 'expense') point.expense += tx.amount;
+    else point.income += tx.amount;
+  }
+  for (const point of points) point.balance = point.income - point.expense;
+  return points;
+};
+
 export interface TrendPoint {
   day: number;
   expense: number;

@@ -109,8 +109,8 @@ const useStyles = makeStyles((colors) => ({
   },
   chip: {
     alignItems: 'center',
-    backgroundColor: colors.bg,
-    borderColor: colors.border,
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
     borderRadius: radius.round,
     borderWidth: 1,
     flexDirection: 'row',
@@ -122,8 +122,9 @@ const useStyles = makeStyles((colors) => ({
     borderColor: colors.primary,
   },
   chipText: {
-    color: colors.textSecondary,
+    color: colors.primaryDark,
     fontSize: fontSize.sm,
+    fontWeight: '500',
   },
   chipTextSelected: {
     color: colors.white,
