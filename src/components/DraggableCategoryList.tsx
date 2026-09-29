@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PanResponder, Pressable, Text, View } from 'react-native';
 
 import { moveItem } from '@/domain/category-order';
@@ -22,6 +22,7 @@ export const DraggableCategoryList = ({ categories, onPress, onReorder }: Props)
   const [items, setItems] = useState(categories);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const itemsRef = useRef(items);
+  const draggingIdRef = useRef<string | null>(null);
   const originItemsRef = useRef(categories);
   const fromIndexRef = useRef(0);
   const toIndexRef = useRef(0);
@@ -39,7 +40,8 @@ export const DraggableCategoryList = ({ categories, onPress, onReorder }: Props)
   }, [categories, draggingId]);
 
   const finishDrag = () => {
-    if (draggingId !== null) onReorder(itemsRef.current);
+    if (draggingIdRef.current !== null) onReorder(itemsRef.current);
+    draggingIdRef.current = null;
     setDraggingId(null);
   };
 
@@ -49,6 +51,7 @@ export const DraggableCategoryList = ({ categories, onPress, onReorder }: Props)
     originItemsRef.current = itemsRef.current;
     fromIndexRef.current = fromIndex;
     toIndexRef.current = fromIndex;
+    draggingIdRef.current = categoryId;
     suppressPressRef.current = true;
     setTimeout(() => {
       suppressPressRef.current = false;
@@ -57,7 +60,7 @@ export const DraggableCategoryList = ({ categories, onPress, onReorder }: Props)
   };
 
   const handleDragMove = (dy: number) => {
-    if (draggingId === null) return;
+    if (draggingIdRef.current === null) return;
     const toIndex = Math.max(
       0,
       Math.min(
@@ -73,9 +76,9 @@ export const DraggableCategoryList = ({ categories, onPress, onReorder }: Props)
   };
 
   const handlePress = (category: Category) => {
-    if (suppressPressRef.current || draggingId !== null) {
+    if (suppressPressRef.current || draggingIdRef.current !== null) {
       suppressPressRef.current = false;
-      if (draggingId !== null) finishDrag();
+      if (draggingIdRef.current !== null) finishDrag();
       return;
     }
     onPress(category);
@@ -89,7 +92,6 @@ export const DraggableCategoryList = ({ categories, onPress, onReorder }: Props)
         <DraggableCategoryRow
           key={category.id}
           category={category}
-          dragging={draggingId === category.id}
           onPress={() => handlePress(category)}
           onLongPress={() => handleLongPress(category.id)}
           onDragMove={handleDragMove}
@@ -102,7 +104,6 @@ export const DraggableCategoryList = ({ categories, onPress, onReorder }: Props)
 
 interface RowProps {
   category: Category;
-  dragging: boolean;
   onPress: () => void;
   onLongPress: () => void;
   onDragMove: (dy: number) => void;
@@ -111,7 +112,6 @@ interface RowProps {
 
 const DraggableCategoryRow = ({
   category,
-  dragging,
   onPress,
   onLongPress,
   onDragMove,
@@ -119,28 +119,50 @@ const DraggableCategoryRow = ({
 }: RowProps) => {
   const styles = useStyles();
   const colors = useColors();
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponderCapture: () => dragging,
-        onMoveShouldSetPanResponder: () => dragging,
-        onPanResponderMove: (_event, gesture) => onDragMove(gesture.dy),
-        onPanResponderRelease: onDragEnd,
-        onPanResponderTerminate: onDragEnd,
-      }),
-    [dragging, onDragEnd, onDragMove],
-  );
+  /** 长按后同步置 true；PanResponder 通过 ref 读取，避免依赖 state 重渲染丢失手势 */
+  const dragActiveRef = useRef(false);
+  const [dragging, setDragging] = useState(false);
+  const onPressRef = useRef(onPress);
+  const onLongPressRef = useRef(onLongPress);
+  const onDragMoveRef = useRef(onDragMove);
+  const onDragEndRef = useRef(onDragEnd);
+
+  onPressRef.current = onPress;
+  onLongPressRef.current = onLongPress;
+  onDragMoveRef.current = onDragMove;
+  onDragEndRef.current = onDragEnd;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: () => dragActiveRef.current,
+      onMoveShouldSetPanResponder: () => dragActiveRef.current,
+      onPanResponderMove: (_event, gesture) => {
+        if (dragActiveRef.current) onDragMoveRef.current(gesture.dy);
+      },
+      onPanResponderRelease: () => {
+        if (dragActiveRef.current) onDragEndRef.current();
+        dragActiveRef.current = false;
+        setDragging(false);
+      },
+      onPanResponderTerminate: () => {
+        if (dragActiveRef.current) onDragEndRef.current();
+        dragActiveRef.current = false;
+        setDragging(false);
+      },
+    }),
+  ).current;
 
   return (
-    <View
-      style={[styles.row, dragging ? styles.rowDragging : null]}
-      {...panResponder.panHandlers}
-    >
+    <View style={[styles.row, dragging ? styles.rowDragging : null]} {...panResponder.panHandlers}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${category.name}，长按拖拽排序`}
-        onPress={onPress}
-        onLongPress={onLongPress}
+        onPress={() => onPressRef.current()}
+        onLongPress={() => {
+          dragActiveRef.current = true;
+          setDragging(true);
+          onLongPressRef.current();
+        }}
         delayLongPress={250}
         style={styles.rowContent}
       >
@@ -163,14 +185,14 @@ const useStyles = makeStyles((colors) => ({
     backgroundColor: colors.card,
     marginBottom: 1,
   },
+  rowDragging: {
+    backgroundColor: colors.primaryLight,
+    elevation: 3,
+  },
   rowContent: {
     alignItems: 'center',
     flexDirection: 'row',
     minHeight: ROW_HEIGHT,
     paddingHorizontal: space(3),
-  },
-  rowDragging: {
-    backgroundColor: colors.primaryLight,
-    elevation: 3,
   },
 }));

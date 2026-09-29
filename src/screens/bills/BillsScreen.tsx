@@ -61,6 +61,7 @@ export const BillsScreen = ({ navigation }: Props) => {
   const [kindFilter, setKindFilter] = useState<TransactionKindFilterValue>('all');
   const [recorderFilter, setRecorderFilter] = useState<string>('all');
   const [keyword, setKeyword] = useState('');
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [showLedgerSheet, setShowLedgerSheet] = useState(false);
   const [showCreateLedger, setShowCreateLedger] = useState(false);
 
@@ -157,8 +158,11 @@ export const BillsScreen = ({ navigation }: Props) => {
   const currency = dominantCurrency(transactions);
   const summary = monthSummary(transactions, currency);
   const foreignCount = transactions.length - scopeToCurrency(transactions, currency).length;
-  const hasActiveFilter =
-    typeFilter !== 'all' || kindFilter !== 'all' || recorderFilter !== 'all' || keyword.trim() !== '';
+  const activeFilterCount =
+    (typeFilter !== 'all' ? 1 : 0) +
+    (kindFilter !== 'all' ? 1 : 0) +
+    (recorderFilter !== 'all' ? 1 : 0);
+  const hasActiveFilter = activeFilterCount > 0 || keyword.trim() !== '';
 
   return (
     <View style={styles.container}>
@@ -175,76 +179,99 @@ export const BillsScreen = ({ navigation }: Props) => {
 
       <SearchBar value={keyword} onChangeText={setKeyword} />
 
-      <View style={styles.summaryBar}>
-        <SummaryItem label="支出" value={formatMoney(summary.expense, currency)} />
-        <SummaryItem label="收入" value={formatMoney(summary.income, currency)} />
-        <SummaryItem
-          label="结余"
-          value={formatMoney(summary.balance, currency, { signed: true })}
+      <Pressable style={styles.filterToggle} onPress={() => setFiltersExpanded((value) => !value)}>
+        <Ionicons name="options-outline" size={17} color={colors.primary} />
+        <Text style={styles.filterToggleText}>筛选</Text>
+        {activeFilterCount > 0 ? (
+          <View style={styles.filterBadge}>
+            <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+          </View>
+        ) : null}
+        <Ionicons
+          name={filtersExpanded ? 'chevron-up' : 'chevron-down'}
+          size={16}
+          color={colors.textTertiary}
         />
-      </View>
-      {foreignCount > 0 ? (
-        <Text style={styles.foreignHint}>另有 {foreignCount} 笔外币记录未计入上方汇总</Text>
-      ) : null}
+      </Pressable>
 
-      <View style={styles.kindFilter}>
-        <SegmentedTabs items={KIND_FILTER_ITEMS} value={kindFilter} onChange={setKindFilter} />
-      </View>
-
-      <TransactionTypeFilter value={typeFilter} onChange={setTypeFilter} />
-
-      {recorderOptions.length > 0 ? (
-        <View style={styles.recorderBar}>
-          <Text style={styles.recorderLabel}>记录人</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.recorderScroll}
-            contentContainerStyle={styles.recorderOptions}
-          >
-            {[{ userId: 'all', label: '全部' }, ...recorderOptions].map((option) => {
-              const selected = option.userId === recorderFilter;
-              return (
-                <Pressable
-                  key={option.userId}
-                  accessibilityRole="button"
-                  accessibilityLabel={option.label}
-                  accessibilityState={{ selected }}
-                  style={[styles.filterChip, selected ? styles.filterChipSelected : null]}
-                  onPress={() => setRecorderFilter(option.userId)}
-                >
-                  <Text style={[styles.filterChipText, selected ? styles.filterChipTextSelected : null]}>
-                    {option.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+      {filtersExpanded ? (
+        <View style={styles.filterPanel}>
+          <Text style={styles.filterLabel}>收支类型</Text>
+          <SegmentedTabs items={KIND_FILTER_ITEMS} value={kindFilter} onChange={setKindFilter} />
+          <TransactionTypeFilter value={typeFilter} onChange={setTypeFilter} />
+          {recorderOptions.length > 0 ? (
+            <View style={styles.recorderBar}>
+              <Text style={styles.recorderLabel}>记录人</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.recorderScroll}
+                contentContainerStyle={styles.recorderOptions}
+              >
+                {[{ userId: 'all', label: '全部' }, ...recorderOptions].map((option) => {
+                  const selected = option.userId === recorderFilter;
+                  return (
+                    <Pressable
+                      key={option.userId}
+                      accessibilityRole="button"
+                      accessibilityLabel={option.label}
+                      accessibilityState={{ selected }}
+                      style={[styles.filterChip, selected ? styles.filterChipSelected : null]}
+                      onPress={() => setRecorderFilter(option.userId)}
+                    >
+                      <Text
+                        style={[
+                          styles.filterChipText,
+                          selected ? styles.filterChipTextSelected : null,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          ) : null}
         </View>
       ) : null}
 
-      <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-        {groups.length === 0 ? (
-          <EmptyState
-            icon="receipt-outline"
-            message={hasActiveFilter ? '没有符合条件的账单' : '本月暂无账单，点击下方 + 记一笔'}
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.summaryBar}>
+          <SummaryItem label="支出" value={formatMoney(summary.expense, currency)} />
+          <SummaryItem label="收入" value={formatMoney(summary.income, currency)} />
+          <SummaryItem
+            label="结余"
+            value={formatMoney(summary.balance, currency, { signed: true })}
           />
-        ) : (
-          groups.map((group) => (
-            <DaySection
-              key={group.key}
-              group={group}
-              categories={categories}
-              tagNameOf={tagNameOf}
-              creatorNameOf={(tx) => creatorLabelOf(tx.createdBy)}
-              onRowPress={(tx) =>
-                navigation.navigate('TransactionPreview', { transactionId: tx.id })
-              }
-              onEdit={(tx) => navigation.navigate('AddTransaction', { transactionId: tx.id })}
-              onDelete={confirmDeleteTransaction}
+        </View>
+        {foreignCount > 0 ? (
+          <Text style={styles.foreignHint}>另有 {foreignCount} 笔外币记录未计入上方汇总</Text>
+        ) : null}
+
+        <View style={styles.list}>
+          {groups.length === 0 ? (
+            <EmptyState
+              icon="receipt-outline"
+              message={hasActiveFilter ? '没有符合条件的账单' : '本月暂无账单，点击下方 + 记一笔'}
             />
-          ))
-        )}
+          ) : (
+            groups.map((group) => (
+              <DaySection
+                key={group.key}
+                group={group}
+                categories={categories}
+                tagNameOf={tagNameOf}
+                creatorNameOf={(tx) => creatorLabelOf(tx.createdBy)}
+                onRowPress={(tx) =>
+                  navigation.navigate('TransactionPreview', { transactionId: tx.id })
+                }
+                onEdit={(tx) => navigation.navigate('AddTransaction', { transactionId: tx.id })}
+                onDelete={confirmDeleteTransaction}
+              />
+            ))
+          )}
+        </View>
       </ScrollView>
 
       <LedgerSwitcherSheet
@@ -289,6 +316,20 @@ const useStyles = makeStyles((colors) => ({
     backgroundColor: colors.bg,
     flex: 1,
   },
+  filterBadge: {
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: radius.round,
+    height: 18,
+    justifyContent: 'center',
+    minWidth: 18,
+    paddingHorizontal: 5,
+  },
+  filterBadgeText: {
+    color: colors.white,
+    fontSize: fontSize.xs,
+    fontWeight: '600',
+  },
   filterChip: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -309,17 +350,39 @@ const useStyles = makeStyles((colors) => ({
     color: colors.primary,
     fontWeight: '600',
   },
-  foreignHint: {
-    backgroundColor: colors.card,
+  filterLabel: {
     color: colors.textSecondary,
-    fontSize: fontSize.xs,
-    paddingBottom: space(2),
+    fontSize: fontSize.sm,
+    fontWeight: '600',
     paddingHorizontal: space(4),
+    paddingTop: space(2),
   },
-  kindFilter: {
+  filterPanel: {
     backgroundColor: colors.card,
     borderBottomColor: colors.border,
     borderBottomWidth: 1,
+  },
+  filterToggle: {
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: space(2),
+    paddingHorizontal: space(4),
+    paddingVertical: space(2.5),
+  },
+  filterToggleText: {
+    color: colors.text,
+    flex: 1,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+  },
+  foreignHint: {
+    color: colors.textSecondary,
+    fontSize: fontSize.xs,
+    paddingHorizontal: space(4),
+    paddingTop: space(2),
   },
   ledgerChip: {
     alignItems: 'center',
@@ -341,7 +404,6 @@ const useStyles = makeStyles((colors) => ({
   },
   recorderBar: {
     alignItems: 'center',
-    backgroundColor: colors.card,
     borderTopColor: colors.border,
     borderTopWidth: 1,
     flexDirection: 'row',
@@ -361,11 +423,17 @@ const useStyles = makeStyles((colors) => ({
   recorderScroll: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: space(4),
+  },
   summaryBar: {
     backgroundColor: colors.card,
+    borderRadius: radius.lg,
     flexDirection: 'row',
+    marginHorizontal: space(3),
+    marginTop: space(3),
     paddingHorizontal: space(4),
-    paddingVertical: space(2),
+    paddingVertical: space(3),
   },
   summaryItem: {
     flex: 1,
