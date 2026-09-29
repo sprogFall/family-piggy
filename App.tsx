@@ -1,9 +1,10 @@
 import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo } from 'react';
-import { ActivityIndicator, Appearance, Text, View } from 'react-native';
+import { Appearance } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { SplashView } from '@/components/SplashView';
 import { Toast } from '@/components/ui/Toast';
 import { AuthNavigator, MainNavigator, navigationRef } from '@/navigation';
 import { useAuthStore } from '@/stores/auth.store';
@@ -13,20 +14,7 @@ import { useTagStore } from '@/stores/tag.store';
 import { useThemeStore } from '@/stores/theme.store';
 import { useTransactionStore } from '@/stores/transaction.store';
 import { useCategoryStore } from '@/stores/category.store';
-import { makeStyles, toColorScheme, useColors } from '@/theme';
-
-const SplashView = () => {
-  const styles = useStyles();
-  const colors = useColors();
-  return (
-    <View style={styles.splash}>
-      <View style={styles.logo}>
-        <Text style={styles.logoText}>¥</Text>
-      </View>
-      <ActivityIndicator color={colors.primary} style={styles.spinner} />
-    </View>
-  );
-};
+import { toColorScheme, useColors } from '@/theme';
 
 export default function App() {
   const status = useAuthStore((state) => state.status);
@@ -83,27 +71,3 @@ export default function App() {
   );
 }
 
-const useStyles = makeStyles((colors) => ({
-  logo: {
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    height: 72,
-    justifyContent: 'center',
-    width: 72,
-  },
-  logoText: {
-    color: colors.white,
-    fontSize: 36,
-    fontWeight: '700',
-  },
-  splash: {
-    alignItems: 'center',
-    backgroundColor: colors.bg,
-    flex: 1,
-    justifyContent: 'center',
-  },
-  spinner: {
-    marginTop: 24,
-  },
-}));

@@ -41,7 +41,7 @@ describe('AboutScreen', () => {
     await renderScreen();
 
     expect(screen.queryByText('¥')).toBeNull();
-    expect(screen.getByTestId('about-app-icon').props.source).toBe(appIcon);
+    expect(screen.getByTestId('app-logo').props.source).toBe(appIcon);
   });
 
   it('展示应用名与简介', async () => {

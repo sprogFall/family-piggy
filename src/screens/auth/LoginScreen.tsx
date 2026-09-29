@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } fro
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { AppHeader } from '@/components/ui/AppHeader';
+import { AppLogo } from '@/components/ui/AppLogo';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { TextField } from '@/components/ui/TextField';
 import { validateEmail, validatePassword } from '@/domain/validation';
@@ -10,7 +11,7 @@ import { showAlert } from '@/lib/alert';
 import { getErrorMessage } from '@/lib/errors';
 import type { RootStackParamList } from '@/navigation/types';
 import { useAuthStore } from '@/stores/auth.store';
-import { makeStyles, fontSize, radius, space } from '@/theme';
+import { makeStyles, fontSize, space } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
@@ -45,9 +46,7 @@ export const LoginScreen = ({ navigation }: Props) => {
       <AppHeader title="" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.logo}>
-            <Text style={styles.logoText}>¥</Text>
-          </View>
+          <AppLogo />
           <Text style={styles.title}>记账本</Text>
           <Text style={styles.subtitle}>记录每一笔，生活更清晰</Text>
 
@@ -130,19 +129,6 @@ const useStyles = makeStyles((colors) => ({
   linkText: {
     color: colors.textSecondary,
     fontSize: fontSize.sm,
-  },
-  logo: {
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    borderRadius: radius.lg,
-    height: 72,
-    justifyContent: 'center',
-    width: 72,
-  },
-  logoText: {
-    color: colors.white,
-    fontSize: 36,
-    fontWeight: '700',
   },
   registerText: {
     color: colors.primary,
