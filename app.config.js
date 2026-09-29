@@ -51,7 +51,7 @@ module.exports = {
       supportsTablet: true,
       bundleIdentifier: 'com.familypiggy.app',
       infoPlist: {
-        NSPhotoLibraryUsageDescription: '用于选择图片作为头像',
+        NSPhotoLibraryUsageDescription: '用于选择头像或账单图片',
       },
     },
     android: {
