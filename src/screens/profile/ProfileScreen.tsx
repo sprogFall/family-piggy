@@ -136,11 +136,6 @@ export const ProfileScreen = ({ navigation }: Props) => {
           onPress={() => navigation.navigate('LedgerManager')}
         />
         <MenuItem
-          icon="calculator-outline"
-          label="预算设置"
-          onPress={() => navigation.navigate('Budget')}
-        />
-        <MenuItem
           icon="grid-outline"
           label="分类管理"
           onPress={() => navigation.navigate('CategoryManager')}

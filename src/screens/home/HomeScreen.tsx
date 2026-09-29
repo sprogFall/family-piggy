@@ -187,7 +187,6 @@ const useStyles = makeStyles((colors) => ({
   card: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,
-    marginBottom: space(3),
     padding: space(4),
   },
   cardTitle: {
@@ -201,13 +200,12 @@ const useStyles = makeStyles((colors) => ({
     flex: 1,
   },
   content: {
+    gap: space(3),
     padding: space(4),
   },
   foreignHint: {
     color: colors.textSecondary,
     fontSize: fontSize.xs,
-    marginBottom: space(3),
-    marginTop: -space(1),
     paddingHorizontal: space(1),
   },
   donutRow: {
