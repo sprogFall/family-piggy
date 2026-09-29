@@ -23,6 +23,7 @@ import {
 } from '@/domain/transaction-filter';
 import { showAlert } from '@/lib/alert';
 import { getErrorMessage } from '@/lib/errors';
+import { transactionImageService } from '@/services/transaction-image.service';
 import {
   useActiveLedger,
   useActiveCategories,
@@ -34,6 +35,7 @@ import { useCategoryStore } from '@/stores/category.store';
 import { useLedgerStore } from '@/stores/ledger.store';
 import { useTagStore } from '@/stores/tag.store';
 import { selectMonthTransactions, useTransactionStore } from '@/stores/transaction.store';
+import type { Transaction } from '@/types/domain';
 import { makeStyles, useColors, fontSize, space } from '@/theme';
 
 type Props = CompositeScreenProps<
@@ -63,6 +65,28 @@ export const BillsScreen = ({ navigation }: Props) => {
   const loadCategories = useCategoryStore((state) => state.load);
   const loadTags = useTagStore((state) => state.load);
   const createPersonalLedger = useLedgerStore((state) => state.createPersonalLedger);
+  const removeTransaction = useTransactionStore((state) => state.remove);
+
+  const confirmDeleteTransaction = (transaction: Transaction) => {
+    if (!ledger) return;
+    const imageUrls = transaction.images;
+    showAlert('删除账单', '删除后不可恢复，确定删除吗？', [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '删除',
+        style: 'destructive',
+        onPress: () => {
+          void removeTransaction(transaction.id, ledger.id)
+            .then(() => {
+              if (imageUrls.length > 0) {
+                void transactionImageService.remove(imageUrls).catch(() => undefined);
+              }
+            })
+            .catch((error: unknown) => showAlert('删除失败', getErrorMessage(error)));
+        },
+      },
+    ]);
+  };
 
   const monthKeyValue = monthKey(month);
   useFocusEffect(
@@ -129,7 +153,11 @@ export const BillsScreen = ({ navigation }: Props) => {
               categories={categories}
               tagNameOf={tagNameOf}
               creatorNameOf={(tx) => creatorLabelOf(tx.createdBy)}
-              onRowPress={(tx) => navigation.navigate('AddTransaction', { transactionId: tx.id })}
+              onRowPress={(tx) =>
+                navigation.navigate('TransactionPreview', { transactionId: tx.id })
+              }
+              onEdit={(tx) => navigation.navigate('AddTransaction', { transactionId: tx.id })}
+              onDelete={confirmDeleteTransaction}
             />
           ))
         )}

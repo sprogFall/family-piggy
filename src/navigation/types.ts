@@ -15,6 +15,8 @@ export type RootStackParamList = {
   Tabs: NavigatorScreenParams<TabParamList>;
   /** 传 transactionId 进入编辑模式，否则为记一笔 */
   AddTransaction: { transactionId?: string } | undefined;
+  /** 账单预览：删除 / 修改入口 */
+  TransactionPreview: { transactionId: string };
   CategoryManager: undefined;
   Budget: undefined;
   Export: undefined;

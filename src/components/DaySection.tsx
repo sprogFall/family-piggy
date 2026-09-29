@@ -5,7 +5,7 @@ import type { DayGroup } from '@/domain/statement';
 import type { Category, Transaction } from '@/types/domain';
 import { makeStyles, fontSize, space } from '@/theme';
 
-import { TransactionRow } from './TransactionRow';
+import { SwipeableTransactionRow } from './SwipeableTransactionRow';
 
 interface Props {
   group: DayGroup;
@@ -13,11 +13,21 @@ interface Props {
   /** 标签 ID -> 标签名（取自当前账本标签表） */
   tagNameOf: (tagId: string) => string;
   onRowPress?: (transaction: Transaction) => void;
+  onEdit?: (transaction: Transaction) => void;
+  onDelete?: (transaction: Transaction) => void;
   /** 记录人标注（家庭账本由调用方提供；返回 null 则不展示） */
   creatorNameOf?: (transaction: Transaction) => string | null;
 }
 
-export const DaySection = ({ group, categories, tagNameOf, onRowPress, creatorNameOf }: Props) => {
+export const DaySection = ({
+  group,
+  categories,
+  tagNameOf,
+  onRowPress,
+  onEdit,
+  onDelete,
+  creatorNameOf,
+}: Props) => {
   const styles = useStyles();
   const categoryById = new Map(categories.map((c) => [c.id, c]));
   return (
@@ -38,7 +48,7 @@ export const DaySection = ({ group, categories, tagNameOf, onRowPress, creatorNa
       {group.transactions.map((tx) => {
         const category = categoryById.get(tx.categoryId);
         return (
-          <TransactionRow
+          <SwipeableTransactionRow
             key={tx.id}
             transaction={tx}
             categoryName={category?.name ?? '未知分类'}
@@ -47,6 +57,8 @@ export const DaySection = ({ group, categories, tagNameOf, onRowPress, creatorNa
             showTime
             createdByName={creatorNameOf?.(tx) ?? null}
             onPress={() => onRowPress?.(tx)}
+            onEdit={() => onEdit?.(tx)}
+            onDelete={() => onDelete?.(tx)}
           />
         );
       })}

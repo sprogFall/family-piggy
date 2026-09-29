@@ -24,6 +24,7 @@ import { ProfileScreen } from '@/screens/profile/ProfileScreen';
 import { RegisterScreen } from '@/screens/auth/RegisterScreen';
 import { SettingsScreen } from '@/screens/settings/SettingsScreen';
 import { StatsScreen } from '@/screens/stats/StatsScreen';
+import { TransactionPreviewScreen } from '@/screens/transaction/TransactionPreviewScreen';
 import {
   fontSize,
   makeStyles,
@@ -135,6 +136,11 @@ export const MainNavigator = () => (
       name="AddTransaction"
       component={AddTransactionScreen}
       options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+    />
+    <RootStack.Screen
+      name="TransactionPreview"
+      component={TransactionPreviewScreen}
+      options={{ animation: 'slide_from_right' }}
     />
     <RootStack.Screen name="CategoryManager" component={CategoryManagerScreen} />
     <RootStack.Screen name="Budget" component={BudgetScreen} />
