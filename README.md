@@ -79,8 +79,8 @@ keytool -genkeypair -v -storetype PKCS12 \
 | `ANDROID_KEYSTORE_PASSWORD` | keystore 密码（PKCS12 下 key 密码与其相同） |
 | `ANDROID_KEY_ALIAS` | keystore 别名（示例中为 `family-piggy`） |
 
-4. **应用图标**：`app.config.js` 已配置 `icon: ./assets/icon.png` 与 `android.adaptiveIcon`（`foregroundImage: ./assets/adaptive-icon.png`、`backgroundColor: #9DD9BE`）。两张图都由设计稿裁掉白边生成——圆角方块外的白底用边界色无缝延续成满幅；自适应图标的主体（笔记本 / 铅笔 / 叶子 / 金币）额外收在安全区内，圆形与圆角方形遮罩都不会裁到。`app.config.test.js` 守住「文件存在、1024×1024、最外圈无白边、主体在安全区」。
-   - 换图标直接覆盖 `assets/` 下两个 PNG（保持 1024×1024 正方形）即可，无需改代码。
+4. **应用图标与开屏**：`app.config.js` 已配置 `icon: ./assets/icon.png`、`android.adaptiveIcon`（`foregroundImage: ./assets/adaptive-icon.png`、`backgroundColor: #9DD9BE`），并用 `expo-splash-screen` 把**原生开屏**配成品牌绿底 `#9DD9BE` + 同一张应用图标（`imageWidth: 200`，居中）。两张图都由设计稿裁掉白边生成——圆角方块外的白底用边界色无缝延续成满幅；自适应图标的主体（笔记本 / 铅笔 / 叶子 / 金币）额外收在安全区内，圆形与圆角方形遮罩都不会裁到。`app.config.test.js` 守住「文件存在、1024×1024、最外圈无白边、主体在安全区、开屏配置齐备」。
+   - 换图标直接覆盖 `assets/` 下两个 PNG（保持 1024×1024 正方形）即可，无需改代码：启动器图标、原生开屏、应用内开屏与登录 / 关于页的 `AppLogo` 都用这一份资源（原生开屏要重新构建才生效）。
 
 ### 触发与产物
 
