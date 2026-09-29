@@ -181,6 +181,18 @@ describe('app.config 开屏（原生 splash）', () => {
     expect([png.width, png.height]).toEqual([ICON_SIZE, ICON_SIZE]);
   });
 
+  it('深色模式改用 App 深色底（不再是品牌绿），图标沿用同一张', () => {
+    const { dark, image } = splashConfig();
+    // eslint-disable-next-line global-require
+    const { DARK_COLORS } = require('./src/theme/palette');
+    expect(dark.backgroundColor).toBe(DARK_COLORS.bg);
+    // 插件的 Android 实现只在 dark.image 存在时才写 drawable-night，
+    // 缺了它深色模式下就只剩纯色底、看不到图标
+    expect(dark.image).toBe(image);
+    const png = readIcon(dark.image);
+    expect([png.width, png.height]).toEqual([ICON_SIZE, ICON_SIZE]);
+  });
+
   it('依赖 expo-splash-screen（原生模块需显式声明）', () => {
     // eslint-disable-next-line global-require
     const pkg = require('./package.json');

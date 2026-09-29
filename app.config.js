@@ -3,10 +3,17 @@
  * - 本地开发：复制 .env.example 为 .env 并填写（.env 不会被提交）
  * - CI 打包：GitHub Secrets 直接注入构建环境（.github/workflows/release.yml）
  */
-/** 品牌绿：Android 自适应图标背景与原生开屏底色共用同一值，改色只改这里 */
+/** 品牌绿：Android 自适应图标背景与浅色开屏底色共用同一值，改色只改这里 */
 const BRAND_COLOR = '#9DD9BE';
+/**
+ * 深色模式下的开屏底色：取 App 深色页面底，与 `src/theme/palette.ts` 的 `DARK_COLORS.bg`
+ * 保持一致（`app.config.test.js` 会比对两者，防止原生开屏与 App 内开屏漂移）。
+ */
+const DARK_SPLASH_BACKGROUND = '#111111';
 /** 开屏图标展示宽度（pt）：约屏宽一半，过大会被 Android 12+ 的系统遮罩裁到 */
 const SPLASH_ICON_WIDTH = 200;
+/** 应用图标：启动器、自适应图标前景之外的界面 / 开屏都用这一份 */
+const ICON_PATH = './assets/icon.png';
 
 module.exports = {
   expo: {
@@ -18,19 +25,25 @@ module.exports = {
     // 深浅色跟随系统：iOS 由 RN Appearance 直接上报，Android 需要 expo-system-ui 才能真正读到系统深色配置
     userInterfaceStyle: 'automatic',
     // 应用图标：由设计稿裁掉白边生成（圆角方块外的白底用边界色无缝延续成满幅）
-    icon: './assets/icon.png',
+    icon: ICON_PATH,
     // 原生资源 / 字体嵌入（expo install 提示需显式声明，动态配置无法自动写入）
     plugins: [
       'expo-asset',
       'expo-font',
-      // 原生开屏（JS 加载之前由系统绘制）：品牌绿底 + 应用图标，避免冷启动闪一下白屏
+      // 原生开屏（JS 加载之前由系统绘制）：图标居中，避免冷启动闪一下白屏
       [
         'expo-splash-screen',
         {
-          image: './assets/icon.png',
+          image: ICON_PATH,
           imageWidth: SPLASH_ICON_WIDTH,
           resizeMode: 'contain',
           backgroundColor: BRAND_COLOR,
+          // 深色模式（系统夜间模式）换成 App 深色页面底，与 App 内开屏（SplashView 用 colors.bg）
+          // 无缝衔接；图标沿用同一张，不为此另做一套深色图标
+          dark: {
+            image: ICON_PATH,
+            backgroundColor: DARK_SPLASH_BACKGROUND,
+          },
         },
       ],
     ],
