@@ -23,9 +23,10 @@ import {
   monthlySummaryPoints,
   scopeToCurrency,
 } from '@/domain/statement';
-import { useActiveLedger, useCategoryOf } from '@/hooks/useActiveLedgerData';
+import { useActiveLedger, useCategoryOf, useTagNameOf } from '@/hooks/useActiveLedgerData';
 import type { RootStackParamList, TabParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
+import { useTagStore } from '@/stores/tag.store';
 import {
   selectMonthBucket,
   selectMonthTransactions,
@@ -53,7 +54,7 @@ const KIND_TABS = [
   { key: 'income' as const, label: '收入' },
 ];
 
-export const StatsScreen = (_props: Props) => {
+export const StatsScreen = ({ navigation }: Props) => {
   const styles = useStyles();
   const current = currentMonth();
   const [granularity, setGranularity] = useState<StatsGranularity>('month');
@@ -63,6 +64,7 @@ export const StatsScreen = (_props: Props) => {
 
   const ledger = useActiveLedger();
   const categoryOf = useCategoryOf();
+  const tagNameOf = useTagNameOf();
   const loadMonth = useTransactionStore((state) => state.loadMonth);
   const loadYear = useTransactionStore((state) => state.loadYear);
   const monthTransactions = useTransactionStore((state) =>
@@ -78,12 +80,14 @@ export const StatsScreen = (_props: Props) => {
     selectYearBucket(state, ledger?.id, year),
   );
   const loadCategories = useCategoryStore((state) => state.load);
+  const loadTags = useTagStore((state) => state.load);
 
   const monthKeyValue = monthKey(month);
   useFocusEffect(
     useCallback(() => {
       if (!ledger) return;
       void loadCategories(ledger.id).catch(() => undefined);
+      void loadTags(ledger.id).catch(() => undefined);
       if (granularity === 'year') void loadYear(ledger.id, year);
       else void loadMonth(ledger.id, month);
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -236,20 +240,38 @@ export const StatsScreen = (_props: Props) => {
           </Text>
           {visibleRanking.length > 0 ? (
             <>
-              {visibleRanking.map((tx, index) => (
-                <View key={tx.id} style={styles.rankRow}>
-                  <Text style={styles.rankIndex}>{index + 1}</Text>
-                  <View style={styles.rankInfo}>
-                    <Text style={styles.rankCategory} numberOfLines={1}>
-                      {categoryOf(tx.categoryId)?.name ?? '未知分类'}
+              {visibleRanking.map((tx, index) => {
+                const tagNames = tx.tagIds
+                  .map(tagNameOf)
+                  .filter((name) => name !== '');
+                return (
+                  <Pressable
+                    key={tx.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`查看第 ${index + 1} 名账单详情`}
+                    style={styles.rankRow}
+                    onPress={() =>
+                      navigation.navigate('TransactionPreview', { transactionId: tx.id })
+                    }
+                  >
+                    <Text style={styles.rankIndex}>{index + 1}</Text>
+                    <View style={styles.rankInfo}>
+                      <Text style={styles.rankCategory} numberOfLines={1}>
+                        {categoryOf(tx.categoryId)?.name ?? '未知分类'}
+                      </Text>
+                      <Text style={styles.rankMeta} numberOfLines={1}>
+                        {dayKeyOf(tx.occurredAt)}
+                        {tagNames.length > 0
+                          ? ` · ${tagNames.map((name) => `#${name}`).join(' ')}`
+                          : ''}
+                      </Text>
+                    </View>
+                    <Text style={styles.rankAmount}>
+                      {formatMoney(tx.amount, tx.currency, { signed: kind === 'income' })}
                     </Text>
-                    <Text style={styles.rankMeta}>{dayKeyOf(tx.occurredAt)}</Text>
-                  </View>
-                  <Text style={styles.rankAmount}>
-                    {formatMoney(tx.amount, tx.currency, { signed: kind === 'income' })}
-                  </Text>
-                </View>
-              ))}
+                  </Pressable>
+                );
+              })}
               {hasMoreRanking ? (
                 <Pressable accessibilityRole="button" onPress={loadMoreRanking}>
                   <Text style={styles.rankMore}>继续下拉加载更多…</Text>

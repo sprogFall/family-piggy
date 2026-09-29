@@ -77,6 +77,15 @@ jobs:
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
             echo "APP_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
             echo "RELEASE_TAG=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+
+            # annotated tag 的说明就是面向用户的更新内容；浅克隆时补拉一次 tag 对象
+            git fetch --force --tags origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}" >/dev/null 2>&1 || true
+            TAG_NOTES=$(git tag -l --format='%(contents)' "$GITHUB_REF_NAME" 2>/dev/null || true)
+            {
+              echo 'RELEASE_NOTES<<RELEASE_NOTES_EOF'
+              printf '%s\n' "$TAG_NOTES"
+              echo 'RELEASE_NOTES_EOF'
+            } >> "$GITHUB_ENV"
           else
             # 手动触发没有 tag：用运行序号生成预发布标签，
             # 保证每次构建都能在 Releases 页面拿到可直接下载的 APK
@@ -149,18 +158,23 @@ jobs:
         run: |
           APK="$APK_NAME"
           TITLE="家庭记账 ${RELEASE_TAG}"
-          # 末行 SHA256 为机器可读行，App 端解析后用于安装包完整性校验，请勿删改格式
-          NOTES=$(printf '%s\n' \
-            "Android 安装包（已用仓库 keystore 签名，可直接覆盖安装升级）。" \
-            "" \
-            "- 版本：${RELEASE_TAG}" \
-            "- 提交：${GITHUB_SHA}" \
-            "- 构建号：${GITHUB_RUN_NUMBER}" \
-            "- 安装包：${APK}（${APK_SIZE} 字节）" \
-            "" \
-            "在下方 Assets 中直接下载 .apk 安装，无需解压。" \
-            "" \
-            "SHA256: ${APK_SHA256}")
+          # 末行 SHA256 为机器可读行，App 端解析后用于安装包完整性校验，请勿删改格式。
+          # tag 发布时使用 annotated tag 的说明作为更新内容，App 内会直接展示这些文字。
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ -n "${RELEASE_NOTES:-}" ]; then
+            NOTES=$(printf '%s\n\nSHA256: %s\n' "$RELEASE_NOTES" "$APK_SHA256")
+          else
+            NOTES=$(printf '%s\n' \
+              "Android 安装包（已用仓库 keystore 签名，可直接覆盖安装升级）。" \
+              "" \
+              "- 版本：${RELEASE_TAG}" \
+              "- 提交：${GITHUB_SHA}" \
+              "- 构建号：${GITHUB_RUN_NUMBER}" \
+              "- 安装包：${APK}（${APK_SIZE} 字节）" \
+              "" \
+              "在下方 Assets 中直接下载 .apk 安装，无需解压。" \
+              "" \
+              "SHA256: ${APK_SHA256}")
+          fi
 
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             # 同一标签重跑时覆盖资产与说明，保持幂等
