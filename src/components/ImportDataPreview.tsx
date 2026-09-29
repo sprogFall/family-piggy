@@ -1,7 +1,7 @@
 import { Text, View } from 'react-native';
 
 import { dayKeyOf, timeLabelOf } from '@/domain/dates';
-import type { CsvDraft } from '@/domain/csv';
+import { splitTagNames, type CsvDraft } from '@/domain/csv';
 import { formatMoney } from '@/domain/money';
 import { KIND_LABEL } from '@/types/domain';
 import { makeStyles, fontSize, radius, space } from '@/theme';
@@ -24,35 +24,38 @@ export const ImportDataPreview = ({ drafts, recorderLabelOf }: Props) => {
       <Text style={styles.hint}>
         请核对日期、类型、分类、标签、金额与记录人映射是否符合预期，确认后再导入。
       </Text>
-      {visible.map((draft, index) => (
-        <View key={`${draft.occurredAt}-${index}`} style={styles.item}>
-          <View style={styles.itemHeader}>
-            <Text style={styles.date}>
-              {timeLabelOf(draft.occurredAt) === '00:00'
-                ? dayKeyOf(draft.occurredAt)
-                : `${dayKeyOf(draft.occurredAt)} ${timeLabelOf(draft.occurredAt)}`}
-            </Text>
-            <Text style={styles.kind}>{KIND_LABEL[draft.kind]}</Text>
-            <Text style={styles.amount}>
-              {formatMoney(draft.amountCents, draft.currency, { thousands: false })}
-            </Text>
-          </View>
-          <Text style={styles.line} numberOfLines={1}>
-            分类：{draft.categoryName}
-            {draft.tagName ? `  #${draft.tagName}` : ''}
-          </Text>
-          {draft.note ? (
-            <Text style={styles.line} numberOfLines={2}>
-              备注：{draft.note}
-            </Text>
-          ) : null}
-          {draft.recorderName ? (
+      {visible.map((draft, index) => {
+        const tagNames = splitTagNames(draft.tagName);
+        return (
+          <View key={`${draft.occurredAt}-${index}`} style={styles.item}>
+            <View style={styles.itemHeader}>
+              <Text style={styles.date}>
+                {timeLabelOf(draft.occurredAt) === '00:00'
+                  ? dayKeyOf(draft.occurredAt)
+                  : `${dayKeyOf(draft.occurredAt)} ${timeLabelOf(draft.occurredAt)}`}
+              </Text>
+              <Text style={styles.kind}>{KIND_LABEL[draft.kind]}</Text>
+              <Text style={styles.amount}>
+                {formatMoney(draft.amountCents, draft.currency, { thousands: false })}
+              </Text>
+            </View>
             <Text style={styles.line} numberOfLines={1}>
-              记录人：{draft.recorderName} → {recorderLabelOf(draft.recorderName)}
+              分类：{draft.categoryName}
+              {tagNames.length > 0 ? `  ${tagNames.map((name) => `#${name}`).join(' ')}` : ''}
             </Text>
-          ) : null}
-        </View>
-      ))}
+            {draft.note ? (
+              <Text style={styles.line} numberOfLines={2}>
+                备注：{draft.note}
+              </Text>
+            ) : null}
+            {draft.recorderName ? (
+              <Text style={styles.line} numberOfLines={1}>
+                记录人：{draft.recorderName} → {recorderLabelOf(draft.recorderName)}
+              </Text>
+            ) : null}
+          </View>
+        );
+      })}
       {drafts.length > IMPORT_PREVIEW_LIMIT ? (
         <Text style={styles.more}>
           仅展示前 {IMPORT_PREVIEW_LIMIT} 条，共 {drafts.length} 条

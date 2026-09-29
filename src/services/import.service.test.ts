@@ -155,6 +155,15 @@ describe('importDrafts', () => {
     ]);
   });
 
+  it('标签用 / 分隔时拆成多个标签并全部创建/复用，流水关联第一个标签', async () => {
+    await importDrafts('l1', [draft({ tagName: '午餐/晚餐' })], { defaultCreatedBy: 'u1' });
+
+    expect(tagMock.ensureMany).toHaveBeenCalledWith('l1', 'c1', ['午餐', '晚餐']);
+    expect(txMock.createMany).toHaveBeenCalledWith([
+      expect.objectContaining({ tagId: 'c1-g0' }),
+    ]);
+  });
+
   it('无标签的流水不请求标签且 tag_id 为 null；空草稿不写库', async () => {
     await importDrafts('l1', [draft({ tagName: '  ' })], { defaultCreatedBy: 'u1' });
 

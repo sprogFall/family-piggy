@@ -1,6 +1,6 @@
 import type { Transaction } from '@/types/domain';
 
-import { csvToDrafts, draftsToCsv, parseCsv, transactionToDraft } from './csv';
+import { csvToDrafts, draftsToCsv, parseCsv, splitTagNames, transactionToDraft } from './csv';
 
 describe('draftsToCsv', () => {
   it('生成带 BOM、表头与 CRLF 的内容', () => {
@@ -79,6 +79,14 @@ describe('transactionToDraft', () => {
   });
 });
 
+describe('splitTagNames', () => {
+  it('按 / 拆分多个标签并去重、去空白', () => {
+    expect(splitTagNames('午餐/晚餐')).toEqual(['午餐', '晚餐']);
+    expect(splitTagNames(' 午餐 / 晚餐 /  / 午餐 ')).toEqual(['午餐', '晚餐']);
+    expect(splitTagNames('午餐／晚餐')).toEqual(['午餐', '晚餐']);
+  });
+});
+
 describe('parseCsv', () => {
   it('解析普通行', () => {
     expect(parseCsv('a,b,c\r\n1,2,3')).toEqual([
@@ -124,6 +132,23 @@ describe('csvToDrafts', () => {
       amountCents: 380000,
       currency: 'CNY',
       recorderName: '',
+      reimbursement: false,
+    });
+  });
+
+  it('识别真实文件常用表头：交易类型 / 类别 / 描述 / 创建者 / 是否报销', () => {
+    const { drafts, errors } = csvToDrafts([
+      ['日期', '交易类型', '类别', '标签', '描述', '金额', '币种', '创建者', '是否报销'],
+      ['2026-09-29 00:00', '支出', '餐饮', '午餐', '', '30', 'CNY', 'A橘子', ''],
+    ]);
+    expect(errors).toEqual([]);
+    expect(drafts[0]).toMatchObject({
+      kind: 'expense',
+      categoryName: '餐饮',
+      tagName: '午餐',
+      amountCents: 3000,
+      currency: 'CNY',
+      recorderName: 'A橘子',
       reimbursement: false,
     });
   });

@@ -28,6 +28,15 @@ export const KIND_BY_LABEL: Record<string, TxKind> = {
   收入: 'income',
 };
 
+/** 导入的标签字段可能用 / 分隔多个标签；返回去重后的标签名列表 */
+export const splitTagNames = (value: string): string[] => {
+  const names = value
+    .split(/[\/／]/)
+    .map((name) => name.trim())
+    .filter((name) => name !== '');
+  return [...new Set(names)];
+};
+
 export interface CsvDraft {
   occurredAt: string;
   kind: TxKind;
@@ -68,18 +77,25 @@ const DEFAULT_POSITION: Record<CsvColumn, number> = {
 const HEADER_ALIASES: Record<string, CsvColumn> = {
   日期: 'occurredAt',
   类型: 'kind',
+  交易类型: 'kind',
   收支类型: 'kind',
   '支出/收入': 'kind',
   '支出/收入类型': 'kind',
   分类: 'categoryName',
+  类别: 'categoryName',
+  交易类别: 'categoryName',
   标签: 'tagName',
   备注: 'note',
+  描述: 'note',
   金额: 'amount',
   '金额(元)': 'amount',
   '金额（元）': 'amount',
   币种: 'currency',
   记录人: 'recorderName',
+  创建者: 'recorderName',
+  创建人: 'recorderName',
   报销: 'reimbursement',
+  是否报销: 'reimbursement',
 };
 
 const normalizeHeader = (cell: string): string => cell.trim().replace(/\s+/g, '');

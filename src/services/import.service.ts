@@ -1,6 +1,6 @@
 import { read, utils } from 'xlsx';
 
-import { csvToDrafts, parseCsv, type CsvDraft } from '@/domain/csv';
+import { csvToDrafts, parseCsv, splitTagNames, type CsvDraft } from '@/domain/csv';
 import { categoryService } from '@/services/category.service';
 import { normalizeTagName, tagService } from '@/services/tag.service';
 import { transactionService } from '@/services/transaction.service';
@@ -94,23 +94,32 @@ export const importDrafts = async (
 
   const tagIdByKey = await ensureDraftTags(
     ledgerId,
-    rows.map(({ draft, categoryId }) => ({ categoryId, tagName: draft.tagName })),
+    rows.map(({ draft, categoryId }) => ({
+      categoryId,
+      tagNames: splitTagNames(draft.tagName),
+    })),
   );
 
   await transactionService.createMany(
-    rows.map(({ draft, categoryId }) => ({
-      ledgerId,
-      categoryId,
-      kind: draft.kind,
-      amount: draft.amountCents,
-      currency: draft.currency,
-      tagId: tagIdByKey.get(`${categoryId}:${normalizeTagName(draft.tagName)}`) ?? null,
-      note: draft.note,
-      attributes: { reimbursement: draft.reimbursement },
-      images: [],
-      occurredAt: draft.occurredAt,
-      createdBy: resolveCreatedBy(draft.recorderName, options),
-    })),
+    rows.map(({ draft, categoryId }) => {
+      // 当前流水模型一笔只存一个 tag_id：多个标签全部创建/复用，流水关联第一个标签。
+      const [primaryTagName = ''] = splitTagNames(draft.tagName);
+      return {
+        ledgerId,
+        categoryId,
+        kind: draft.kind,
+        amount: draft.amountCents,
+        currency: draft.currency,
+        tagId: primaryTagName
+          ? (tagIdByKey.get(`${categoryId}:${normalizeTagName(primaryTagName)}`) ?? null)
+          : null,
+        note: draft.note,
+        attributes: { reimbursement: draft.reimbursement },
+        images: [],
+        occurredAt: draft.occurredAt,
+        createdBy: resolveCreatedBy(draft.recorderName, options),
+      };
+    }),
   );
   return drafts.length;
 };
@@ -118,7 +127,7 @@ export const importDrafts = async (
 /** 导入行里的标签引用（标签隶属于分类，先按分类分组） */
 interface DraftTagRef {
   categoryId: string;
-  tagName: string;
+  tagNames: string[];
 }
 
 /** 按分类批量创建/复用标签，返回 `${categoryId}:${name}` -> 标签 ID */
@@ -128,10 +137,11 @@ const ensureDraftTags = async (
 ): Promise<Map<string, string>> => {
   const namesByCategory = new Map<string, string[]>();
   for (const ref of refs) {
-    if (normalizeTagName(ref.tagName) === '') continue;
     const names = namesByCategory.get(ref.categoryId) ?? [];
-    names.push(ref.tagName);
-    namesByCategory.set(ref.categoryId, names);
+    for (const tagName of ref.tagNames) {
+      if (normalizeTagName(tagName) !== '') names.push(tagName);
+    }
+    if (names.length > 0) namesByCategory.set(ref.categoryId, names);
   }
 
   const idByKey = new Map<string, string>();

@@ -188,7 +188,7 @@ export const ImportScreen = ({ navigation }: Props) => {
       <AppHeader title="导入数据" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.tip}>
-          支持 Excel(.xlsx) / CSV，表头依次为：日期、类型（支出/收入）、分类、标签、备注、金额、币种、记录人、报销。缺失分类和标签会在导入时自动创建。
+          支持 Excel(.xlsx) / CSV，可识别：日期、交易类型/类型、类别/分类、标签、描述/备注、金额、币种、创建者/记录人、是否报销/报销。标签可用 / 分隔多个，缺失分类和标签会在导入时自动创建。
         </Text>
 
         <Pressable
