@@ -1,5 +1,6 @@
 import {
   evaluateAmountExpression,
+  formatEvaluatedAmount,
   pressAmountKey,
 } from './amount-input';
 
@@ -90,5 +91,15 @@ describe('evaluateAmountExpression', () => {
   it('超出金额范围返回空，负数结果保留给提交层校验', () => {
     expect(evaluateAmountExpression('999999999+1')).toBeNull();
     expect(evaluateAmountExpression('5-10')).toBe('-5.00');
+  });
+});
+
+describe('formatEvaluatedAmount', () => {
+  it('去掉尾随 0，同时保留非零小数位', () => {
+    expect(formatEvaluatedAmount('49.00')).toBe('49');
+    expect(formatEvaluatedAmount('12.50')).toBe('12.5');
+    expect(formatEvaluatedAmount('0.05')).toBe('0.05');
+    expect(formatEvaluatedAmount('0.00')).toBe('0');
+    expect(formatEvaluatedAmount('100')).toBe('100');
   });
 });

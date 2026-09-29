@@ -131,6 +131,14 @@ const applyOperation = (
   }
 };
 
+
+/** 把求值结果里的尾随 0 去掉，用于「大号结果」展示；例如 49.00 -> 49、12.50 -> 12.5。 */
+export const formatEvaluatedAmount = (value: string): string => {
+  if (!value.includes('.')) return value;
+  const trimmed = value.replace(/0+$/, '');
+  return trimmed.endsWith('.') ? trimmed.slice(0, -1) : trimmed;
+};
+
 const formatCentsResult = (value: number): string | null => {
   if (!Number.isFinite(value)) return null;
   const rounded = Math.round((value + Number.EPSILON) * 100);

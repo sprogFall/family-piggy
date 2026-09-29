@@ -19,6 +19,10 @@ interface Props {
   onReimbursementChange: (value: boolean) => void;
   images: TransactionImageDraft[];
   onImagesChange: (images: TransactionImageDraft[]) => void;
+  /** 备注输入获得焦点时隐藏金额键盘 */
+  onNoteFocus?: () => void;
+  /** 备注输入失去焦点时恢复金额键盘 */
+  onNoteBlur?: () => void;
 }
 
 /**
@@ -32,6 +36,8 @@ export const TransactionExtrasFields = ({
   onReimbursementChange,
   images,
   onImagesChange,
+  onNoteFocus,
+  onNoteBlur,
 }: Props) => {
   const styles = useStyles();
   const colors = useColors();
@@ -72,6 +78,8 @@ export const TransactionExtrasFields = ({
           accessibilityLabel="备注"
           value={note}
           onChangeText={onNoteChange}
+          onFocus={onNoteFocus}
+          onBlur={onNoteBlur}
           placeholder="例如：和同事聚餐"
           placeholderTextColor={colors.textTertiary}
           maxLength={MAX_NOTE_LENGTH}

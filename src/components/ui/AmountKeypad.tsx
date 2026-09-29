@@ -7,7 +7,7 @@ import {
   type AmountKey,
   type AmountOperator,
 } from '@/domain/amount-input';
-import { makeStyles, useColors, fontSize, radius } from '@/theme';
+import { makeStyles, useColors, fontSize } from '@/theme';
 
 interface Props {
   value: string;
@@ -24,7 +24,10 @@ const GRID_KEYS: AmountKey[] = [
   '.', '0', 'backspace',
 ];
 
-const OPERATOR_KEYS: AmountOperator[] = [...AMOUNT_OPERATORS];
+const OPERATOR_ROWS: AmountOperator[][] = [
+  [AMOUNT_OPERATORS[0], AMOUNT_OPERATORS[1]],
+  [AMOUNT_OPERATORS[2], AMOUNT_OPERATORS[3]],
+];
 
 export const AmountKeypad = ({
   value,
@@ -54,21 +57,23 @@ export const AmountKeypad = ({
         ))}
       </View>
 
+      {/* 右侧：加减乘除 + 完成无缝拼成一整列，完成按钮位于右下角 */}
       <View style={styles.sidebar}>
-        {/* 右上：加减乘除；完成按钮收窄到右下角 */}
-        <View style={styles.operatorGrid}>
-          {OPERATOR_KEYS.map((operator) => (
-            <Pressable
-              key={operator}
-              accessibilityRole="button"
-              accessibilityLabel={`operator-${operator}`}
-              style={({ pressed }) => [styles.operatorKey, pressed && styles.keyPressed]}
-              onPress={() => onChange(pressAmountKey(value, operator))}
-            >
-              <Text style={styles.operatorText}>{operator}</Text>
-            </Pressable>
-          ))}
-        </View>
+        {OPERATOR_ROWS.map((row, rowIndex) => (
+          <View key={`operator-row-${rowIndex}`} style={styles.operatorRow}>
+            {row.map((operator) => (
+              <Pressable
+                key={operator}
+                accessibilityRole="button"
+                accessibilityLabel={`operator-${operator}`}
+                style={({ pressed }) => [styles.operatorKey, pressed && styles.keyPressed]}
+                onPress={() => onChange(pressAmountKey(value, operator))}
+              >
+                <Text style={styles.operatorText}>{operator}</Text>
+              </Pressable>
+            ))}
+          </View>
+        ))}
 
         <Pressable
           accessibilityRole="button"
@@ -113,18 +118,16 @@ const useStyles = makeStyles((colors) => ({
     color: colors.text,
     fontSize: fontSize.xl,
   },
-  operatorGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    width: 84,
-  },
   operatorKey: {
     alignItems: 'center',
     borderColor: colors.border,
     borderWidth: StyleSheet.hairlineWidth,
-    height: 42,
+    flex: 1,
     justifyContent: 'center',
-    width: '50%',
+  },
+  operatorRow: {
+    flex: 1,
+    flexDirection: 'row',
   },
   operatorText: {
     color: colors.text,
@@ -132,17 +135,16 @@ const useStyles = makeStyles((colors) => ({
     fontWeight: '600',
   },
   sidebar: {
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
     width: 84,
   },
   submit: {
     alignItems: 'center',
     backgroundColor: colors.primary,
-    borderRadius: radius.sm,
-    height: 46,
+    borderTopColor: colors.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    height: 54,
     justifyContent: 'center',
-    width: 64,
+    width: 84,
   },
   submitDisabled: {
     backgroundColor: colors.primaryDisabled,

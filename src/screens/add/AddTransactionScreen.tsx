@@ -3,7 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import RNDateTimePicker from '@react-native-community/datetimepicker';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Keyboard, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AmountKeypad } from '@/components/ui/AmountKeypad';
@@ -66,6 +66,8 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   const [showPicker, setShowPicker] = useState(false);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  /** 金额键盘默认展开；备注输入获得焦点时隐藏，点击金额区域再唤起 */
+  const [keypadVisible, setKeypadVisible] = useState(true);
 
   const ledger = useActiveLedger();
   const categories = useActiveCategories();
@@ -275,9 +277,14 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
       <AmountPanel
         currency={currency}
         amount={amount}
+        result={evaluateAmountExpression(amount)}
         dateLabel={entryDateLabel(date.toISOString())}
         onPressCurrency={() => setShowCurrencyPicker(true)}
         onPressDate={() => setShowPicker(true)}
+        onPressAmount={() => {
+          Keyboard.dismiss();
+          setKeypadVisible(true);
+        }}
       />
 
       <View style={styles.tabsCard}>
@@ -314,6 +321,8 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
           onReimbursementChange={setReimbursement}
           images={images}
           onImagesChange={setImages}
+          onNoteFocus={() => setKeypadVisible(false)}
+          onNoteBlur={() => setKeypadVisible(true)}
         />
       </ScrollView>
 
@@ -335,13 +344,15 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
           value={currency}
           onSelect={changeCurrency}
         />
-        <AmountKeypad
-          value={amount}
-          onChange={setAmount}
-          onSubmit={() => void submit()}
-          submitDisabled={submitting}
-          submitLabel={editing ? '保存' : '完成'}
-        />
+        {keypadVisible ? (
+          <AmountKeypad
+            value={amount}
+            onChange={setAmount}
+            onSubmit={() => void submit()}
+            submitDisabled={submitting}
+            submitLabel={editing ? '保存' : '完成'}
+          />
+        ) : null}
       </View>
     </View>
   );

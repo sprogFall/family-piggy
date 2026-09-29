@@ -58,6 +58,40 @@ describe('AmountPanel', () => {
     expect(fontSize.display).toBeGreaterThan(fontSize.xxl);
   });
 
+  it('表达式实时展示结果，灰色副文案保留计算过程', () => {
+    render(
+      <AmountPanel
+        currency="CNY"
+        amount="50-1"
+        result="49.00"
+        dateLabel="今天"
+        onPressCurrency={jest.fn()}
+        onPressDate={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('amount-value').props.children).toBe('49');
+    expect(screen.getByTestId('amount-expression').props.children).toBe('50-1');
+  });
+
+  it('点击金额区域唤起键盘', () => {
+    const onPressAmount = jest.fn();
+    render(
+      <AmountPanel
+        currency="CNY"
+        amount=""
+        result={null}
+        dateLabel="今天"
+        onPressCurrency={jest.fn()}
+        onPressDate={jest.fn()}
+        onPressAmount={onPressAmount}
+      />,
+    );
+
+    fireEvent.press(screen.getByLabelText('编辑金额'));
+    expect(onPressAmount).toHaveBeenCalledTimes(1);
+  });
+
   it('点击币种 / 日期分别回调', () => {
     const onPressCurrency = jest.fn();
     const onPressDate = jest.fn();

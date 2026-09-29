@@ -1,33 +1,44 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { formatEvaluatedAmount } from '@/domain/amount-input';
 import { currencySymbol, type CurrencyCode } from '@/domain/currency';
 import { AMOUNT_ROW_MIN_HEIGHT, fontSize, makeStyles, radius, space, useColors } from '@/theme';
 
 interface Props {
   currency: CurrencyCode;
-  /** 键盘输入的金额字符串（未输入为 ''） */
+  /** 键盘输入的金额表达式（未输入为 ''），如 "50-1" */
   amount: string;
+  /** 表达式实时求值结果；能计算时会放大展示，表达式作为灰色副文案 */
+  result?: string | null;
   /** 记账日期展示文案 */
   dateLabel: string;
   onPressCurrency: () => void;
   onPressDate: () => void;
+  /** 点击金额区域时唤起金额键盘 */
+  onPressAmount?: () => void;
 }
 
 /**
  * 「记一笔」顶部金额行：整行加高、金额大字展示，先确认币种、数额与时间。
- * 抽出独立组件便于单独验证「加高 + 金额醒目」的令牌与交互。
+ * 有运算符时主文案显示实时结果，灰色小字保留计算过程（如 50-1）。
  */
 export const AmountPanel = ({
   currency,
   amount,
+  result = null,
   dateLabel,
   onPressCurrency,
   onPressDate,
+  onPressAmount,
 }: Props) => {
   const styles = useStyles();
   const colors = useColors();
   const empty = amount === '';
+  const showResult = /[+\-×÷]/.test(amount) && result !== null;
+  const displayValue = showResult ? formatEvaluatedAmount(result) : empty ? '0.00' : amount;
+  const displayExpression = showResult ? amount : null;
+  const placeholder = empty && !showResult;
 
   return (
     <View testID="amount-panel" style={styles.panel}>
@@ -42,17 +53,30 @@ export const AmountPanel = ({
         <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
       </Pressable>
       <View style={styles.divider} />
-      <View style={styles.amountBox}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="编辑金额"
+        disabled={!onPressAmount}
+        style={styles.amountBox}
+        onPress={onPressAmount}
+      >
         <Text style={styles.amountSymbol}>{currencySymbol(currency)}</Text>
-        <Text
-          testID="amount-value"
-          style={[styles.amountValue, empty && styles.amountPlaceholder]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-        >
-          {empty ? '0.00' : amount}
-        </Text>
-      </View>
+        <View style={styles.amountTexts}>
+          <Text
+            testID="amount-value"
+            style={[styles.amountValue, placeholder && styles.amountPlaceholder]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
+            {displayValue}
+          </Text>
+          {displayExpression ? (
+            <Text testID="amount-expression" style={styles.amountExpression} numberOfLines={1}>
+              {displayExpression}
+            </Text>
+          ) : null}
+        </View>
+      </Pressable>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="选择日期"
@@ -70,10 +94,15 @@ export const AmountPanel = ({
 
 const useStyles = makeStyles((colors) => ({
   amountBox: {
-    alignItems: 'baseline',
+    alignItems: 'center',
     flex: 1,
     flexDirection: 'row',
     marginRight: space(3),
+  },
+  amountExpression: {
+    color: colors.textSecondary,
+    fontSize: fontSize.sm,
+    marginTop: -space(0.5),
   },
   /** 未输入金额时用弱化色，输入后转为正文色 */
   amountPlaceholder: {
@@ -84,6 +113,9 @@ const useStyles = makeStyles((colors) => ({
     fontSize: fontSize.lg,
     fontWeight: '600',
     marginRight: space(1),
+  },
+  amountTexts: {
+    flex: 1,
   },
   amountValue: {
     color: colors.text,
