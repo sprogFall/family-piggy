@@ -157,6 +157,37 @@ describe('app.config 应用图标', () => {
   });
 });
 
+describe('app.config 开屏（原生 splash）', () => {
+  /** 取出 expo-splash-screen 插件的配置对象 */
+  const splashConfig = () => {
+    const entry = config.expo.plugins.find(
+      (plugin) => Array.isArray(plugin) && plugin[0] === 'expo-splash-screen',
+    );
+    return entry ? entry[1] : null;
+  };
+
+  it('配置了 expo-splash-screen 插件（JS 起来之前的开屏不能是白屏 / 默认样式）', () => {
+    expect(splashConfig()).not.toBeNull();
+  });
+
+  it('开屏底色与自适应图标背景同色，且为合法色值', () => {
+    const { backgroundColor } = splashConfig();
+    expect(backgroundColor).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    expect(backgroundColor).toBe(config.expo.android.adaptiveIcon.backgroundColor);
+  });
+
+  it('开屏图标为存在的 1024×1024 PNG', () => {
+    const png = readIcon(splashConfig().image);
+    expect([png.width, png.height]).toEqual([ICON_SIZE, ICON_SIZE]);
+  });
+
+  it('依赖 expo-splash-screen（原生模块需显式声明）', () => {
+    // eslint-disable-next-line global-require
+    const pkg = require('./package.json');
+    expect(pkg.dependencies['expo-splash-screen']).toBeDefined();
+  });
+});
+
 describe('app.config Android 权限', () => {
   it('声明安装未知来源应用所需权限（应用内更新拉起系统安装器）', () => {
     expect(config.expo.android.permissions).toContain('REQUEST_INSTALL_PACKAGES');
