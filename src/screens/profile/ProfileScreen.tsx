@@ -128,13 +128,11 @@ export const ProfileScreen = ({ navigation }: Props) => {
         <MenuItem
           icon="people-outline"
           label="家庭管理"
-          hint="创建 / 加入家庭"
           onPress={() => navigation.navigate('FamilyHub')}
         />
         <MenuItem
           icon="wallet-outline"
           label="账单管理"
-          hint="个人账单改名 / 新增 / 删除"
           onPress={() => navigation.navigate('LedgerManager')}
         />
         <MenuItem

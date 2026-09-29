@@ -8,6 +8,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { BreakdownList } from '@/components/BreakdownList';
 import { DonutChart } from '@/components/charts/DonutChart';
 import { EmptyState } from '@/components/EmptyState';
+import { LoadingView } from '@/components/ui/LoadingView';
 import { MonthSwitcher } from '@/components/ui/MonthSwitcher';
 import { ScreenTopBar } from '@/components/ui/ScreenTopBar';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
@@ -25,7 +26,9 @@ import { useActiveLedger, useCategoryOf } from '@/hooks/useActiveLedgerData';
 import type { RootStackParamList, TabParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
 import {
+  selectMonthBucket,
   selectMonthTransactions,
+  selectYearBucket,
   selectYearTransactions,
   useTransactionStore,
 } from '@/stores/transaction.store';
@@ -67,6 +70,12 @@ export const StatsScreen = (_props: Props) => {
   const yearTransactions = useTransactionStore((state) =>
     selectYearTransactions(state, ledger?.id, year),
   );
+  const monthBucket = useTransactionStore((state) =>
+    selectMonthBucket(state, ledger?.id, month),
+  );
+  const yearBucket = useTransactionStore((state) =>
+    selectYearBucket(state, ledger?.id, year),
+  );
   const loadCategories = useCategoryStore((state) => state.load);
 
   const monthKeyValue = monthKey(month);
@@ -81,6 +90,11 @@ export const StatsScreen = (_props: Props) => {
   );
 
   const transactions = granularity === 'year' ? yearTransactions : monthTransactions;
+  const activeBucket = granularity === 'year' ? yearBucket : monthBucket;
+  const loadingInitial =
+    ledger !== null &&
+    (activeBucket === undefined ||
+      (activeBucket.status === 'loading' && transactions.length === 0));
   /** 汇总与构成只统计主币种：不同币种的最小单位不可直接相加 */
   const currency = dominantCurrency(transactions);
   const scoped = scopeToCurrency(transactions, currency);
@@ -129,6 +143,9 @@ export const StatsScreen = (_props: Props) => {
         <SegmentedTabs items={KIND_TABS} value={kind} onChange={setKind} />
       </View>
 
+      {loadingInitial ? (
+        <LoadingView message="正在加载统计数据…" />
+      ) : (
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>
@@ -194,6 +211,7 @@ export const StatsScreen = (_props: Props) => {
           </View>
         ) : null}
       </ScrollView>
+      )}
     </View>
   );
 };

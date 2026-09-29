@@ -3,12 +3,13 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { DaySection } from '@/components/DaySection';
 import { EmptyState } from '@/components/EmptyState';
 import { LedgerSwitcherSheet } from '@/components/LedgerSwitcherSheet';
+import { LoadingView } from '@/components/ui/LoadingView';
 import { MonthSwitcher } from '@/components/ui/MonthSwitcher';
 import { PromptModal } from '@/components/ui/PromptModal';
 import { SearchBar } from '@/components/ui/SearchBar';
@@ -38,7 +39,11 @@ import type { RootStackParamList, TabParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
 import { useLedgerStore } from '@/stores/ledger.store';
 import { useTagStore } from '@/stores/tag.store';
-import { selectMonthTransactions, useTransactionStore } from '@/stores/transaction.store';
+import {
+  selectMonthBucket,
+  selectMonthTransactions,
+  useTransactionStore,
+} from '@/stores/transaction.store';
 import type { Transaction } from '@/types/domain';
 import { makeStyles, useColors, fontSize, radius, space } from '@/theme';
 
@@ -73,6 +78,9 @@ export const BillsScreen = ({ navigation }: Props) => {
   const tagNameOf = useTagNameOf();
   const transactions = useTransactionStore((state) =>
     selectMonthTransactions(state, ledger?.id, month),
+  );
+  const monthBucket = useTransactionStore((state) =>
+    selectMonthBucket(state, ledger?.id, month),
   );
 
   const loadMonth = useTransactionStore((state) => state.loadMonth);
@@ -142,6 +150,15 @@ export const BillsScreen = ({ navigation }: Props) => {
   };
 
   const monthKeyValue = monthKey(month);
+  const loadingInitial =
+    ledger !== null &&
+    (monthBucket === undefined ||
+      (monthBucket.status === 'loading' && transactions.length === 0));
+  const refreshing = monthBucket?.status === 'loading' && transactions.length > 0;
+  const handleRefresh = useCallback(() => {
+    if (ledger) void loadMonth(ledger.id, month);
+  }, [ledger?.id, monthKeyValue]);
+
   useFocusEffect(
     useCallback(() => {
       if (!ledger) return undefined;
@@ -236,7 +253,21 @@ export const BillsScreen = ({ navigation }: Props) => {
         </View>
       ) : null}
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      {loadingInitial ? (
+        <LoadingView message="正在加载账单…" />
+      ) : (
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+      >
         <View style={styles.summaryBar}>
           <SummaryItem label="支出" value={formatMoney(summary.expense, currency)} />
           <SummaryItem label="收入" value={formatMoney(summary.income, currency)} />
@@ -273,6 +304,7 @@ export const BillsScreen = ({ navigation }: Props) => {
           )}
         </View>
       </ScrollView>
+      )}
 
       <LedgerSwitcherSheet
         visible={showLedgerSheet}

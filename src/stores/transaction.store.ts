@@ -194,15 +194,20 @@ export const selectMonthTransactions = (
     ? (selectMonthBucket(state, ledgerId, month)?.transactions ?? EMPTY_TRANSACTIONS)
     : EMPTY_TRANSACTIONS;
 
+/** 某账本某年的年份桶；未加载时返回 undefined */
+export const selectYearBucket = (
+  state: TransactionState,
+  ledgerId: string | null | undefined,
+  year: number,
+): MonthBucket | undefined =>
+  ledgerId ? state.buckets[yearBucketKey(ledgerId, year)] : undefined;
+
 /** 某账本某年的流水；未加载时返回稳定的空数组 */
 export const selectYearTransactions = (
   state: TransactionState,
   ledgerId: string | null | undefined,
   year: number,
-): Transaction[] => {
-  if (!ledgerId) return EMPTY_TRANSACTIONS;
-  return state.buckets[yearBucketKey(ledgerId, year)]?.transactions ?? EMPTY_TRANSACTIONS;
-};
+): Transaction[] => selectYearBucket(state, ledgerId, year)?.transactions ?? EMPTY_TRANSACTIONS;
 
 /** 在所有已加载月份桶中查找流水（编辑入口来自账单列表，桶必然已加载） */
 export const selectTransactionById = (

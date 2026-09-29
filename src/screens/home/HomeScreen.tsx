@@ -12,6 +12,7 @@ import { TrendChart } from '@/components/charts/TrendChart';
 import { EmptyState } from '@/components/EmptyState';
 import { LedgerSwitcherSheet } from '@/components/LedgerSwitcherSheet';
 import { SummaryCard } from '@/components/SummaryCard';
+import { LoadingView } from '@/components/ui/LoadingView';
 import { MonthPickerSheet } from '@/components/ui/MonthPickerSheet';
 import { PromptModal } from '@/components/ui/PromptModal';
 import { ScreenTopBar } from '@/components/ui/ScreenTopBar';
@@ -25,7 +26,7 @@ import { getErrorMessage } from '@/lib/errors';
 import type { RootStackParamList, TabParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
 import { useLedgerStore } from '@/stores/ledger.store';
-import { useTransactionStore } from '@/stores/transaction.store';
+import { selectMonthBucket, useTransactionStore } from '@/stores/transaction.store';
 import { makeStyles, CHART_PALETTE, useColors, fontSize, radius, space } from '@/theme';
 
 type Props = CompositeScreenProps<
@@ -45,12 +46,19 @@ export const HomeScreen = ({ navigation }: Props) => {
   const categoryOf = useCategoryOf();
   const transactions = useMonthTransactions(month);
 
+  const monthBucket = useTransactionStore((state) =>
+    selectMonthBucket(state, ledger?.id, month),
+  );
   const loadMonth = useTransactionStore((state) => state.loadMonth);
   const subscribe = useTransactionStore((state) => state.subscribe);
   const loadCategories = useCategoryStore((state) => state.load);
   const createPersonalLedger = useLedgerStore((state) => state.createPersonalLedger);
 
   const monthKeyValue = monthKey(month);
+  const loadingInitial =
+    ledger !== null &&
+    (monthBucket === undefined ||
+      (monthBucket.status === 'loading' && monthBucket.transactions.length === 0));
   useFocusEffect(
     useCallback(() => {
       if (!ledger) return undefined;
@@ -94,6 +102,9 @@ export const HomeScreen = ({ navigation }: Props) => {
         </Pressable>
       </ScreenTopBar>
 
+      {ledger && loadingInitial ? (
+        <LoadingView message="正在加载账单…" />
+      ) : (
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {ledger ? (
           <>
@@ -141,6 +152,7 @@ export const HomeScreen = ({ navigation }: Props) => {
           <EmptyState icon="wallet-outline" message="暂无账本，下拉切换账本以创建" />
         )}
       </ScrollView>
+      )}
 
       <LedgerSwitcherSheet
         visible={showLedgerSheet}
