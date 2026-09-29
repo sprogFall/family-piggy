@@ -95,6 +95,24 @@ describe('useAuthStore', () => {
     expect(authMock.signUp).toHaveBeenCalledWith('a@b.co', '123456', '小明');
   });
 
+  it('updateNickname 更新服务并同步本地 profile', async () => {
+    useAuthStore.setState({
+      status: 'signedIn',
+      session: sessionOf('u1'),
+      profile: { id: 'u1', nickname: '小明', avatarUrl: null },
+    });
+    profileMock.updateNickname.mockResolvedValue(undefined);
+
+    await useAuthStore.getState().updateNickname('小红');
+
+    expect(profileMock.updateNickname).toHaveBeenCalledWith('u1', '小红');
+    expect(useAuthStore.getState().profile?.nickname).toBe('小红');
+  });
+
+  it('updateNickname 未登录时抛错', async () => {
+    await expect(useAuthStore.getState().updateNickname('小红')).rejects.toThrow('未登录');
+  });
+
   it('signOut 委托 authService', async () => {
     authMock.signOut.mockResolvedValue(undefined);
     await useAuthStore.getState().signOut();

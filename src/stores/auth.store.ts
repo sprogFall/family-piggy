@@ -15,6 +15,7 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, nickname: string) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
+  updateNickname: (nickname: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -58,6 +59,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     await authService.signOut();
+  },
+
+  updateNickname: async (nickname) => {
+    const userId = get().session?.user.id;
+    if (!userId) throw new Error('未登录');
+    await profileService.updateNickname(userId, nickname);
+    const profile = get().profile;
+    if (profile) set({ profile: { ...profile, nickname } });
   },
 
   refreshProfile: async () => {

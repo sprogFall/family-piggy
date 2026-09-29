@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
 import type { CompositeScreenProps } from '@react-navigation/native';
@@ -9,6 +10,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MenuItem } from '@/components/MenuItem';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { PromptModal } from '@/components/ui/PromptModal';
+import { validateNickname } from '@/domain/validation';
 import { showAlert } from '@/lib/alert';
 import { avatarService } from '@/services/avatar.service';
 import { getErrorMessage } from '@/lib/errors';
@@ -28,8 +31,10 @@ export const ProfileScreen = ({ navigation }: Props) => {
   const profile = useAuthStore((state) => state.profile);
   const session = useAuthStore((state) => state.session);
   const refreshProfile = useAuthStore((state) => state.refreshProfile);
+  const updateNickname = useAuthStore((state) => state.updateNickname);
   const signOut = useAuthStore((state) => state.signOut);
   const [uploading, setUploading] = useState(false);
+  const [showNicknameModal, setShowNicknameModal] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -63,6 +68,20 @@ export const ProfileScreen = ({ navigation }: Props) => {
     }
   };
 
+  const handleSaveNickname = async (nickname: string) => {
+    const error = validateNickname(nickname);
+    if (error) {
+      showAlert('提示', error);
+      return;
+    }
+    try {
+      await updateNickname(nickname);
+      showAlert('昵称已更新');
+    } catch (updateError) {
+      showAlert('修改失败', getErrorMessage(updateError));
+    }
+  };
+
   const confirmSignOut = () => {
     showAlert('退出登录', '确定退出当前账号吗？', [
       { text: '取消', style: 'cancel' },
@@ -90,7 +109,15 @@ export const ProfileScreen = ({ navigation }: Props) => {
           </View>
         </Pressable>
         <View style={styles.userMeta}>
-          <Text style={styles.nickname}>{profile?.nickname ?? '未登录'}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="修改昵称"
+            style={styles.nicknameRow}
+            onPress={() => setShowNicknameModal(true)}
+          >
+            <Text style={styles.nickname}>{profile?.nickname ?? '未登录'}</Text>
+            <Ionicons name="pencil" size={15} color={colors.textTertiary} />
+          </Pressable>
           <Text style={styles.userId} numberOfLines={1}>
             {email || 'MY'}
           </Text>
@@ -142,6 +169,17 @@ export const ProfileScreen = ({ navigation }: Props) => {
           style={styles.logout}
         />
       </ScrollView>
+
+      <PromptModal
+        visible={showNicknameModal}
+        onClose={() => setShowNicknameModal(false)}
+        title="修改昵称"
+        initialValue={profile?.nickname ?? ''}
+        placeholder="昵称（1-12 个字符）"
+        submitLabel="保存"
+        maxLength={12}
+        onSubmit={(nickname) => void handleSaveNickname(nickname)}
+      />
     </View>
   );
 };
@@ -194,6 +232,11 @@ const useStyles = makeStyles((colors) => ({
     color: colors.text,
     fontSize: fontSize.lg,
     fontWeight: '600',
+  },
+  nicknameRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space(1.5),
   },
   logout: {
     marginTop: space(4),

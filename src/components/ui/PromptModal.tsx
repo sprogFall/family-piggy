@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
 
 import { showAlert } from '@/lib/alert';
@@ -11,6 +11,8 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   title: string;
+  /** 打开弹窗时填充的初始值 */
+  initialValue?: string;
   placeholder?: string;
   submitLabel?: string;
   /** 输入长度上限（不传则不限制） */
@@ -22,6 +24,7 @@ export const PromptModal = ({
   visible,
   onClose,
   title,
+  initialValue = '',
   placeholder,
   submitLabel = '确定',
   maxLength,
@@ -29,6 +32,10 @@ export const PromptModal = ({
 }: Props) => {
   const styles = useStyles();
   const [value, setValue] = useState('');
+
+  useEffect(() => {
+    if (visible) setValue(initialValue);
+  }, [initialValue, visible]);
   const close = () => {
     setValue('');
     onClose();
