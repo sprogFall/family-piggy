@@ -102,17 +102,16 @@ export const importDrafts = async (
 
   await transactionService.createMany(
     rows.map(({ draft, categoryId }) => {
-      // 当前流水模型一笔只存一个 tag_id：多个标签全部创建/复用，流水关联第一个标签。
-      const [primaryTagName = ''] = splitTagNames(draft.tagName);
+      const tagIds = splitTagNames(draft.tagName)
+        .map((name) => tagIdByKey.get(`${categoryId}:${normalizeTagName(name)}`))
+        .filter((id): id is string => id !== undefined);
       return {
         ledgerId,
         categoryId,
         kind: draft.kind,
         amount: draft.amountCents,
         currency: draft.currency,
-        tagId: primaryTagName
-          ? (tagIdByKey.get(`${categoryId}:${normalizeTagName(primaryTagName)}`) ?? null)
-          : null,
+        tagIds,
         note: draft.note,
         attributes: { reimbursement: draft.reimbursement },
         images: [],
@@ -135,18 +134,19 @@ const ensureDraftTags = async (
   ledgerId: string,
   refs: DraftTagRef[],
 ): Promise<Map<string, string>> => {
-  const namesByCategory = new Map<string, string[]>();
+  const namesByCategory = new Map<string, Set<string>>();
   for (const ref of refs) {
-    const names = namesByCategory.get(ref.categoryId) ?? [];
+    const names = namesByCategory.get(ref.categoryId) ?? new Set<string>();
     for (const tagName of ref.tagNames) {
-      if (normalizeTagName(tagName) !== '') names.push(tagName);
+      const normalized = normalizeTagName(tagName);
+      if (normalized !== '') names.add(normalized);
     }
-    if (names.length > 0) namesByCategory.set(ref.categoryId, names);
+    if (names.size > 0) namesByCategory.set(ref.categoryId, names);
   }
 
   const idByKey = new Map<string, string>();
   for (const [categoryId, names] of namesByCategory) {
-    const tags = await tagService.ensureMany(ledgerId, categoryId, names);
+    const tags = await tagService.ensureMany(ledgerId, categoryId, [...names]);
     for (const tag of tags) idByKey.set(`${tag.categoryId}:${tag.name}`, tag.id);
   }
   return idByKey;

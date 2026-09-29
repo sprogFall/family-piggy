@@ -53,7 +53,7 @@ export const DaySection = ({
             transaction={tx}
             categoryName={category?.name ?? '未知分类'}
             iconKey={category?.icon ?? 'ellipsis-horizontal'}
-            tagName={tx.tagId ? tagNameOf(tx.tagId) : null}
+            tagNames={tx.tagIds.map(tagNameOf).filter((name) => name !== '')}
             showTime
             createdByName={creatorNameOf?.(tx) ?? null}
             onPress={() => onRowPress?.(tx)}

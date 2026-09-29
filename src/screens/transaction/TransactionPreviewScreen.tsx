@@ -49,7 +49,7 @@ export const TransactionPreviewScreen = ({ navigation, route }: Props) => {
   }
 
   const category = categories.find((item) => item.id === transaction.categoryId);
-  const tagName = transaction.tagId ? tagNameOf(transaction.tagId) : '';
+  const tagNames = transaction.tagIds.map(tagNameOf).filter((name) => name !== '');
   const creatorName = creatorLabelOf(transaction.createdBy);
   const isIncome = transaction.kind === 'income';
   const typeLabel = transaction.attributes.reimbursement ? '报销' : '未报销';
@@ -113,7 +113,12 @@ export const TransactionPreviewScreen = ({ navigation, route }: Props) => {
 
         <View style={styles.card}>
           <DetailRow label="记账类型" value={typeLabel} />
-          <DetailRow label="标签" value={tagName ? `#${tagName}` : '无'} />
+          <DetailRow
+            label="标签"
+            value={
+              tagNames.length > 0 ? tagNames.map((name) => `#${name}`).join(' ') : '无'
+            }
+          />
           <DetailRow label="备注" value={transaction.note || '无'} />
           <DetailRow label="日期" value={detailDate} />
           {creatorName ? <DetailRow label="记录人" value={creatorName} /> : null}

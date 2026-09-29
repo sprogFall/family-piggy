@@ -52,7 +52,7 @@ describe('transactionToDraft', () => {
       kind: 'expense',
       amount: 1230,
       currency: 'CNY',
-      tagId: 'g1',
+      tagIds: ['g1'],
       note: '和客户吃饭',
       attributes: { reimbursement: true },
       images: ['https://cdn/receipt.jpg'],
@@ -84,6 +84,32 @@ describe('splitTagNames', () => {
     expect(splitTagNames('午餐/晚餐')).toEqual(['午餐', '晚餐']);
     expect(splitTagNames(' 午餐 / 晚餐 /  / 午餐 ')).toEqual(['午餐', '晚餐']);
     expect(splitTagNames('午餐／晚餐')).toEqual(['午餐', '晚餐']);
+  });
+});
+
+describe('transactionToDraft 多标签', () => {
+  it('多标签按 / 拼接导出，便于再次导入时拆分', () => {
+    const tx: Transaction = {
+      id: 't1',
+      ledgerId: 'l1',
+      categoryId: 'c1',
+      kind: 'expense',
+      amount: 1230,
+      currency: 'CNY',
+      tagIds: ['g1', 'g2'],
+      note: '',
+      attributes: { reimbursement: false },
+      images: [],
+      occurredAt: new Date(2024, 4, 20, 14, 30).toISOString(),
+      createdBy: 'u1',
+    };
+    const draft = transactionToDraft(
+      tx,
+      () => '餐饮',
+      (id) => (id === 'g1' ? '午餐' : '晚餐'),
+      () => '',
+    );
+    expect(draft.tagName).toBe('午餐/晚餐');
   });
 });
 

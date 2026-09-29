@@ -11,7 +11,7 @@ const tx: Transaction = {
   kind: 'expense',
   amount: 236800,
   currency: 'CNY',
-  tagId: 'g1',
+  tagIds: ['g1'],
   note: '和客户吃饭',
   attributes: { reimbursement: true },
   images: [],

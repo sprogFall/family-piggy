@@ -68,7 +68,7 @@ export interface TransactionRow {
   /** Postgres bigint 经 supabase-js 可能返回 string */
   amount: number | string;
   currency: string;
-  tag_id: string | null;
+  tag_ids: unknown;
   note: string | null;
   /** 记账类型扩展字段（Postgres jsonb，旧行可能为 null） */
   attributes: unknown;
@@ -134,12 +134,13 @@ const toTransactionAttributes = (value: unknown): TransactionAttributes => {
   return attributes;
 };
 
-const toTransactionImages = (value: unknown): string[] =>
+const toStringArray = (value: unknown): string[] =>
   Array.isArray(value)
-    ? value
-        .filter((item): item is string => typeof item === 'string' && item !== '')
-        .slice(0, MAX_TRANSACTION_IMAGES)
+    ? value.filter((item): item is string => typeof item === 'string' && item !== '')
     : [];
+
+const toTransactionImages = (value: unknown): string[] =>
+  toStringArray(value).slice(0, MAX_TRANSACTION_IMAGES);
 
 export const toTransaction = (row: TransactionRow): Transaction => ({
   id: row.id,
@@ -148,7 +149,7 @@ export const toTransaction = (row: TransactionRow): Transaction => ({
   kind: row.kind,
   amount: Number(row.amount),
   currency: isCurrencyCode(row.currency) ? row.currency : DEFAULT_CURRENCY,
-  tagId: row.tag_id,
+  tagIds: toStringArray(row.tag_ids),
   note: row.note ?? '',
   attributes: toTransactionAttributes(row.attributes),
   images: toTransactionImages(row.images),

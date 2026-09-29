@@ -56,7 +56,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   const [amount, setAmount] = useState(
     editing ? formatCents(editing.amount, { thousands: false }) : '',
   );
-  const [tagId, setTagId] = useState<string | null>(editing?.tagId ?? null);
+  const [tagIds, setTagIds] = useState<string[]>(editing?.tagIds ?? []);
   const [note, setNote] = useState(editing?.note ?? '');
   const [reimbursement, setReimbursement] = useState(editing?.attributes.reimbursement ?? false);
   const [images, setImages] = useState<TransactionImageDraft[]>(() =>
@@ -109,13 +109,13 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
     setKind(next);
     setCategoryId(null);
     // 标签隶属于分类，切换类型后原分类与标签都不再适用
-    setTagId(null);
+    setTagIds([]);
   };
 
   const changeCategory = (nextId: string) => {
     setCategoryId(nextId);
     // 每个分类有自己的标签集合，换分类后清空已选标签
-    setTagId(null);
+    setTagIds([]);
   };
 
   const changeCurrency = (next: CurrencyCode) => {
@@ -127,7 +127,9 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   const createTag = (name: string) => {
     if (!ledger || !categoryId) return;
     void ensureTag({ ledgerId: ledger.id, categoryId, name })
-      .then((tag) => setTagId(tag.id))
+      .then((tag) =>
+        setTagIds((current) => (current.includes(tag.id) ? current : [...current, tag.id])),
+      )
       .catch((error: unknown) =>
         showAlert('标签保存失败', error instanceof Error ? error.message : '请稍后再试'),
       );
@@ -143,7 +145,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
         style: 'destructive',
         onPress: () => {
           void removeTag(tag.id, ledgerId)
-            .then(() => setTagId((current) => (current === tag.id ? null : current)))
+            .then(() => setTagIds((current) => current.filter((id) => id !== tag.id)))
             .catch((error: unknown) =>
               showAlert('删除失败', error instanceof Error ? error.message : '请稍后再试'),
             );
@@ -201,7 +203,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
         kind,
         amount: cents,
         currency,
-        tagId,
+        tagIds,
         note: note.trim(),
         // 编辑时保留数据库里预留的其它记账类型字段，只覆盖当前 UI 支持的报销
         attributes: { ...(editing?.attributes ?? {}), reimbursement },
@@ -305,8 +307,14 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
         {categoryId ? (
           <TagSelector
             tags={tags}
-            selectedId={tagId}
-            onSelect={setTagId}
+            selectedIds={tagIds}
+            onToggle={(tagId) =>
+              setTagIds((current) =>
+                current.includes(tagId)
+                  ? current.filter((id) => id !== tagId)
+                  : [...current, tagId],
+              )
+            }
             onCreate={createTag}
             onRemove={confirmRemoveTag}
           />

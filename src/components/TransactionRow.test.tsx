@@ -11,7 +11,7 @@ const tx: Transaction = {
   kind: 'expense',
   amount: 236800,
   currency: 'CNY',
-  tagId: 'g1',
+  tagIds: ['g1'],
   note: '',
   attributes: { reimbursement: false },
   images: [],
@@ -22,7 +22,7 @@ const tx: Transaction = {
 describe('TransactionRow', () => {
   it('渲染分类名与标签', () => {
     render(
-      <TransactionRow transaction={tx} categoryName="餐饮" iconKey="restaurant" tagName="和朋友聚餐" />,
+      <TransactionRow transaction={tx} categoryName="餐饮" iconKey="restaurant" tagNames={['和朋友聚餐']} />,
     );
     expect(screen.getByText('餐饮')).toBeTruthy();
     expect(screen.getByText('#和朋友聚餐')).toBeTruthy();
@@ -30,7 +30,7 @@ describe('TransactionRow', () => {
   });
 
   it('未打标签时不展示标签文案', () => {
-    render(<TransactionRow transaction={{ ...tx, tagId: null }} categoryName="餐饮" iconKey="restaurant" />);
+    render(<TransactionRow transaction={{ ...tx, tagIds: [] }} categoryName="餐饮" iconKey="restaurant" />);
     expect(screen.getByText('餐饮')).toBeTruthy();
     expect(screen.queryByText(/^#/)).toBeNull();
   });
@@ -38,15 +38,28 @@ describe('TransactionRow', () => {
   it('收入金额带 + 号，展示时间与标签', () => {
     render(
       <TransactionRow
-        transaction={{ ...tx, kind: 'income', amount: 380000, tagId: 'g2' }}
+        transaction={{ ...tx, kind: 'income', amount: 380000, tagIds: ['g2'] }}
         categoryName="工资"
         iconKey="cash"
-        tagName="月薪"
+        tagNames={['月薪']}
         showTime
       />,
     );
     expect(screen.getByText('+¥3,800.00')).toBeTruthy();
     expect(screen.getByText('14:30 · #月薪')).toBeTruthy();
+  });
+
+  it('多个标签按顺序拼在副标题中', () => {
+    render(
+      <TransactionRow
+        transaction={tx}
+        categoryName="餐饮"
+        iconKey="restaurant"
+        tagNames={['午餐', '晚餐']}
+        showTime
+      />,
+    );
+    expect(screen.getByText('14:30 · #午餐 #晚餐')).toBeTruthy();
   });
 
   it('金额按流水自身币种展示符号', () => {
@@ -66,7 +79,7 @@ describe('TransactionRow', () => {
         transaction={tx}
         categoryName="餐饮"
         iconKey="restaurant"
-        tagName="聚餐"
+        tagNames={['聚餐']}
         showTime
         createdByName="我"
       />,
@@ -85,7 +98,7 @@ describe('TransactionRow', () => {
         }}
         categoryName="餐饮"
         iconKey="restaurant"
-        tagName="聚餐"
+        tagNames={['聚餐']}
         showTime
       />,
     );

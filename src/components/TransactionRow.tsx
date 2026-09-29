@@ -12,8 +12,8 @@ interface Props {
   categoryName: string;
   /** 分类图标 key（存于 Category.icon） */
   iconKey: string;
-  /** 标签名；未打标签传 null（标签在记账时随流水记录，可复用） */
-  tagName?: string | null;
+  /** 标签名列表；未打标签传空数组（标签在记账时随流水记录，可复用） */
+  tagNames?: string[];
   showTime?: boolean;
   /** 记录人标注（家庭账本「谁记的」）；null / 未传表示不展示 */
   createdByName?: string | null;
@@ -24,7 +24,7 @@ export const TransactionRow = ({
   transaction,
   categoryName,
   iconKey,
-  tagName = null,
+  tagNames = [],
   showTime = false,
   createdByName = null,
   onPress,
@@ -33,7 +33,7 @@ export const TransactionRow = ({
   const isIncome = transaction.kind === 'income';
   const sub = [
     showTime ? timeLabelOf(transaction.occurredAt) : '',
-    tagName ? `#${tagName}` : '',
+    tagNames.map((name) => `#${name}`).join(' '),
     transaction.note,
     transaction.attributes.reimbursement ? '可报销' : '',
     createdByName ?? '',

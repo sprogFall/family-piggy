@@ -13,7 +13,7 @@ const tx = (id: string, reimbursement: boolean): Transaction => ({
   kind: 'expense',
   amount: 100,
   currency: 'CNY',
-  tagId: null,
+  tagIds: [],
   note: '',
   attributes: { reimbursement },
   images: [],

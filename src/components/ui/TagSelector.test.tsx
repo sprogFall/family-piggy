@@ -15,8 +15,8 @@ const tag = (id: string, name: string): Tag => ({
 const setup = (overrides: Partial<React.ComponentProps<typeof TagSelector>> = {}) => {
   const props = {
     tags: [tag('g1', '午饭'), tag('g2', '夜宵')],
-    selectedId: null,
-    onSelect: jest.fn(),
+    selectedIds: [],
+    onToggle: jest.fn(),
     onCreate: jest.fn(),
     onRemove: jest.fn(),
     ...overrides,
@@ -45,14 +45,16 @@ describe('TagSelector', () => {
     expect(screen.getByText('夜宵')).toBeTruthy();
   });
 
-  it('点击标签回调选中，再次点击取消选中', () => {
+  it('点击标签回调切换，支持多选选中态', () => {
     const props = setup();
     fireEvent.press(screen.getByText('午饭'));
-    expect(props.onSelect).toHaveBeenCalledWith('g1');
+    expect(props.onToggle).toHaveBeenCalledWith('g1');
 
-    const selected = setup({ selectedId: 'g1' });
+    const selected = setup({ selectedIds: ['g1', 'g2'] });
+    expect(screen.getByText('#午饭')).toBeTruthy();
+    expect(screen.getByText('#夜宵')).toBeTruthy();
     fireEvent.press(screen.getByText('#午饭'));
-    expect(selected.onSelect).toHaveBeenCalledWith(null);
+    expect(selected.onToggle).toHaveBeenCalledWith('g1');
   });
 
   it('未打开时没有输入框（输入框只在弹窗里）', () => {

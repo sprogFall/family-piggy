@@ -143,7 +143,7 @@ create table if not exists public.transactions (
   amount      bigint      not null check (amount > 0),                       -- 金额（该币种最小单位的整数，避免浮点误差）
   currency    text        not null default 'CNY'
                           check (currency in ('CNY', 'USD', 'EUR', 'JPY', 'HKD', 'GBP')), -- 币种（默认人民币）
-  tag_id      uuid        references public.tags (id) on delete set null,    -- 标签 ID（可空；标签被删除后自动置空）
+  tag_ids     uuid[]      not null default '{}',                              -- 标签 ID 数组（可多标签；标签删除时由触发器清理）
   note        text        not null default '',                               -- 本笔备注（与可复用标签分开，仅属于本笔）
   attributes  jsonb       not null default '{}'::jsonb,                      -- 记账类型扩展字段（JSONB）：当前支持 reimbursement: boolean，后续新增类型无需改表
   images      text[]      not null default '{}',                             -- 账单图片公开 URL（transaction-images 桶；每笔最多 3 张）
@@ -155,6 +155,7 @@ create table if not exists public.transactions (
 );
 
 create index if not exists idx_transactions_ledger_time on public.transactions (ledger_id, occurred_at desc);
+create index if not exists idx_transactions_tag_ids on public.transactions using gin (tag_ids);
 create index if not exists idx_categories_ledger on public.categories (ledger_id, kind, sort_order);
 create index if not exists idx_tags_ledger on public.tags (ledger_id, category_id, name);
 create index if not exists idx_family_members_user on public.family_members (user_id);
@@ -166,7 +167,7 @@ comment on column public.transactions.category_id is '分类 ID';
 comment on column public.transactions.kind        is '类型：expense=支出，income=收入';
 comment on column public.transactions.amount      is '金额（该币种最小单位的整数，避免浮点误差）';
 comment on column public.transactions.currency    is '币种（默认 CNY；金额单位为该币种的最小单位）';
-comment on column public.transactions.tag_id      is '标签 ID（可空；标签被删除后自动置空）';
+comment on column public.transactions.tag_ids     is '标签 ID 数组（一笔可关联多个标签；标签删除时由触发器清理）';
 comment on column public.transactions.note        is '本笔备注（与可复用标签分开，仅属于本笔、不可复用）';
 comment on column public.transactions.attributes  is '记账类型扩展字段（JSONB）：当前支持 reimbursement: boolean，后续新增类型无需改表';
 comment on column public.transactions.images      is '账单图片公开 URL 数组（Supabase Storage transaction-images 桶；每笔最多 3 张）';
@@ -272,6 +273,51 @@ as $$
   );
 $$;
 
+-- 校验流水标签：每个标签必须属于该流水所在账本和分类
+create or replace function public.validate_transaction_tag_ids()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.tag_ids is null then
+    new.tag_ids := '{}'::uuid[];
+  end if;
+
+  if cardinality(new.tag_ids) > 0 and exists (
+    select 1
+    from unnest(new.tag_ids) as u(tag_id)
+    where not exists (
+      select 1
+      from public.tags t
+      where t.id = u.tag_id
+        and t.ledger_id = new.ledger_id
+        and t.category_id = new.category_id
+    )
+  ) then
+    raise exception '标签不属于当前账本或分类';
+  end if;
+
+  return new;
+end;
+$$;
+
+-- 标签删除时，从所有流水的 tag_ids 数组中移除该标签
+create or replace function public.remove_tag_from_transactions()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.transactions
+  set tag_ids = array_remove(tag_ids, old.id)
+  where old.id = any(tag_ids);
+  return old;
+end;
+$$;
+
 -- 更新 updated_at 通用触发器
 create or replace function public.touch_updated_at()
 returns trigger
@@ -287,6 +333,16 @@ drop trigger if exists trg_touch_transactions on public.transactions;
 create trigger trg_touch_transactions
   before update on public.transactions
   for each row execute function public.touch_updated_at();
+
+drop trigger if exists trg_validate_transaction_tag_ids on public.transactions;
+create trigger trg_validate_transaction_tag_ids
+  before insert or update of tag_ids, ledger_id, category_id on public.transactions
+  for each row execute function public.validate_transaction_tag_ids();
+
+drop trigger if exists trg_remove_tag_from_transactions on public.tags;
+create trigger trg_remove_tag_from_transactions
+  after delete on public.tags
+  for each row execute function public.remove_tag_from_transactions();
 
 -- 为新账本播种默认分类（与 App 内 src/domain 默认分类一致）
 create or replace function public.seed_default_categories(p_ledger_id uuid)

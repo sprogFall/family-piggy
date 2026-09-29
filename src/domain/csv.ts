@@ -142,7 +142,7 @@ export const transactionToDraft = (
   occurredAt: formatDateTimeCN(tx.occurredAt),
   kind: tx.kind,
   categoryName: categoryNameOf(tx.categoryId),
-  tagName: tx.tagId ? tagNameOf(tx.tagId) : '',
+  tagName: tx.tagIds.map(tagNameOf).filter((name) => name !== '').join('/'),
   note: tx.note,
   amountCents: tx.amount,
   currency: tx.currency,

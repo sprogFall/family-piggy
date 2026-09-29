@@ -12,7 +12,7 @@ interface Props {
   transaction: Transaction;
   categoryName: string;
   iconKey: string;
-  tagName?: string | null;
+  tagNames?: string[];
   showTime?: boolean;
   createdByName?: string | null;
   onPress?: () => void;
@@ -25,7 +25,7 @@ export const SwipeableTransactionRow = ({
   transaction,
   categoryName,
   iconKey,
-  tagName = null,
+  tagNames = [],
   showTime = false,
   createdByName = null,
   onPress,
@@ -117,7 +117,7 @@ export const SwipeableTransactionRow = ({
           transaction={transaction}
           categoryName={categoryName}
           iconKey={iconKey}
-          tagName={tagName}
+          tagNames={tagNames}
           showTime={showTime}
           createdByName={createdByName}
           onPress={handleRowPress}

@@ -16,7 +16,7 @@ const tx = (partial: Partial<Transaction> & { id: string }): Transaction => ({
   kind: 'expense',
   amount: 100,
   currency: 'CNY',
-  tagId: null,
+  tagIds: [],
   note: '',
   attributes: { reimbursement: false },
   images: [],

@@ -9,11 +9,11 @@ import { PromptModal } from './PromptModal';
 
 interface Props {
   tags: Tag[];
-  selectedId: string | null;
+  selectedIds: string[];
   /** 已选分类下的标签；未选分类时不展示任何标签、也不允许新增 */
   disabled?: boolean;
-  /** 选中 / 取消选中（再点一次已选中的标签即取消） */
-  onSelect: (tagId: string | null) => void;
+  /** 选中 / 取消选中（再点一次已选中的标签即取消，支持多选） */
+  onToggle: (tagId: string) => void;
   /** 新建标签（由调用方落库并选中，下次记账可直接复用） */
   onCreate: (name: string) => void;
   /** 长按删除标签（由调用方二次确认） */
@@ -24,7 +24,7 @@ interface Props {
 const MAX_TAG_LENGTH = 8;
 
 /**
- * 记账标签选择器：展示**当前所选分类**下已有的标签（点击复用、长按删除），
+ * 记账标签选择器：展示**当前所选分类**下已有的标签（点击多选、长按删除），
  * 「新标签」通过**弹窗**输入。
  *
  * 未选分类时整块隐藏：标签隶属于分类，没有分类就没有归属，也不允许新增。
@@ -34,9 +34,9 @@ const MAX_TAG_LENGTH = 8;
  */
 export const TagSelector = ({
   tags,
-  selectedId,
+  selectedIds,
   disabled = false,
-  onSelect,
+  onToggle,
   onCreate,
   onRemove,
 }: Props) => {
@@ -51,18 +51,18 @@ export const TagSelector = ({
       <View style={styles.header}>
         <Text style={styles.label}>标签</Text>
         <Text style={styles.hint}>
-          {tags.length > 0 ? '点击复用，长按删除' : '新增后下次可直接复用'}
+          {tags.length > 0 ? '点击多选，长按删除' : '新增后下次可直接复用'}
         </Text>
       </View>
 
       <View style={styles.chips}>
         {tags.map((tag) => {
-          const selected = tag.id === selectedId;
+          const selected = selectedIds.includes(tag.id);
           return (
             <Pressable
               key={tag.id}
               style={[styles.chip, selected ? styles.chipSelected : null]}
-              onPress={() => onSelect(selected ? null : tag.id)}
+              onPress={() => onToggle(tag.id)}
               onLongPress={() => onRemove(tag)}
               delayLongPress={350}
             >
