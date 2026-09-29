@@ -1,13 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { DraggableCategoryList } from '@/components/DraggableCategoryList';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
+import {
+  isSameCategoryOrder,
+  mergeCategoryOrder,
+} from '@/domain/category-order';
 import { validateCategoryName } from '@/domain/validation';
 import { useActiveLedger, useActiveCategories } from '@/hooks/useActiveLedgerData';
 import { showAlert } from '@/lib/alert';
@@ -34,18 +38,71 @@ export const CategoryManagerScreen = ({ navigation }: Props) => {
   const colors = useColors();
   const [kind, setKind] = useState<TxKind>('expense');
   const [editing, setEditing] = useState<EditTarget | null>(null);
+  const [draftOrders, setDraftOrders] = useState<Partial<Record<TxKind, string[]>>>({});
+  const [savingOrder, setSavingOrder] = useState(false);
+  const allowLeaveRef = useRef(false);
 
   const ledger = useActiveLedger();
-  const categories = useActiveCategories().filter((category) => category.kind === kind);
+  const allCategories = useActiveCategories();
   const load = useCategoryStore((state) => state.load);
   const create = useCategoryStore((state) => state.create);
   const update = useCategoryStore((state) => state.update);
   const remove = useCategoryStore((state) => state.remove);
 
+  const serverIdsOf = useCallback(
+    (targetKind: TxKind): string[] =>
+      allCategories.filter((category) => category.kind === targetKind).map((category) => category.id),
+    [allCategories],
+  );
+
+  const categories = useMemo(() => {
+    const base = allCategories.filter((category) => category.kind === kind);
+    const draft = draftOrders[kind];
+    if (!draft) return base;
+    const byId = new Map(base.map((category) => [category.id, category]));
+    return mergeCategoryOrder(
+      base.map((category) => category.id),
+      draft,
+    )
+      .map((id) => byId.get(id))
+      .filter((category): category is Category => category !== undefined);
+  }, [allCategories, draftOrders, kind]);
+
+  const hasUnsavedOrder = useMemo(
+    () =>
+      (['expense', 'income'] as TxKind[]).some((targetKind) => {
+        const draft = draftOrders[targetKind];
+        if (!draft) return false;
+        const serverIds = serverIdsOf(targetKind);
+        return !isSameCategoryOrder(mergeCategoryOrder(serverIds, draft), serverIds);
+      }),
+    [draftOrders, serverIdsOf],
+  );
+
   useFocusEffect(
     useCallback(() => {
       if (ledger) void load(ledger.id);
     }, [ledger?.id]),
+  );
+
+  useEffect(
+    () =>
+      navigation.addListener('beforeRemove', (event) => {
+        if (!hasUnsavedOrder || allowLeaveRef.current) return;
+        event.preventDefault();
+        showAlert('提示', '分类排序还未保存，确定退出吗？', [
+          { text: '继续排序', style: 'cancel' },
+          {
+            text: '退出',
+            style: 'destructive',
+            onPress: () => {
+              allowLeaveRef.current = true;
+              navigation.dispatch(event.data.action);
+            },
+          },
+        ]);
+      }),
+    [hasUnsavedOrder, navigation],
   );
 
   const openCreate = () => {
@@ -67,7 +124,9 @@ export const CategoryManagerScreen = ({ navigation }: Props) => {
       if (editing.category) {
         await update(editing.category.id, ledger.id, { name, icon });
       } else {
-        const maxSort = categories.reduce((max, c) => Math.max(max, c.sortOrder), 0);
+        const maxSort = allCategories
+          .filter((category) => category.kind === editing.kind)
+          .reduce((max, category) => Math.max(max, category.sortOrder), 0);
         await create({
           ledgerId: ledger.id,
           name,
@@ -82,19 +141,39 @@ export const CategoryManagerScreen = ({ navigation }: Props) => {
     }
   };
 
-  const handleReorder = async (nextCategories: Category[]) => {
-    if (!ledger) return;
+  const handleReorder = (nextCategories: Category[]) => {
+    setDraftOrders((current) => ({
+      ...current,
+      [kind]: nextCategories.map((category) => category.id),
+    }));
+  };
+
+  const handleSaveOrder = async () => {
+    if (!ledger || savingOrder) return;
+    setSavingOrder(true);
     try {
-      for (let index = 0; index < nextCategories.length; index++) {
-        const category = nextCategories[index];
-        const sortOrder = index + 1;
-        if (category.sortOrder !== sortOrder) {
-          await update(category.id, ledger.id, { sortOrder });
+      for (const targetKind of ['expense', 'income'] as TxKind[]) {
+        const draft = draftOrders[targetKind];
+        if (!draft) continue;
+        const serverIds = serverIdsOf(targetKind);
+        const nextIds = mergeCategoryOrder(serverIds, draft);
+        if (isSameCategoryOrder(nextIds, serverIds)) continue;
+
+        for (let index = 0; index < nextIds.length; index++) {
+          const sortOrder = index + 1;
+          const category = allCategories.find((item) => item.id === nextIds[index]);
+          if (category && category.sortOrder !== sortOrder) {
+            await update(category.id, ledger.id, { sortOrder });
+          }
         }
       }
+      setDraftOrders({});
     } catch (error) {
       showAlert('排序保存失败', error instanceof Error ? error.message : '请稍后再试');
-      void load(ledger.id);
+      await load(ledger.id).catch(() => undefined);
+      setDraftOrders({});
+    } finally {
+      setSavingOrder(false);
     }
   };
 
@@ -129,11 +208,18 @@ export const CategoryManagerScreen = ({ navigation }: Props) => {
         <DraggableCategoryList
           categories={categories}
           onPress={(category) => setEditing({ category, kind: category.kind })}
-          onReorder={(next) => void handleReorder(next)}
+          onReorder={handleReorder}
         />
       </ScrollView>
 
       <View style={styles.footer}>
+        {hasUnsavedOrder ? (
+          <PrimaryButton
+            title="保存排序"
+            onPress={() => void handleSaveOrder()}
+            loading={savingOrder}
+          />
+        ) : null}
         <PrimaryButton title="＋ 新增分类" onPress={openCreate} />
       </View>
 
@@ -226,6 +312,7 @@ const useStyles = makeStyles((colors) => ({
     fontSize: fontSize.md,
   },
   footer: {
+    gap: space(2),
     padding: space(4),
   },
   header: {

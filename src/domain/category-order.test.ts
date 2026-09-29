@@ -1,4 +1,8 @@
-import { moveItem } from './category-order';
+import {
+  isSameCategoryOrder,
+  mergeCategoryOrder,
+  moveItem,
+} from './category-order';
 
 describe('moveItem', () => {
   it('将元素移动到目标位置', () => {
@@ -11,5 +15,20 @@ describe('moveItem', () => {
     expect(moveItem(source, 1, 1)).toEqual(source);
     expect(moveItem(source, -1, 1)).toEqual(source);
     expect(moveItem(source, 5, 0)).toEqual(source);
+  });
+});
+
+describe('mergeCategoryOrder', () => {
+  it('保留草稿顺序，忽略已删除分类，把新增分类排到末尾', () => {
+    expect(mergeCategoryOrder(['a', 'b', 'c'], ['b', 'a'])).toEqual(['b', 'a', 'c']);
+    expect(mergeCategoryOrder(['a', 'b', 'c'], ['c', 'x', 'a'])).toEqual(['c', 'a', 'b']);
+  });
+});
+
+describe('isSameCategoryOrder', () => {
+  it('顺序完全一致返回 true，否则 false', () => {
+    expect(isSameCategoryOrder(['a', 'b'], ['a', 'b'])).toBe(true);
+    expect(isSameCategoryOrder(['a', 'b'], ['b', 'a'])).toBe(false);
+    expect(isSameCategoryOrder(['a'], ['a', 'b'])).toBe(false);
   });
 });
