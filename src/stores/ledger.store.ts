@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 
 import { ledgerService } from '@/services/ledger.service';
@@ -32,6 +33,23 @@ const currentUserId = (): string => {
   return userId;
 };
 
+/** 记名持久化 key：不同账号在同一设备上各自记住上次打开的账本 */
+export const activeLedgerStorageKey = (userId: string): string => `ledger:active:${userId}`;
+
+const readStoredActiveLedgerId = async (userId: string | undefined): Promise<string | null> => {
+  if (!userId) return null;
+  try {
+    return await AsyncStorage.getItem(activeLedgerStorageKey(userId));
+  } catch {
+    return null;
+  }
+};
+
+const persistActiveLedgerId = (userId: string | undefined, ledgerId: string): void => {
+  if (!userId) return;
+  void AsyncStorage.setItem(activeLedgerStorageKey(userId), ledgerId).catch(() => undefined);
+};
+
 export const useLedgerStore = create<LedgerState>((set, get) => ({
   status: 'idle',
   ledgers: [],
@@ -42,13 +60,16 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
   load: async () => {
     set({ status: 'loading' });
     try {
-      const [ledgers, families] = await Promise.all([
+      const userId = useAuthStore.getState().session?.user.id;
+      const [ledgers, families, storedActiveLedgerId] = await Promise.all([
         ledgerService.listLedgers(),
         familyService.listMyFamilies(),
+        readStoredActiveLedgerId(userId),
       ]);
+      const preferredLedgerId = get().activeLedgerId ?? storedActiveLedgerId;
       const activeLedgerId =
-        get().activeLedgerId && ledgers.some((l) => l.id === get().activeLedgerId)
-          ? get().activeLedgerId
+        preferredLedgerId && ledgers.some((l) => l.id === preferredLedgerId)
+          ? preferredLedgerId
           : (ledgers[0]?.id ?? null);
       set({ ledgers, families, activeLedgerId, status: 'ready' });
     } catch {
@@ -57,7 +78,10 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
     }
   },
 
-  setActive: (id) => set({ activeLedgerId: id }),
+  setActive: (id) => {
+    set({ activeLedgerId: id });
+    persistActiveLedgerId(useAuthStore.getState().session?.user.id, id);
+  },
 
   setBudget: async (ledgerId, monthlyBudget) => {
     await ledgerService.updateBudget(ledgerId, monthlyBudget);
@@ -79,19 +103,19 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
     await get().load();
     // 新建账本无法用 INSERT ... RETURNING 取回（见 ledger.service），故按新增的 ID 切换
     const created = get().ledgers.find((ledger) => !before.has(ledger.id));
-    if (created) set({ activeLedgerId: created.id });
+    if (created) get().setActive(created.id);
   },
 
   createFamily: async (name) => {
     const { ledgerId } = await familyService.createFamily(name, currentUserId());
     await get().load();
-    if (ledgerId) set({ activeLedgerId: ledgerId });
+    if (ledgerId) get().setActive(ledgerId);
   },
 
   joinFamily: async (code) => {
     const { ledgerId } = await familyService.joinFamily(code);
     await get().load();
-    if (ledgerId) set({ activeLedgerId: ledgerId });
+    if (ledgerId) get().setActive(ledgerId);
   },
 
   loadMembers: async (familyId) => {

@@ -19,12 +19,19 @@ jest.mock('@/services/family.service', () => ({
   },
 }));
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { familyService } from '@/services/family.service';
 import { ledgerService } from '@/services/ledger.service';
 import { useAuthStore } from '@/stores/auth.store';
 import type { Ledger } from '@/types/domain';
 
-import { selectActiveLedger, selectMembers, useLedgerStore } from './ledger.store';
+import {
+  activeLedgerStorageKey,
+  selectActiveLedger,
+  selectMembers,
+  useLedgerStore,
+} from './ledger.store';
 
 const ledgerMock = ledgerService as jest.Mocked<typeof ledgerService>;
 const familyMock = familyService as jest.Mocked<typeof familyService>;
@@ -41,8 +48,9 @@ const ledger = (id: string, overrides: Partial<Ledger> = {}): Ledger => ({
 });
 
 describe('useLedgerStore', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
+    await AsyncStorage.clear();
     useAuthStore.setState({ status: 'signedIn', session: { user: { id: 'u1' } } as never, profile: null });
     useLedgerStore.setState({
       status: 'idle',
@@ -61,6 +69,32 @@ describe('useLedgerStore', () => {
 
     expect(useLedgerStore.getState().status).toBe('ready');
     expect(useLedgerStore.getState().activeLedgerId).toBe('l1');
+  });
+
+  it('load 读取持久化的上次选中账本', async () => {
+    await AsyncStorage.setItem(activeLedgerStorageKey('u1'), 'l2');
+    ledgerMock.listLedgers.mockResolvedValue([ledger('l1'), ledger('l2')]);
+    familyMock.listMyFamilies.mockResolvedValue([]);
+
+    await useLedgerStore.getState().load();
+
+    expect(useLedgerStore.getState().activeLedgerId).toBe('l2');
+  });
+
+  it('load 忽略已不存在的持久化账本并回落第一个', async () => {
+    await AsyncStorage.setItem(activeLedgerStorageKey('u1'), 'missing');
+    ledgerMock.listLedgers.mockResolvedValue([ledger('l1'), ledger('l2')]);
+    familyMock.listMyFamilies.mockResolvedValue([]);
+
+    await useLedgerStore.getState().load();
+
+    expect(useLedgerStore.getState().activeLedgerId).toBe('l1');
+  });
+
+  it('setActive 持久化当前账号的选择', async () => {
+    useLedgerStore.getState().setActive('l2');
+
+    expect(await AsyncStorage.getItem(activeLedgerStorageKey('u1'))).toBe('l2');
   });
 
   it('load 保留已选中的账本', async () => {
