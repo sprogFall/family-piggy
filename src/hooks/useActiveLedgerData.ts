@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
+
+import { useFocusEffect } from '@react-navigation/native';
 
 import { creatorLabel } from '@/domain/attribution';
 import type { MonthRef } from '@/domain/dates';
@@ -55,10 +57,13 @@ export const useActiveFamilyMembers = (): FamilyMember[] => {
   const members = useLedgerStore((state) => selectMembers(state, familyId ?? ''));
   const loadMembers = useLedgerStore((state) => state.loadMembers);
 
-  useEffect(() => {
-    if (!familyId) return;
-    void loadMembers(familyId).catch(() => undefined);
-  }, [familyId, loadMembers]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!familyId) return undefined;
+      void loadMembers(familyId).catch(() => undefined);
+      return undefined;
+    }, [familyId, loadMembers]),
+  );
 
   return members;
 };
@@ -79,8 +84,8 @@ export const useCreatorLabel = (): ((createdBy: string) => string | null) => {
     (createdBy: string) => {
       if (!isFamily) return null;
       const memberNickname = members.find((member) => member.userId === createdBy)?.nickname;
-      const fallbackNickname = createdBy === viewerId ? profileNickname : null;
-      return creatorLabel(createdBy, memberNickname ?? fallbackNickname);
+      const selfNickname = createdBy === viewerId ? profileNickname : null;
+      return creatorLabel(createdBy, selfNickname ?? memberNickname);
     },
     [isFamily, members, profileNickname, viewerId],
   );
