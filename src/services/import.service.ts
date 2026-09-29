@@ -33,11 +33,29 @@ export const parseXlsxBase64 = (base64: string): ImportParseResult => {
   return { drafts, errors, total: stringRows.length };
 };
 
+export interface ImportDraftsOptions {
+  /** 没有记录人或映射不到时的兜底记录人（通常为当前登录用户） */
+  defaultCreatedBy: string;
+  /** 来源账单里的记录人名称 -> App 用户 ID */
+  recorderUserIds?: Record<string, string>;
+}
+
+/** 将来源记录人解析为 App 用户 ID；空记录人或未映射时回退到默认记录人 */
+export const resolveCreatedBy = (
+  recorderName: string,
+  options: ImportDraftsOptions,
+): string => {
+  const key = recorderName.trim();
+  if (key === '') return options.defaultCreatedBy;
+  const mapped = options.recorderUserIds?.[key];
+  return mapped ? mapped : options.defaultCreatedBy;
+};
+
 /** 导入草稿：缺失分类自动创建，标签按「账本 + 分类 + 名称」复用，批量写入流水，返回导入条数 */
 export const importDrafts = async (
   ledgerId: string,
   drafts: CsvDraft[],
-  userId: string,
+  options: ImportDraftsOptions,
 ): Promise<number> => {
   if (drafts.length === 0) return 0;
 
@@ -91,7 +109,7 @@ export const importDrafts = async (
       attributes: { reimbursement: draft.reimbursement },
       images: [],
       occurredAt: draft.occurredAt,
-      createdBy: userId,
+      createdBy: resolveCreatedBy(draft.recorderName, options),
     })),
   );
   return drafts.length;

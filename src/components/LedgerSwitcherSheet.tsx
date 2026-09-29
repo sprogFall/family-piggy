@@ -13,14 +13,22 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   onSelect: (ledger: Ledger) => void;
-  onCreatePersonal: () => void;
-  onManageFamilies: () => void;
+  title?: string;
+  /** 未传时高亮当前全局账本；导入等场景可高亮本次选中的目标账本 */
+  selectedId?: string;
+  /** 是否展示底部「新建个人账本 / 家庭管理」操作 */
+  showActions?: boolean;
+  onCreatePersonal?: () => void;
+  onManageFamilies?: () => void;
 }
 
 export const LedgerSwitcherSheet = ({
   visible,
   onClose,
   onSelect,
+  title = '切换账本',
+  selectedId,
+  showActions = true,
   onCreatePersonal,
   onManageFamilies,
 }: Props) => {
@@ -28,11 +36,12 @@ export const LedgerSwitcherSheet = ({
   const colors = useColors();
   const ledgers = useLedgerStore((state) => state.ledgers);
   const activeLedgerId = useLedgerStore((state) => state.activeLedgerId);
+  const highlightedId = selectedId ?? activeLedgerId;
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} title="切换账本">
+    <BottomSheet visible={visible} onClose={onClose} title={title}>
       {ledgers.map((ledger) => {
-        const active = ledger.id === activeLedgerId;
+        const active = ledger.id === highlightedId;
         return (
           <Pressable
             key={ledger.id}
@@ -54,12 +63,16 @@ export const LedgerSwitcherSheet = ({
         );
       })}
 
-      <View style={styles.footer}>
-        <PrimaryButton title="＋ 新建个人账本" onPress={onCreatePersonal} />
-        <Pressable style={styles.manage} onPress={onManageFamilies}>
-          <Text style={styles.manageText}>家庭管理（创建 / 加入）</Text>
-        </Pressable>
-      </View>
+      {showActions ? (
+        <View style={styles.footer}>
+          {onCreatePersonal ? <PrimaryButton title="＋ 新建个人账本" onPress={onCreatePersonal} /> : null}
+          {onManageFamilies ? (
+            <Pressable style={styles.manage} onPress={onManageFamilies}>
+              <Text style={styles.manageText}>家庭管理（创建 / 加入）</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
     </BottomSheet>
   );
 };

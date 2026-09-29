@@ -21,10 +21,11 @@ export const buildExportAoa = (drafts: CsvDraft[]): (string | number)[][] => [
     draft.occurredAt,
     draft.kind === 'expense' ? '支出' : '收入',
     draft.categoryName,
-    formatCents(draft.amountCents, { thousands: false }),
     draft.tagName,
-    draft.currency,
     draft.note,
+    formatCents(draft.amountCents, { thousands: false }),
+    draft.currency,
+    draft.recorderName,
     draft.reimbursement ? '是' : '否',
   ]),
 ];
@@ -40,10 +41,11 @@ export const exportTransactions = async (
   transactions: Transaction[],
   categoryNameOf: (categoryId: string) => string,
   tagNameOf: (tagId: string) => string,
+  recorderNameOf: (createdBy: string) => string,
   options: ExportOptions,
 ): Promise<string> => {
   const drafts = transactions
-    .map((tx) => transactionToDraft(tx, categoryNameOf, tagNameOf))
+    .map((tx) => transactionToDraft(tx, categoryNameOf, tagNameOf, recorderNameOf))
     .sort((a, b) => (a.occurredAt < b.occurredAt ? -1 : 1));
 
   const base = `记账-${options.ledgerName}-${monthKey(options.month)}`;

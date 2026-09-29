@@ -8,9 +8,15 @@ import { AppHeader } from '@/components/ui/AppHeader';
 import { MonthPickerSheet } from '@/components/ui/MonthPickerSheet';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { currentMonth, monthKey, monthLabel, type MonthRef } from '@/domain/dates';
-import { useActiveLedger, useCategoryOf, useTagNameOf } from '@/hooks/useActiveLedgerData';
+import {
+  useActiveFamilyMembers,
+  useActiveLedger,
+  useCategoryOf,
+  useTagNameOf,
+} from '@/hooks/useActiveLedgerData';
 import { showAlert } from '@/lib/alert';
 import type { RootStackParamList } from '@/navigation/types';
+import { useAuthStore } from '@/stores/auth.store';
 import { useTagStore } from '@/stores/tag.store';
 import { selectMonthTransactions, useTransactionStore } from '@/stores/transaction.store';
 import { makeStyles, useColors, fontSize, radius, space } from '@/theme';
@@ -32,6 +38,9 @@ export const ExportScreen = ({ navigation }: Props) => {
   const ledger = useActiveLedger();
   const categoryOf = useCategoryOf();
   const tagNameOf = useTagNameOf();
+  const familyMembers = useActiveFamilyMembers();
+  const profile = useAuthStore((state) => state.profile);
+  const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
   const loadTags = useTagStore((state) => state.load);
   const transactions = useTransactionStore((state) =>
     selectMonthTransactions(state, ledger?.id, month),
@@ -47,6 +56,17 @@ export const ExportScreen = ({ navigation }: Props) => {
     }, [ledger?.id, monthKey(month)]),
   );
 
+  const recorderNameOf = useCallback(
+    (createdBy: string): string => {
+      if (ledger?.type !== 'family') return '';
+      const member = familyMembers.find((item) => item.userId === createdBy);
+      if (member) return member.nickname;
+      if (createdBy === sessionUserId) return profile?.nickname ?? '我';
+      return '未知成员';
+    },
+    [ledger?.type, familyMembers, profile?.nickname, sessionUserId],
+  );
+
   const handleExport = async () => {
     if (!ledger) {
       showAlert('提示', '请先选择账本');
@@ -58,6 +78,7 @@ export const ExportScreen = ({ navigation }: Props) => {
         transactions,
         (id) => categoryOf(id)?.name ?? '未知分类',
         (id) => tagNameOf(id),
+        recorderNameOf,
         { ledgerName: ledger.name, month, format },
       );
       showAlert('导出成功', '文件已生成，可在系统分享面板中选择保存位置');

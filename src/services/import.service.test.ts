@@ -18,7 +18,7 @@ import { tagService } from '@/services/tag.service';
 import { transactionService } from '@/services/transaction.service';
 import { createQueryChain } from '@/test/supabase-mock';
 
-import { importDrafts, parseCsvContent } from './import.service';
+import { importDrafts, parseCsvContent, resolveCreatedBy } from './import.service';
 
 const fromMock = supabase.from as unknown as jest.Mock;
 const categoryMock = categoryService as jest.Mocked<typeof categoryService>;
@@ -29,18 +29,19 @@ const draft = (partial: Partial<CsvDraft>): CsvDraft => ({
   occurredAt: '2024-05-20T04:00:00.000Z',
   kind: 'expense',
   categoryName: '餐饮',
-  amountCents: 1230,
   tagName: '',
-  currency: 'CNY',
   note: '',
+  amountCents: 1230,
+  currency: 'CNY',
+  recorderName: '',
   reimbursement: false,
   ...partial,
 });
 
 describe('parseCsvContent', () => {
-  it('解析合法 CSV（含标签列）', () => {
+  it('解析合法 CSV（含标签、币种与记录人列）', () => {
     const result = parseCsvContent(
-      '\uFEFF日期,类型,分类,金额(元),标签,币种\r\n2024-05-20 14:30,支出,餐饮,12.30,午饭,USD\r\n',
+      '\uFEFF日期,类型,分类,标签,备注,金额,币种,记录人\r\n2024-05-20 14:30,支出,餐饮,午饭,好吃,12.30,USD,小明\r\n',
     );
     expect(result.total).toBe(2);
     expect(result.errors).toEqual([]);
@@ -48,16 +49,27 @@ describe('parseCsvContent', () => {
     expect(result.drafts[0]).toMatchObject({
       kind: 'expense',
       categoryName: '餐饮',
-      amountCents: 1230,
       tagName: '午饭',
+      note: '好吃',
+      amountCents: 1230,
       currency: 'USD',
+      recorderName: '小明',
     });
   });
 
   it('错误行被收集', () => {
-    const result = parseCsvContent('2024-05-20,支出,餐饮,abc,x');
+    const result = parseCsvContent('2024-05-20,支出,餐饮,标签,备注,abc');
     expect(result.drafts).toHaveLength(0);
     expect(result.errors[0].line).toBe(1);
+  });
+});
+
+describe('resolveCreatedBy', () => {
+  it('空记录人或未映射时回退默认记录人，有映射时使用目标用户', () => {
+    const options = { defaultCreatedBy: 'u1', recorderUserIds: { 小明: 'u2' } };
+    expect(resolveCreatedBy('', options)).toBe('u1');
+    expect(resolveCreatedBy('小红', options)).toBe('u1');
+    expect(resolveCreatedBy('小明', options)).toBe('u2');
   });
 });
 
@@ -103,7 +115,7 @@ describe('importDrafts', () => {
     const count = await importDrafts(
       'l1',
       [draft({ tagName: '午饭' }), draft({ tagName: '午饭', kind: 'income', categoryName: '工资' })],
-      'u1',
+      { defaultCreatedBy: 'u1' },
     );
 
     expect(count).toBe(2);
@@ -119,21 +131,42 @@ describe('importDrafts', () => {
         note: '',
         attributes: { reimbursement: false },
         images: [],
+        createdBy: 'u1',
       }),
       expect.objectContaining({ tagId: 'c-created-g0', categoryId: 'c-created' }),
     ]);
   });
 
+  it('按记录人映射到目标用户，未映射或空记录人回退到默认用户', async () => {
+    await importDrafts(
+      'l1',
+      [
+        draft({ recorderName: '小明' }),
+        draft({ recorderName: '小红', tagName: '' }),
+        draft({ recorderName: '' }),
+      ],
+      { defaultCreatedBy: 'u1', recorderUserIds: { 小明: 'u2' } },
+    );
+
+    expect(txMock.createMany).toHaveBeenCalledWith([
+      expect.objectContaining({ createdBy: 'u2' }),
+      expect.objectContaining({ createdBy: 'u1' }),
+      expect.objectContaining({ createdBy: 'u1' }),
+    ]);
+  });
+
   it('无标签的流水不请求标签且 tag_id 为 null；空草稿不写库', async () => {
-    await importDrafts('l1', [draft({ tagName: '  ' })], 'u1');
+    await importDrafts('l1', [draft({ tagName: '  ' })], { defaultCreatedBy: 'u1' });
 
     expect(tagMock.ensureMany).not.toHaveBeenCalled();
     expect(txMock.createMany).toHaveBeenCalledWith([expect.objectContaining({ tagId: null })]);
-    expect(await importDrafts('l1', [], 'u1')).toBe(0);
+    expect(await importDrafts('l1', [], { defaultCreatedBy: 'u1' })).toBe(0);
   });
 
   it('导入时带上每行的币种', async () => {
-    await importDrafts('l1', [draft({ tagName: '', currency: 'USD' })], 'u1');
+    await importDrafts('l1', [draft({ tagName: '', currency: 'USD' })], {
+      defaultCreatedBy: 'u1',
+    });
 
     expect(txMock.createMany).toHaveBeenCalledWith([
       expect.objectContaining({ currency: 'USD' }),

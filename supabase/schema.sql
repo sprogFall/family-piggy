@@ -247,6 +247,31 @@ as $$
   );
 $$;
 
+-- 当前用户能否以目标用户身份为某账本记账：本人，或家庭账本中同家庭的成员
+create or replace function public.can_record_as_user(p_ledger_id uuid, p_user_id uuid)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.ledgers l
+    where l.id = p_ledger_id
+      and (
+        p_user_id = auth.uid()
+        or (
+          l.family_id is not null
+          and exists (
+            select 1 from public.family_members m
+            where m.family_id = l.family_id and m.user_id = p_user_id
+          )
+        )
+      )
+  );
+$$;
+
 -- 更新 updated_at 通用触发器
 create or replace function public.touch_updated_at()
 returns trigger
@@ -498,8 +523,12 @@ create policy transactions_select on public.transactions for select
   using (public.can_access_ledger(ledger_id));
 
 drop policy if exists transactions_insert on public.transactions;
+-- 新增：家庭账本允许把导入记录映射到同一家庭的成员名下；个人账本仍只能记在当前用户名下。
 create policy transactions_insert on public.transactions for insert
-  with check (created_by = auth.uid() and public.can_access_ledger(ledger_id));
+  with check (
+    public.can_access_ledger(ledger_id)
+    and public.can_record_as_user(ledger_id, created_by)
+  );
 
 drop policy if exists transactions_update on public.transactions;
 create policy transactions_update on public.transactions for update
