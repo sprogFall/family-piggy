@@ -1,6 +1,7 @@
 /** Supabase 行类型 -> 领域类型映射 */
 
 import { DEFAULT_CURRENCY, isCurrencyCode } from '@/domain/currency';
+import { MAX_TRANSACTION_IMAGES } from '@/domain/transaction-images';
 import type {
   Category,
   Family,
@@ -8,6 +9,7 @@ import type {
   Profile,
   Tag,
   Transaction,
+  TransactionAttributes,
 } from './domain';
 
 export interface ProfileRow {
@@ -67,6 +69,11 @@ export interface TransactionRow {
   amount: number | string;
   currency: string;
   tag_id: string | null;
+  note: string | null;
+  /** 记账类型扩展字段（Postgres jsonb，旧行可能为 null） */
+  attributes: unknown;
+  /** 账单图片公开 URL 数组（Postgres text[]，旧行可能为 null） */
+  images: unknown;
   occurred_at: string;
   created_by: string;
 }
@@ -112,6 +119,28 @@ export const toTag = (row: TagRow): Tag => ({
   createdAt: row.created_at,
 });
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const toTransactionAttributes = (value: unknown): TransactionAttributes => {
+  const source = isRecord(value) ? value : {};
+  const attributes: TransactionAttributes = {
+    reimbursement: source.reimbursement === true,
+  };
+  // 预留扩展：未知的布尔字段原样透传，后续新增记账类型无需改表
+  for (const [key, item] of Object.entries(source)) {
+    if (key !== 'reimbursement' && typeof item === 'boolean') attributes[key] = item;
+  }
+  return attributes;
+};
+
+const toTransactionImages = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value
+        .filter((item): item is string => typeof item === 'string' && item !== '')
+        .slice(0, MAX_TRANSACTION_IMAGES)
+    : [];
+
 export const toTransaction = (row: TransactionRow): Transaction => ({
   id: row.id,
   ledgerId: row.ledger_id,
@@ -120,6 +149,9 @@ export const toTransaction = (row: TransactionRow): Transaction => ({
   amount: Number(row.amount),
   currency: isCurrencyCode(row.currency) ? row.currency : DEFAULT_CURRENCY,
   tagId: row.tag_id,
+  note: row.note ?? '',
+  attributes: toTransactionAttributes(row.attributes),
+  images: toTransactionImages(row.images),
   occurredAt: row.occurred_at,
   createdBy: row.created_by,
 });

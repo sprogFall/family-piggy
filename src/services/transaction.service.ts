@@ -28,6 +28,9 @@ export const transactionService = {
         amount: input.amount,
         currency: input.currency,
         tag_id: input.tagId,
+        note: input.note,
+        attributes: input.attributes,
+        images: input.images,
         occurred_at: input.occurredAt,
         created_by: createdBy,
       })
@@ -47,6 +50,9 @@ export const transactionService = {
       amount: input.amount,
       currency: input.currency,
       tag_id: input.tagId,
+      note: input.note,
+      attributes: input.attributes,
+      images: input.images,
       occurred_at: input.occurredAt,
       created_by: input.createdBy,
     }));
@@ -61,6 +67,9 @@ export const transactionService = {
     if (patch.amount !== undefined) row.amount = patch.amount;
     if (patch.currency !== undefined) row.currency = patch.currency;
     if (patch.tagId !== undefined) row.tag_id = patch.tagId;
+    if (patch.note !== undefined) row.note = patch.note;
+    if (patch.attributes !== undefined) row.attributes = patch.attributes;
+    if (patch.images !== undefined) row.images = patch.images;
     if (patch.occurredAt !== undefined) row.occurred_at = patch.occurredAt;
     const { error } = await supabase.from('transactions').update(row).eq('id', id);
     if (error) throw new Error('修改账单失败');

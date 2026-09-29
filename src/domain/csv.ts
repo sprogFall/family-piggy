@@ -10,10 +10,10 @@ import { parseDateTimeCN } from './dates';
 
 export const CSV_BOM = '\uFEFF';
 /**
- * 币种固定放在**最后一列**：旧版本导出的 5 列文件仍可导入（缺省按 CNY），
- * 列顺序变化只影响新增列，不会让老文件错位。
+ * 前 5 列保持稳定，后面依次追加新增列：旧版本导出的 5 列文件仍可导入
+ * （缺省按 CNY、备注为空、不报销），列顺序变化只影响新增列，不会让老文件错位。
  */
-export const CSV_HEADERS = ['日期', '类型', '分类', '金额', '标签', '币种'] as const;
+export const CSV_HEADERS = ['日期', '类型', '分类', '金额', '标签', '币种', '备注', '报销'] as const;
 
 export const KIND_BY_LABEL: Record<string, TxKind> = {
   支出: 'expense',
@@ -27,6 +27,8 @@ export interface CsvDraft {
   amountCents: number;
   tagName: string;
   currency: CurrencyCode;
+  note: string;
+  reimbursement: boolean;
 }
 
 const escapeCell = (value: string): string =>
@@ -40,10 +42,12 @@ export const draftsToCsv = (drafts: CsvDraft[]): string => {
       [
         draft.occurredAt,
         draft.kind === 'expense' ? '支出' : '收入',
-        draft.categoryName,
+        escapeCell(draft.categoryName),
         formatCents(draft.amountCents, { thousands: false }),
         escapeCell(draft.tagName),
         draft.currency,
+        escapeCell(draft.note),
+        draft.reimbursement ? '是' : '否',
       ].join(','),
     );
   }
@@ -61,6 +65,8 @@ export const transactionToDraft = (
   amountCents: tx.amount,
   tagName: tx.tagId ? tagNameOf(tx.tagId) : '',
   currency: tx.currency,
+  note: tx.note,
+  reimbursement: tx.attributes.reimbursement,
 });
 
 const formatDateTimeCN = (iso: string): string => {
@@ -148,6 +154,8 @@ export const csvToDrafts = (rows: string[][]): CsvParseResult => {
       amountCell = '',
       tagCell = '',
       currencyCell = '',
+      noteCell = '',
+      reimbursementCell = '',
     ] = row;
 
     const date = parseDateTimeCN(dateCell);
@@ -176,6 +184,11 @@ export const csvToDrafts = (rows: string[][]): CsvParseResult => {
       errors.push({ line: lineNo, message: `币种无效：${currencyCell}` });
       return;
     }
+    const reimbursementRaw = reimbursementCell.trim();
+    if (reimbursementRaw !== '' && reimbursementRaw !== '是' && reimbursementRaw !== '否') {
+      errors.push({ line: lineNo, message: `报销只能填 是/否：${reimbursementCell}` });
+      return;
+    }
 
     drafts.push({
       occurredAt: date.toISOString(),
@@ -184,6 +197,8 @@ export const csvToDrafts = (rows: string[][]): CsvParseResult => {
       amountCents,
       tagName: tagCell.trim(),
       currency: currencyRaw === '' ? DEFAULT_CURRENCY : currencyRaw,
+      note: noteCell.trim(),
+      reimbursement: reimbursementRaw === '是',
     });
   });
 

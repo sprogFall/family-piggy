@@ -1,7 +1,8 @@
-import { Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { timeLabelOf } from '@/domain/dates';
+import { MAX_TRANSACTION_IMAGES } from '@/domain/transaction-images';
 import { formatMoney } from '@/domain/money';
 import type { Transaction } from '@/types/domain';
 import { makeStyles, fontSize, space } from '@/theme';
@@ -33,6 +34,8 @@ export const TransactionRow = ({
   const sub = [
     showTime ? timeLabelOf(transaction.occurredAt) : '',
     tagName ? `#${tagName}` : '',
+    transaction.note,
+    transaction.attributes.reimbursement ? '可报销' : '',
     createdByName ?? '',
   ]
     .filter((part) => part !== '')
@@ -47,6 +50,18 @@ export const TransactionRow = ({
         <Text style={styles.sub} numberOfLines={1}>
           {sub}
         </Text>
+        {transaction.images.length > 0 ? (
+          <View style={styles.images}>
+            {transaction.images.slice(0, MAX_TRANSACTION_IMAGES).map((uri, index) => (
+              <Image
+                key={uri}
+                accessibilityLabel={`账单图片 ${index + 1}`}
+                source={{ uri }}
+                style={styles.thumb}
+              />
+            ))}
+          </View>
+        ) : null}
       </View>
       <Text style={[styles.amount, isIncome ? styles.income : null]}>
         {formatMoney(transaction.amount, transaction.currency, { signed: isIncome })}
@@ -65,6 +80,11 @@ const useStyles = makeStyles((colors) => ({
     flex: 1,
     marginHorizontal: space(3),
   },
+  images: {
+    flexDirection: 'row',
+    gap: space(1),
+    marginTop: space(1),
+  },
   income: {
     color: colors.income,
   },
@@ -81,5 +101,10 @@ const useStyles = makeStyles((colors) => ({
     color: colors.textSecondary,
     fontSize: fontSize.sm,
     marginTop: 2,
+  },
+  thumb: {
+    borderRadius: 4,
+    height: 28,
+    width: 28,
   },
 }));

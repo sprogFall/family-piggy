@@ -32,6 +32,9 @@ const tx = (id: string, day: number, overrides: Partial<Transaction> = {}): Tran
   amount: 100,
   currency: 'CNY',
   tagId: null,
+  note: '',
+  attributes: { reimbursement: false },
+  images: [],
   occurredAt: new Date(2024, 4, day, 10, 0).toISOString(),
   createdBy: 'u1',
   ...overrides,
@@ -72,6 +75,9 @@ describe('useTransactionStore', () => {
       amount: 500,
       currency: 'USD',
       tagId: null,
+      note: '',
+      attributes: { reimbursement: false },
+      images: [],
       occurredAt: new Date(2024, 4, 21, 10, 0).toISOString(),
     });
     expect(created.id).toBe('t2');

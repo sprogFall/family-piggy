@@ -144,34 +144,15 @@ create table if not exists public.transactions (
   currency    text        not null default 'CNY'
                           check (currency in ('CNY', 'USD', 'EUR', 'JPY', 'HKD', 'GBP')), -- 币种（默认人民币）
   tag_id      uuid        references public.tags (id) on delete set null,    -- 标签 ID（可空；标签被删除后自动置空）
+  note        text        not null default '',                               -- 本笔备注（与可复用标签分开，仅属于本笔）
+  attributes  jsonb       not null default '{}'::jsonb,                      -- 记账类型扩展字段（JSONB）：当前支持 reimbursement: boolean，后续新增类型无需改表
+  images      text[]      not null default '{}',                             -- 账单图片公开 URL（transaction-images 桶；每笔最多 3 张）
   occurred_at timestamptz not null default now(),                            -- 发生时间
   created_by  uuid        not null references auth.users (id),               -- 记录人用户 ID（家庭账本中可区分谁记的）
   created_at  timestamptz not null default now(),                            -- 创建时间
-  updated_at  timestamptz not null default now()                             -- 更新时间
+  updated_at  timestamptz not null default now(),                            -- 更新时间
+  constraint transactions_images_max_3 check (cardinality(images) <= 3)      -- 每笔最多 3 张图片
 );
-
--- 历史库升级（旧版本用 note 存备注）：按「账本 + 分类 + 备注」建标签 → 回填 tag_id → 删除 note 列
-do $$
-begin
-  if exists (
-    select 1 from information_schema.columns
-    where table_schema = 'public' and table_name = 'transactions' and column_name = 'note'
-  ) then
-    insert into public.tags (ledger_id, category_id, name)
-    select distinct t.ledger_id, t.category_id, btrim(t.note)
-    from public.transactions t
-    where t.note is not null and btrim(t.note) <> ''
-    on conflict (ledger_id, category_id, name) do nothing;
-
-    update public.transactions t
-    set tag_id = g.id
-    from public.tags g
-    where t.note is not null and btrim(t.note) <> ''
-      and g.ledger_id = t.ledger_id and g.category_id = t.category_id and g.name = btrim(t.note);
-
-    alter table public.transactions drop column note;
-  end if;
-end $$;
 
 create index if not exists idx_transactions_ledger_time on public.transactions (ledger_id, occurred_at desc);
 create index if not exists idx_categories_ledger on public.categories (ledger_id, kind, sort_order);
@@ -186,6 +167,9 @@ comment on column public.transactions.kind        is '类型：expense=支出，
 comment on column public.transactions.amount      is '金额（该币种最小单位的整数，避免浮点误差）';
 comment on column public.transactions.currency    is '币种（默认 CNY；金额单位为该币种的最小单位）';
 comment on column public.transactions.tag_id      is '标签 ID（可空；标签被删除后自动置空）';
+comment on column public.transactions.note        is '本笔备注（与可复用标签分开，仅属于本笔、不可复用）';
+comment on column public.transactions.attributes  is '记账类型扩展字段（JSONB）：当前支持 reimbursement: boolean，后续新增类型无需改表';
+comment on column public.transactions.images      is '账单图片公开 URL 数组（Supabase Storage transaction-images 桶；每笔最多 3 张）';
 comment on column public.transactions.occurred_at is '发生时间';
 comment on column public.transactions.created_by  is '记录人用户 ID（家庭账本中可区分谁记的）';
 comment on column public.transactions.created_at  is '创建时间';
@@ -579,5 +563,37 @@ drop policy if exists avatars_owner_delete on storage.objects;
 create policy avatars_owner_delete on storage.objects
   for delete using (
     bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+-- ----------------------------------------------------------------------------
+-- 8. 账单图片存储桶：公开读，仅本人可写自己目录（transaction-images/<uid>/...）
+-- ----------------------------------------------------------------------------
+insert into storage.buckets (id, name, public)
+values ('transaction-images', 'transaction-images', true)
+on conflict (id) do nothing;
+
+drop policy if exists transaction_images_public_read on storage.objects;
+create policy transaction_images_public_read on storage.objects
+  for select using (bucket_id = 'transaction-images');
+
+drop policy if exists transaction_images_owner_insert on storage.objects;
+create policy transaction_images_owner_insert on storage.objects
+  for insert with check (
+    bucket_id = 'transaction-images'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists transaction_images_owner_update on storage.objects;
+create policy transaction_images_owner_update on storage.objects
+  for update using (
+    bucket_id = 'transaction-images'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists transaction_images_owner_delete on storage.objects;
+create policy transaction_images_owner_delete on storage.objects
+  for delete using (
+    bucket_id = 'transaction-images'
     and (storage.foldername(name))[1] = auth.uid()::text
   );

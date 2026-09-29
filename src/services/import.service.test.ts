@@ -32,6 +32,8 @@ const draft = (partial: Partial<CsvDraft>): CsvDraft => ({
   amountCents: 1230,
   tagName: '',
   currency: 'CNY',
+  note: '',
+  reimbursement: false,
   ...partial,
 });
 
@@ -110,7 +112,14 @@ describe('importDrafts', () => {
     expect(tagMock.ensureMany).toHaveBeenCalledWith('l1', 'c-created', ['午饭']);
     expect(categoryMock.create).toHaveBeenCalledTimes(1); // 「工资」分类缺失 → 自动创建
     expect(txMock.createMany).toHaveBeenCalledWith([
-      expect.objectContaining({ tagId: 'c1-g0', categoryId: 'c1', currency: 'CNY' }),
+      expect.objectContaining({
+        tagId: 'c1-g0',
+        categoryId: 'c1',
+        currency: 'CNY',
+        note: '',
+        attributes: { reimbursement: false },
+        images: [],
+      }),
       expect.objectContaining({ tagId: 'c-created-g0', categoryId: 'c-created' }),
     ]);
   });

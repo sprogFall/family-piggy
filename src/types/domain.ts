@@ -64,6 +64,17 @@ export interface Tag {
   createdAt: string;
 }
 
+/**
+ * 记账类型扩展属性：数据库以 JSONB 保存，后续新增类型无需改表。
+ * 当前仅支持 reimbursement（是否报销），新增布尔类型时在此追加字段即可。
+ */
+export interface TransactionAttributes {
+  /** 是否报销 */
+  reimbursement: boolean;
+  /** 预留扩展：后续记账类型均以布尔值追加 */
+  [key: string]: boolean;
+}
+
 export interface Transaction {
   id: string;
   ledgerId: string;
@@ -73,8 +84,14 @@ export interface Transaction {
   amount: number;
   /** 币种，默认 CNY */
   currency: CurrencyCode;
-  /** 标签 ID，null 表示未打标签 */
+  /** 标签 ID，null 表示未打标签。标签可复用，与本笔备注无关 */
   tagId: string | null;
+  /** 本笔备注；与标签分开，仅属于本笔、不可复用 */
+  note: string;
+  /** 记账类型扩展属性（当前含是否报销） */
+  attributes: TransactionAttributes;
+  /** 本笔账单图片的公开访问 URL，最多 3 张 */
+  images: string[];
   /** ISO 8601 */
   occurredAt: string;
   createdBy: string;
@@ -87,6 +104,9 @@ export interface CreateTransactionInput {
   amount: number;
   currency: CurrencyCode;
   tagId: string | null;
+  note: string;
+  attributes: TransactionAttributes;
+  images: string[];
   occurredAt: string;
 }
 
@@ -96,6 +116,9 @@ export interface UpdateTransactionInput {
   amount?: number;
   currency?: CurrencyCode;
   tagId?: string | null;
+  note?: string;
+  attributes?: TransactionAttributes;
+  images?: string[];
   occurredAt?: string;
 }
 

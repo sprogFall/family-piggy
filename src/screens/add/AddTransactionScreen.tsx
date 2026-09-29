@@ -12,12 +12,20 @@ import { CategoryGrid } from '@/components/ui/CategoryGrid';
 import { CurrencyPickerSheet } from '@/components/ui/CurrencyPickerSheet';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { TagSelector } from '@/components/ui/TagSelector';
+import {
+  TransactionExtrasFields,
+  initialTransactionImageDrafts,
+} from '@/components/ui/TransactionExtrasFields';
+import { evaluateAmountExpression } from '@/domain/amount-input';
 import type { CurrencyCode } from '@/domain/currency';
 import { entryDateLabel } from '@/domain/dates';
 import { formatCents, parseAmountToCents } from '@/domain/money';
+import type { TransactionImageDraft } from '@/domain/transaction-images';
 import { useActiveLedger, useActiveCategories, useActiveTags } from '@/hooks/useActiveLedgerData';
 import { showAlert } from '@/lib/alert';
 import type { RootStackParamList } from '@/navigation/types';
+import { transactionImageService } from '@/services/transaction-image.service';
+import { useAuthStore } from '@/stores/auth.store';
 import { useCategoryStore } from '@/stores/category.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { useTagStore } from '@/stores/tag.store';
@@ -41,6 +49,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   const editing = useTransactionStore((state) =>
     selectTransactionById(state, route.params?.transactionId),
   );
+  const sessionUserId = useAuthStore((state) => state.session?.user.id);
 
   const [kind, setKind] = useState<TxKind>(editing?.kind ?? 'expense');
   const [categoryId, setCategoryId] = useState<string | null>(editing?.categoryId ?? null);
@@ -48,6 +57,11 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
     editing ? formatCents(editing.amount, { thousands: false }) : '',
   );
   const [tagId, setTagId] = useState<string | null>(editing?.tagId ?? null);
+  const [note, setNote] = useState(editing?.note ?? '');
+  const [reimbursement, setReimbursement] = useState(editing?.attributes.reimbursement ?? false);
+  const [images, setImages] = useState<TransactionImageDraft[]>(() =>
+    initialTransactionImageDrafts(editing?.images ?? []),
+  );
   const [date, setDate] = useState(editing ? new Date(editing.occurredAt) : new Date());
   const [showPicker, setShowPicker] = useState(false);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
@@ -137,7 +151,8 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   };
 
   const submit = async () => {
-    const cents = parseAmountToCents(amount);
+    const evaluatedAmount = evaluateAmountExpression(amount);
+    const cents = evaluatedAmount === null ? null : parseAmountToCents(evaluatedAmount);
     if (!ledger) {
       showAlert('提示', '请先选择账本');
       return;
@@ -150,33 +165,65 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
       showAlert('提示', '请输入正确的金额');
       return;
     }
+
     const ledgerId = ledger.id;
     setSubmitting(true);
+    let uploadedImageUrls: string[] = [];
+
     try {
-      if (editing) {
-        await updateTransaction(editing.id, ledgerId, {
-          categoryId,
-          kind,
-          amount: cents,
-          currency,
-          tagId,
-          occurredAt: date.toISOString(),
-        });
-        showToast('已保存');
-      } else {
-        await addTransaction({
+      let imageUrls = images
+        .filter((image) => image.remote)
+        .map((image) => image.uri);
+      const localImages = images.filter((image) => !image.remote);
+
+      if (localImages.length > 0) {
+        if (!sessionUserId) throw new Error('未登录');
+        uploadedImageUrls = await transactionImageService.upload(
           ledgerId,
-          categoryId,
-          kind,
-          amount: cents,
-          currency,
-          tagId,
-          occurredAt: date.toISOString(),
+          sessionUserId,
+          localImages.map((image) => ({
+            uri: image.uri,
+            mimeType: image.mimeType ?? null,
+          })),
+        );
+        const uploadedQueue = [...uploadedImageUrls];
+        imageUrls = images.flatMap((image) => {
+          if (image.remote) return [image.uri];
+          const uploaded = uploadedQueue.shift();
+          return uploaded ? [uploaded] : [];
         });
-        showToast('记账成功');
       }
+
+      const payload = {
+        categoryId,
+        kind,
+        amount: cents,
+        currency,
+        tagId,
+        note: note.trim(),
+        // 编辑时保留数据库里预留的其它记账类型字段，只覆盖当前 UI 支持的报销
+        attributes: { ...(editing?.attributes ?? {}), reimbursement },
+        images: imageUrls,
+        occurredAt: date.toISOString(),
+      };
+
+      if (editing) {
+        await updateTransaction(editing.id, ledgerId, payload);
+      } else {
+        await addTransaction({ ledgerId, ...payload });
+      }
+
+      const removedImages = (editing?.images ?? []).filter((url) => !imageUrls.includes(url));
+      if (removedImages.length > 0) {
+        void transactionImageService.remove(removedImages).catch(() => undefined);
+      }
+
+      showToast(editing ? '已保存' : '记账成功');
       navigation.goBack();
     } catch (error) {
+      if (uploadedImageUrls.length > 0) {
+        void transactionImageService.remove(uploadedImageUrls).catch(() => undefined);
+      }
       showAlert(editing ? '保存失败' : '记账失败', error instanceof Error ? error.message : '请稍后再试');
     } finally {
       setSubmitting(false);
@@ -186,6 +233,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   const confirmRemove = () => {
     if (!editing || !ledger) return;
     const ledgerId = ledger.id;
+    const savedImages = editing.images;
     showAlert('删除账单', '删除后不可恢复，确定删除吗？', [
       { text: '取消', style: 'cancel' },
       {
@@ -193,7 +241,12 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
         style: 'destructive',
         onPress: () => {
           void removeTransaction(editing.id, ledgerId)
-            .then(() => navigation.goBack())
+            .then(() => {
+              if (savedImages.length > 0) {
+                void transactionImageService.remove(savedImages).catch(() => undefined);
+              }
+              navigation.goBack();
+            })
             .catch((error: unknown) =>
               showAlert('删除失败', error instanceof Error ? error.message : '请稍后再试'),
             );
@@ -253,6 +306,15 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
         ) : (
           <Text style={styles.tagHint}>选择分类后可为该分类添加标签</Text>
         )}
+
+        <TransactionExtrasFields
+          note={note}
+          onNoteChange={setNote}
+          reimbursement={reimbursement}
+          onReimbursementChange={setReimbursement}
+          images={images}
+          onImagesChange={setImages}
+        />
       </ScrollView>
 
       <View style={styles.bottom}>

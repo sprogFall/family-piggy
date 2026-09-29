@@ -18,6 +18,9 @@ const tx = (currency: CurrencyCode, occurredAt: string): Transaction => ({
   amount: 100,
   currency,
   tagId: null,
+  note: '',
+  attributes: { reimbursement: false },
+  images: [],
   occurredAt,
   createdBy: 'u1',
 });

@@ -15,6 +15,9 @@ const row = {
   amount: '1230',
   currency: 'USD',
   tag_id: 'g1',
+  note: '出差',
+  attributes: { reimbursement: true },
+  images: ['https://cdn/img.jpg'],
   occurred_at: '2024-05-20T04:00:00.000Z',
   created_by: 'u1',
 };
@@ -36,6 +39,9 @@ describe('transactionService', () => {
     expect(chain.lt).toHaveBeenCalledWith('occurred_at', '2024-06-01T00:00:00.000Z');
     expect(txs[0].amount).toBe(1230);
     expect(txs[0].currency).toBe('USD');
+    expect(txs[0].note).toBe('出差');
+    expect(txs[0].attributes.reimbursement).toBe(true);
+    expect(txs[0].images).toEqual(['https://cdn/img.jpg']);
   });
 
   it('库中币种缺失或非法时回落 CNY', async () => {
@@ -60,20 +66,44 @@ describe('transactionService', () => {
         amount: 1230,
         currency: 'JPY',
         tagId: 'g1',
+        note: '出差',
+        attributes: { reimbursement: true },
+        images: ['https://cdn/img.jpg'],
         occurredAt: '2024-05-20T04:00:00.000Z',
       },
       'u1',
     );
     expect(chain.insert).toHaveBeenCalledWith(
-      expect.objectContaining({ created_by: 'u1', amount: 1230, currency: 'JPY' }),
+      expect.objectContaining({
+        created_by: 'u1',
+        amount: 1230,
+        currency: 'JPY',
+        note: '出差',
+        attributes: { reimbursement: true },
+        images: ['https://cdn/img.jpg'],
+      }),
     );
   });
 
   it('update 只映射传入字段', async () => {
     const chain = createQueryChain({ data: null, error: null });
     fromMock.mockReturnValue(chain);
-    await transactionService.update('t1', { amount: 100, tagId: null, currency: 'EUR' });
-    expect(chain.update).toHaveBeenCalledWith({ amount: 100, tag_id: null, currency: 'EUR' });
+    await transactionService.update('t1', {
+      amount: 100,
+      tagId: null,
+      currency: 'EUR',
+      note: '改成可报销',
+      attributes: { reimbursement: true },
+      images: ['https://cdn/img.jpg'],
+    });
+    expect(chain.update).toHaveBeenCalledWith({
+      amount: 100,
+      tag_id: null,
+      currency: 'EUR',
+      note: '改成可报销',
+      attributes: { reimbursement: true },
+      images: ['https://cdn/img.jpg'],
+    });
   });
 
   it('失败时抛出友好错误', async () => {

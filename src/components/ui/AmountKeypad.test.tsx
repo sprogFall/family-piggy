@@ -36,4 +36,15 @@ describe('AmountKeypad', () => {
     fireEvent.press(screen.getByText('完成'));
     expect(onSubmit).toHaveBeenCalled();
   });
+
+  it('右上角的加减乘除按钮接入表达式规则', () => {
+    const onChange = jest.fn();
+    render(<AmountKeypad value="12" onChange={onChange} onSubmit={jest.fn()} />);
+
+    fireEvent.press(screen.getByLabelText('operator-+'));
+    expect(onChange).toHaveBeenCalledWith('12+');
+
+    fireEvent.press(screen.getByLabelText('operator-×'));
+    expect(onChange).toHaveBeenLastCalledWith('12×');
+  });
 });

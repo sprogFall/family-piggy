@@ -12,6 +12,9 @@ const tx: Transaction = {
   amount: 236800,
   currency: 'CNY',
   tagId: 'g1',
+  note: '',
+  attributes: { reimbursement: false },
+  images: [],
   occurredAt: new Date(2024, 4, 20, 14, 30).toISOString(),
   createdBy: 'u1',
 };
@@ -69,6 +72,26 @@ describe('TransactionRow', () => {
       />,
     );
     expect(screen.getByText('14:30 · #聚餐 · 我')).toBeTruthy();
+  });
+
+  it('备注、报销类型与图片和标签分开展示', () => {
+    render(
+      <TransactionRow
+        transaction={{
+          ...tx,
+          note: '和客户吃饭',
+          attributes: { reimbursement: true },
+          images: ['https://cdn.test/a.jpg', 'https://cdn.test/b.jpg'],
+        }}
+        categoryName="餐饮"
+        iconKey="restaurant"
+        tagName="聚餐"
+        showTime
+      />,
+    );
+    expect(screen.getByText('14:30 · #聚餐 · 和客户吃饭 · 可报销')).toBeTruthy();
+    expect(screen.getByLabelText('账单图片 1')).toBeTruthy();
+    expect(screen.getByLabelText('账单图片 2')).toBeTruthy();
   });
 
   it('他人记录展示成员昵称', () => {
