@@ -2,6 +2,7 @@ import {
   addMonths,
   currentMonth,
   entryDateLabel,
+  fullDateLabelOf,
   dayKeyOf,
   dayLabelOf,
   daysInMonth,
@@ -80,6 +81,10 @@ describe('标签', () => {
 
   it('timeLabelOf', () => {
     expect(timeLabelOf(iso)).toBe('14:30');
+  });
+
+  it('fullDateLabelOf 含年份、不含星期', () => {
+    expect(fullDateLabelOf(iso)).toBe('2024年5月20日 14:30');
   });
 });
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { dayLabelOf, timeLabelOf } from '@/domain/dates';
+import { fullDateLabelOf } from '@/domain/dates';
 import { formatMoney } from '@/domain/money';
 import {
   useActiveCategories,
@@ -52,8 +52,8 @@ export const TransactionPreviewScreen = ({ navigation, route }: Props) => {
   const tagNames = transaction.tagIds.map(tagNameOf).filter((name) => name !== '');
   const creatorName = creatorLabelOf(transaction.createdBy);
   const isIncome = transaction.kind === 'income';
-  const typeLabel = transaction.attributes.reimbursement ? '报销' : '未报销';
-  const detailDate = `${dayLabelOf(transaction.occurredAt)} ${timeLabelOf(transaction.occurredAt)}`;
+  const showReimbursement = transaction.attributes.reimbursement;
+  const detailDate = fullDateLabelOf(transaction.occurredAt);
 
   const confirmRemove = () => {
     if (!ledger || removing) return;
@@ -112,16 +112,24 @@ export const TransactionPreviewScreen = ({ navigation, route }: Props) => {
         </View>
 
         <View style={styles.card}>
-          <DetailRow label="记账类型" value={typeLabel} />
-          <DetailRow
-            label="标签"
-            value={
-              tagNames.length > 0 ? tagNames.map((name) => `#${name}`).join(' ') : '无'
-            }
-          />
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>标签</Text>
+            <View style={styles.tagList}>
+              {tagNames.length > 0 ? (
+                tagNames.map((name, index) => (
+                  <View key={`${name}-${index}`} style={styles.tagChip}>
+                    <Text style={styles.tagChipText}>{name}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.detailValue}>无</Text>
+              )}
+            </View>
+          </View>
           <DetailRow label="备注" value={transaction.note || '无'} />
           <DetailRow label="日期" value={detailDate} />
           {creatorName ? <DetailRow label="记录人" value={creatorName} /> : null}
+          {showReimbursement ? <DetailRow label="记账类型" value="报销" /> : null}
         </View>
 
         {transaction.images.length > 0 ? (
@@ -230,6 +238,25 @@ const useStyles = makeStyles((colors) => ({
     color: colors.text,
     flex: 1,
     fontSize: fontSize.md,
+  },
+  tagChip: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+    borderRadius: radius.round,
+    borderWidth: 1,
+    paddingHorizontal: space(2.5),
+    paddingVertical: 2,
+  },
+  tagChipText: {
+    color: colors.primaryDark,
+    fontSize: fontSize.sm,
+    fontWeight: '500',
+  },
+  tagList: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space(1.5),
   },
   disabled: {
     opacity: 0.5,

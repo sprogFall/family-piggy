@@ -55,6 +55,12 @@ export const dayLabelOf = (iso: string): string => {
   return `${d.getMonth() + 1}月${d.getDate()}日 星期${WEEKDAYS[d.getDay()]}`;
 };
 
+/** ISO -> "2024年5月20日 14:30"（含年份，不带星期） */
+export const fullDateLabelOf = (iso: string): string => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};
+
 /** ISO -> "14:30" */
 export const timeLabelOf = (iso: string): string => {
   const d = new Date(iso);
