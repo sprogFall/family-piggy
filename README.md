@@ -1,57 +1,292 @@
-# family-piggy 家庭记账
+# family-piggy
 
-支持**个人账本 / 家庭账本**的记账 App：单人记账、创建或加入家庭后与家人**多人共同记账**，基于 Supabase 实现账号体系、云端存储与**实时同步**。UI 遵循 `记账原型.png`。
+<div align="center">
 
+**个人 / 家庭账本 · 多人共同记账 · Supabase 实时同步**
+
+一个基于 **React Native（Expo）+ TypeScript + Supabase** 的家庭记账 App：支持个人账本与家庭账本，创建或加入家庭后可与家人共同记账，流水通过 Realtime 实时同步。
+
+[![Expo](https://img.shields.io/badge/Expo-SDK%2052-000020?logo=expo&logoColor=white)](https://expo.dev/)
+[![React Native](https://img.shields.io/badge/React%20Native-0.76-61DAFB?logo=react&logoColor=black)](https://reactnative.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-Auth%20%7C%20Postgres%20%7C%20Realtime-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
+[![Jest](https://img.shields.io/badge/Test-Jest%20%2B%20RNTL-C21325?logo=jest&logoColor=white)](https://jestjs.io/)
+[![Platforms](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Web-4EAA25)](#)
+
+</div>
+
+<p align="center">
+  <a href="#overview">项目简介</a> ·
+  <a href="#highlights">核心亮点</a> ·
+  <a href="#feature-matrix">功能矩阵</a> ·
+  <a href="#architecture">架构总览</a> ·
+  <a href="#quick-start">快速开始</a> ·
+  <a href="#development">开发流程</a> ·
+  <a href="#testing">测试与质量</a> ·
+  <a href="#build-release">构建与发布</a> ·
+  <a href="#documents">相关文档</a>
+</p>
+
+<a id="overview"></a>
+## 项目简介
+
+`family-piggy` 是一个面向家庭场景的记账 App。它既可以是个人账本，也可以变成家庭共享账本：创建家庭后生成邀请码，家人凭邀请码加入即可在同一本账本里一起记账，新增和修改通过 Supabase Realtime 实时同步。
+
+当前 `main` 已具备的主要能力：
+
+- 邮箱注册 / 登录，注册后自动创建用户资料、个人账本与默认分类；
+- 个人账本 + 家庭账本自由切换，按账号记住上次打开的账本；
+- 完整的「记一笔」体验：金额表达式、币种、日期、分类、多标签、备注、报销标记与账单图片；
+- 账单按天 / 月分组汇总，支持筛选、搜索、下拉刷新、预览、编辑与左滑删除；
+- 月 / 年统计、分类构成、收支排行与按账本月度预算；
+- Excel / CSV 导入导出、记录人映射、多标签解析与系统分享；
+- 深色模式三档、全局字体大小四档、头像与昵称等个性化能力；
+- GitHub Release 应用内检查、镜像下载回退、SHA-256 校验与拉起安装器。
+
+UI 以根目录 [`记账原型.png`](./记账原型.png) 为设计原型，设计令牌统一收敛在 `src/theme`。
+
+<a id="highlights"></a>
+## 核心亮点
+
+- **多账本 + 家庭协作**：个人账本与家庭账本共用一整套记帐能力，邀请码加入，家庭成员头像、昵称与记录人标注完整。
+- **实时同步**：Supabase Realtime 按账本过滤订阅，家庭账本的写入会自动补入其他成员页面。
+- **数据安全**：Supabase RLS 行级安全策略，家庭数据以 `family_members` 为权限边界；连接信息只通过环境变量注入。
+- **金额计算严谨**：金额一律以整数「分」存储与计算，多币种汇总只统计当月主币种，绝不跨币种相加。
+- **TDD 工程化**：Jest 全量离线测试，`typecheck + jest` 作为 CI 门禁，核心分层逻辑均有测试覆盖。
+- **不依赖 Expo / EAS 账号**：GitHub Actions 上通过 `expo prebuild + Gradle` 直接构建、签名并发布 APK。
+- **应用内更新**：无需应用商店，检查 GitHub Release → 镜像回退下载 → SHA-256 分块校验 → 拉起系统安装器。
+- **双主题 + 字号**：浅色 / 深色两套调色板与四档全局字号，设置本地持久化、即时生效。
+
+<a id="feature-matrix"></a>
+## 功能矩阵
+
+| 模块 | 状态 | 当前能力 |
+| --- | --- | --- |
+| 账号与多账本 | ✅ | 邮箱注册 / 登录；注册自动创建资料、个人账本与默认分类；个人账本 / 家庭账本切换；按账号记住上次打开的账本 |
+| 记一笔 | ✅ | 顶部币种 + 大号金额 + 日期；支出 / 收入切换；分类九宫格；多标签；备注；记账类型（报销）；最多 3 张账单图片；金额表达式实时计算 |
+| 账单管理 | ✅ | 按天分组、日小计、月汇总；收入 / 支出 / 记录人筛选；分类 / 标签关键词搜索；下拉刷新；预览、编辑、删除与左滑操作 |
+| 多币种 | ✅ | 每笔流水独立币种（CNY / USD / EUR / JPY / HKD / GBP）；汇总 / 统计 / 趋势只统计当月主币种，有其他币种时提示未计入笔数 |
+| 统计与预算 | ✅ | 月 / 年统计、分类构成、年度 12 个月明细、支出 / 收入金额排行；排行可点击查看详情；按账本设置月度预算与超支提醒 |
+| 分类与标签 | ✅ | 分类增删改、图标选择、拖拽排序（草稿保存 + 未保存退出确认）；标签隶属于分类、可多选复用，流水保存标签名快照，删除标签不影响历史账单 |
+| 家庭协作 | ✅ | 创建 / 改名家庭、邀请码加入、成员头像与成员管理、退出 / 解散；家庭账本全员可记账，账单展示记录人昵称 |
+| 导入 / 导出 | ✅ | 导入 Excel / CSV：目标账本选择、来源记录人映射、前 20 条确认预览、标签自动创建；导出当月 `.xlsx` / `.csv` 并系统分享 |
+| 个性化 | ✅ | 深色模式三档（跟随系统 / 浅色 / 深色）、全局字体大小四档（小 / 标准 / 大 / 超大）、头像上传与昵称修改 |
+| 应用内更新 | ✅ | 检查 GitHub Release（仅正式版）→ 镜像回退下载 → SHA-256 分块校验 → 拉起系统安装器；支持忽略指定版本 |
+| 手机号验证码登录 | ⛔ 规划 | 需要接入 Supabase SMS Provider |
+| iOS 正式包 | ⛔ 规划 | 当前 CI 只产出 Android APK，AAB / TestFlight 流水线待补 |
+
+<a id="architecture"></a>
+## 架构总览
+
+### 分层与依赖方向
+
+```text
+screens ──► stores ──► services ──► lib/supabase
+   │           │           │
+   └───────────┴───────────┴──► domain（纯函数，可被所有层复用）
+                                types / theme（无依赖的类型与设计令牌）
+```
+
+| 层 | 职责 |
+| --- | --- |
+| `src/domain/` | 金额、日期、统计、图表几何、CSV、校验等纯函数；零外部业务依赖 |
+| `src/services/` | Supabase 数据访问与行类型映射；唯一允许直接调用 Supabase 的业务层 |
+| `src/stores/` | zustand 状态、缓存桶、loading / error 与 service 编排 |
+| `src/screens/` | 页面交互、焦点加载、导航编排；禁止直连 Supabase |
+| `src/components/` | 通用 UI、基础组件与图表；通用组件 props 驱动，全局组件可只读 store，禁止直接访问 Supabase |
+| `src/navigation/` | 路由定义与参数类型 |
+| `src/theme/` | 浅色 / 深色调色板、间距、字号、图标映射、`makeStyles` / `useColors` |
+| `src/types/` | 领域类型、DB 行类型与 GitHub Release 行类型映射 |
+| `src/lib/` | Supabase client、跨平台弹窗、错误文案等底层工具 |
+| `src/hooks/` | 跨 store 派生 hooks 与页面复用逻辑 |
+
+### 系统结构
+
+```text
+family-piggy
+├─ src/
+│  ├─ domain/        纯函数业务逻辑 + 测试
+│  ├─ services/      Supabase 数据访问 + 测试
+│  ├─ stores/        zustand 全局状态 + 测试
+│  ├─ components/    通用组件、基础 UI、图表
+│  ├─ screens/       页面
+│  ├─ navigation/    路由注册与参数类型
+│  ├─ theme/         调色板、字号、深色模式、图标映射
+│  ├─ types/         领域模型与数据库行类型
+│  ├─ lib/           supabase client / alert / errors
+│  ├─ hooks/         跨 store 派生 hooks
+│  └─ test/          测试替身
+├─ assets/           应用图标与开屏资源
+├─ supabase/         schema.sql + migrations/
+├─ docs/             项目手册
+├─ .github/          CI / 缓存预热 / Release 工作流
+└─ App.tsx           应用根编排
+```
+
+更完整的现状、数据流与模块说明见 [`docs/项目手册.md`](./docs/项目手册.md)。
+
+<a id="tech-stack"></a>
 ## 技术栈
 
-- React Native（Expo 托管工作流）+ TypeScript（strict）
-- React 函数组件 + Hooks，zustand 状态管理
-- Supabase：Auth / Postgres + RLS / Realtime
-- react-native-svg 自绘图表（趋势折线 / 占比环形）
-- 测试：Jest + React Native Testing Library（TDD，全部离线可跑）
+| 类别 | 选型 | 说明 |
+| --- | --- | --- |
+| 语言 | TypeScript `~5.3.3` | `strict: true`，禁止 `any` |
+| 客户端 | Expo `~52.0.46` + React Native `0.76.9` + React `18.3.1` | Expo 托管工作流，函数组件 + Hooks |
+| 状态管理 | zustand `^5.0.3` | 9 个业务 store，无 Redux / 业务 Context |
+| 后端 | Supabase | Auth + Postgres + RLS + Realtime + Storage |
+| 路由 | @react-navigation `^7` | native / native-stack / bottom-tabs |
+| 图表 | react-native-svg `15.8.0` | 折线、环形等图表自绘 |
+| 表格 | xlsx `^0.18.5` | Excel 导入 / 导出 |
+| 本地存储 | @react-native-async-storage `1.23.1` | Supabase 会话、字号、深色模式持久化 |
+| 测试 | Jest `^29.7.0` + jest-expo `~52.0.6` + RNTL `^12.9.0` | 离线、确定性、秒级 |
+| 构建发布 | GitHub Actions + Gradle | 不依赖 Expo / EAS 账号 |
 
+> Expo 生态包一律使用 `npx expo install <包名>` 安装，版本范围由 SDK 决定；禁止手写 `^` 范围，避免原生模块版本漂移。
+
+<a id="quick-start"></a>
 ## 快速开始
 
 ### 1. 配置 Supabase
 
-1. 在 [supabase.com](https://supabase.com) 创建项目；
-2. 打开 Dashboard → SQL Editor，整体执行 `supabase/schema.sql`（幂等脚本，可重复执行；每张表和字段均带中文注释）；
-   - 若数据库是**旧版本**初始化的，按文件名顺序执行 `supabase/migrations/` 下的增量脚本：历史备注会自动迁移为标签、修复「创建家庭 / 新建个人账本报错」的 RLS 策略问题；`20260928220000_tag_category_and_tx_currency.sql` 再把标签从「按收支类型」迁移为「按分类」归属，并给流水加上币种列；`20260929090000_transaction_note_types_images.sql` 重新引入独立的流水备注、JSONB 记账类型扩展字段和最多 3 张账单图片，并创建 `transaction-images` 存储桶；`20260930090000_import_recorder_mapping.sql` 新增导入记录人映射所需的 RLS 辅助函数与 INSERT 策略；`20260930100000_transaction_multi_tags.sql` 把 `transactions.tag_id` 升级为 `tag_ids uuid[]` 多标签数组并回填历史数据，新增标签归属校验与删除清理触发器；`20260930110000_family_management.sql` 新增家庭改名与重新生成邀请码 RPC；`20260930120000_transaction_tag_names.sql` 把流水的标签由 `tag_ids` 关联改为 `tag_names text[]` 快照，删除标签库不再影响历史账单；
-3. 复制 `.env.example` 为 `.env`，填入项目 URL 与 Anon Key：
+1. 在 [supabase.com](https://supabase.com) 创建项目。
+2. 打开 Dashboard → SQL Editor，整体执行 [`supabase/schema.sql`](./supabase/schema.sql)。该脚本是幂等的，可重复执行，包含表结构、索引、函数、触发器、RLS 策略、Realtime publication 与 Storage 桶。
+3. 复制环境变量模板并填写项目 URL 与 Anon Key：
 
 ```bash
+cp .env.example .env
+```
+
+```dotenv
 EXPO_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
 ```
 
-> Supabase 信息一律通过 `EXPO_PUBLIC_*` 环境变量注入（由 `app.config.js` 与 `src/lib/supabase.ts` 读取），**仓库中不提交任何真实连接信息**；`.env` 已被 `.gitignore` 忽略，仅提交 `.env.example` 模板。
+> `.env` 已被 `.gitignore` 忽略，仓库中不会出现真实连接信息；`.env.example` 是唯一提交模板。
 
-数据库脚本包含：用户资料/家庭/家庭成员/账本/分类/标签/流水七张表（含月度预算列）、RLS 行级安全策略、注册自动建档（资料 + 个人账本 + 默认分类）、新账本自动播种默认分类、邀请码生成与 `join_family` RPC、流水表 Realtime 发布、头像与账单图片存储桶及策略，并为所有表和字段写了中文注释。
+若数据库是旧版本初始化的，按文件名顺序执行 `supabase/migrations/`：
 
-> `ledgers` 的 SELECT 策略特意写成 `owner_id = auth.uid() or can_access_ledger(id)`：`can_access_ledger` 是 stable security definer 函数，在同一条 `INSERT` 语句内看不到刚插入的行，若策略只依赖它，`.insert().select()` 会被过滤成 0 行（PostgREST 报 PGRST116），表现为「账本已写入却提示创建失败」。
+| 迁移 | 作用 |
+| --- | --- |
+| `20260928080631_tags_and_ledger_select_fix.sql` | 历史备注迁移为标签，修复 `ledgers` SELECT 策略导致的创建失败问题 |
+| `20260928220000_tag_category_and_tx_currency.sql` | 标签改为按分类归属，流水增加币种 |
+| `20260929090000_transaction_note_types_images.sql` | 独立备注、JSONB 记账类型、账单图片与 `transaction-images` 桶 |
+| `20260930090000_import_recorder_mapping.sql` | 导入记录人映射所需的 RLS 辅助函数与 INSERT 策略 |
+| `20260930100000_transaction_multi_tags.sql` | 单标签升级为多标签数组，并回填历史数据 |
+| `20260930110000_family_management.sql` | 家庭改名与重新生成邀请码 RPC |
+| `20260930120000_transaction_tag_names.sql` | 流水标签由关联改为 `tag_names text[]` 快照，删除标签不影响历史账单 |
 
-### 2. 启动
+`schema.sql` 会创建 7 张核心表：`profiles`、`families`、`family_members`、`ledgers`、`categories`、`tags`、`transactions`，并处理注册自动建档、新账本默认分类播种、邀请码加入、Realtime 发布与 Storage 策略。
+
+### 2. 启动应用
 
 ```bash
 npm install
-npm start        # Expo Dev Server，用 Expo Go 扫码即可运行
+npm start        # Expo Dev Server，使用 Expo Go 扫码运行
 ```
 
-## 打包 Android APK（GitHub Actions）
+也可以直接启动对应平台：
 
-完全在 GitHub Actions Runner 上构建，**不依赖 Expo / EAS 账号**：CI 内先 `expo prebuild` 生成原生工程，再用 Gradle 打包，并用仓库 Secrets 里的 keystore 签名。JDK 17 与 Android SDK 由 Runner 自带，无需额外准备。
+```bash
+npm run android
+npm run ios
+```
 
-仓库内置三条工作流：
+<a id="development"></a>
+## 开发流程
 
-- `.github/workflows/ci.yml`：push / PR 到 main 时执行 `typecheck + jest` 质量门禁；
-- `.github/workflows/warm-android-cache.yml`：在 main 上预热 Gradle 依赖与构建缓存（仅在依赖 / 配置变更或手动触发时运行），让标签发布构建免于冷启动；
-- `.github/workflows/release.yml`：推送 `v*` 标签或手动触发时，在 Runner 上构建 Android **APK**，并发布为 **GitHub Release 资产**（可直接下载安装的 `.apk`，不是需要解压的 zip）。
+开发前请先阅读 [`AGENTS.md`](./AGENTS.md)，其中包含强制开发规范、分层架构、测试规范与提交前检查清单。
 
-> 工作流统一固定在 `ubuntu-24.04` 镜像，并使用原生声明 Node 24 运行时的 action 版本：前者避免 `ubuntu-latest` 迁移（2026-10-19 起切到 Ubuntu 26）造成构建环境被动突变，后者消除 Node 20 弃用告警。`gradle/actions/setup-gradle` 刻意停在 v5 —— v6 起默认改用专有的 enhanced 缓存实现，而 v5 与 v4 的缓存 key 格式一致，升级不会让已预热的缓存失效。升级 action 大版本前请先确认破坏性变更。
+推荐流程：
 
-### 一次性准备
+```text
+读规范 / 相关代码 → 写失败测试（红）→ 最小实现（绿）→ 重构（蓝）
+  → npm run typecheck → npm test -- --ci → commit
+```
 
-1. **生成签名 keystore**（本机执行一次；务必自行备份，丢失后无法覆盖升级已安装的 App）：
+日常命令：
+
+```bash
+npm start                    # Expo Dev Server
+npm run typecheck            # tsc --noEmit
+npm test -- --ci             # 全量 Jest
+npm run test:watch           # TDD 监听模式
+npx expo install --check     # 校验 Expo 依赖版本对齐
+```
+
+硬性约定：
+
+- `src/domain/`、`src/services/`、`src/stores/` 的新增 / 修改逻辑必须有对应测试；
+- 页面禁止直连 Supabase，必须经过 `services` / `stores`；
+- 金额一律以整数「分」存储与计算；
+- UI 颜色、间距、字号统一走 `src/theme`；
+- 删除 / 确认等提示统一使用 `showAlert`，禁止直接调用原生 `Alert`；
+- 提交信息使用 `feat / fix / refactor / test / docs / chore` 前缀，一次提交一个完整意图。
+
+<a id="testing"></a>
+## 测试与质量
+
+测试体系基于 **Jest + jest-expo + React Native Testing Library**，通过 `jest.setup.ts` 全局 mock 原生模块与网络，保证所有测试离线、确定、快速运行。
+
+- 测试文件与被测文件同目录：`foo.ts` → `foo.test.ts`；
+- `domain` 测纯逻辑与边界值；`services` 测请求参数与字段映射；`stores` 测状态迁移与 selector 稳定性；组件测交互行为而非像素快照；
+- Supabase 查询链使用 `src/test/supabase-mock.ts` 的 `createQueryChain` / `queryError`，Realtime 使用 `createRealtimeChannel`；
+- bug 修复先补失败用例，再修复并保留回归测试。
+
+CI 工作流：
+
+| 工作流 | 触发 | 内容 |
+| --- | --- | --- |
+| [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) | push / PR 到 `main` | `npm ci` → `npm run typecheck` → `npm test -- --ci` |
+| [`.github/workflows/warm-android-cache.yml`](./.github/workflows/warm-android-cache.yml) | 依赖 / 配置变更或手动触发 | 在 `main` 作用域预热 Gradle 缓存 |
+| [`.github/workflows/release.yml`](./.github/workflows/release.yml) | 推送 `v*` 标签或手动触发 | 构建、签名并发布 Android APK |
+
+<a id="database-security"></a>
+## 数据库与安全
+
+- 所有表启用 **RLS**；家庭共享数据以 `family_members` 为权限边界。
+- `transactions` 加入 `supabase_realtime` publication，按 `ledger_id` 过滤订阅。
+- `supabase/schema.sql` 为幂等全量脚本；新表 / 新字段必须新增 migration，并同步 schema 与中文注释。
+- `profiles.avatar_url` 与账单图片分别使用 `avatars` / `transaction-images` Storage 桶。
+- Supabase 连接信息通过 `EXPO_PUBLIC_*` 注入；`EXPO_PUBLIC_*` 会被内联进客户端 bundle，属公开信息，**真正需要保密的是 keystore 与其密码**。
+- 新增环境变量必须同步更新 [`.env.example`](./.env.example) 与本文档。
+
+<a id="build-release"></a>
+## 构建与发布
+
+Android APK 完全在 GitHub Actions Runner 上构建，**不依赖 Expo / EAS 账号**：CI 内先 `expo prebuild` 生成原生工程，再用 Gradle 打包并签名。JDK 17 与 Android SDK 由 Runner 自带。
+
+### 触发方式与产物
+
+```bash
+# 正式发布：推送 annotated tag
+git tag -a v0.1.32 -m "v0.1.32：一句话主题
+
+- 用户可感知的改动"
+git push origin v0.1.32
+```
+
+| 触发方式 | 发布标签 | 说明 |
+| --- | --- | --- |
+| 推送 `v*` 标签 | 该标签（如 `v0.1.32`） | 正式 Release |
+| 手动 Run workflow | `build-<run_number>` | 预发布，便于随时获取安装包 |
+
+产物发布在仓库 **Releases** 页面的 Assets 中，文件名形如 `family-piggy-<tag>.apk`，可直接点击下载安装，无需解压。同一标签重跑会覆盖同名资产。
+
+### 环境变量与版本号注入链路
+
+```text
+GitHub Secrets
+  └─ EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY
+       └─ Gradle assembleRelease 触发 Metro 打包时内联进 bundle
+
+github.run_number → ANDROID_VERSION_CODE → app.config.js 的 android.versionCode（每次构建递增）
+tag v0.1.32       → APP_VERSION          → app.config.js 的 version（去掉 v 前缀）
+```
+
+<details>
+<summary><strong>首次打包一次性准备：keystore + GitHub Secrets</strong></summary>
+
+1. **生成签名 keystore**（本机执行一次，务必自行备份；丢失后无法覆盖升级已安装的 App）：
 
 ```bash
 keytool -genkeypair -v -storetype PKCS12 \
@@ -60,14 +295,17 @@ keytool -genkeypair -v -storetype PKCS12 \
   -keyalg RSA -keysize 2048 -validity 10000
 ```
 
-2. **把 keystore 转成 Base64**（Windows PowerShell）：
+2. **将 keystore 转为 Base64（单行）**：
 
-```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("release.keystore")) | Set-Clipboard
+```bash
+# macOS / Linux
+base64 -w0 release.keystore
+
+# Windows PowerShell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("release.keystore"))
 ```
 
-> macOS / Linux 用 `base64 -w0 release.keystore`。
-> keystore 已被 `.gitignore` 忽略（`*.keystore` / `*.jks`），**不要提交**。
+keystore 已被 `.gitignore` 忽略（`*.keystore` / `*.jks`），不要提交。
 
 3. **在 GitHub 仓库 Settings → Secrets and variables → Actions 配置 5 个 Secrets**：
 
@@ -75,120 +313,61 @@ keytool -genkeypair -v -storetype PKCS12 \
 | --- | --- |
 | `SUPABASE_URL` | Supabase 项目 URL |
 | `SUPABASE_ANON_KEY` | Supabase Anon Key |
-| `ANDROID_KEYSTORE_BASE64` | 第 2 步得到的 keystore Base64 文本（单行） |
+| `ANDROID_KEYSTORE_BASE64` | keystore 的 Base64 单行文本 |
 | `ANDROID_KEYSTORE_PASSWORD` | keystore 密码（PKCS12 下 key 密码与其相同） |
-| `ANDROID_KEY_ALIAS` | keystore 别名（示例中为 `family-piggy`） |
+| `ANDROID_KEY_ALIAS` | keystore 别名（示例为 `family-piggy`） |
 
-4. **应用图标与开屏**：`app.config.js` 已配置 `icon: ./assets/icon.png`、`android.adaptiveIcon`（`foregroundImage: ./assets/adaptive-icon.png`、`backgroundColor: #9DD9BE`），并用 `expo-splash-screen` 把**原生开屏**配成「同一张应用图标居中（`imageWidth: 200`）+ 主题底色」：浅色品牌绿 `#9DD9BE`，深色换成 App 深色页面底 `#111111`（图标不变，不另做深色图标）。两张图都由设计稿裁掉白边生成——圆角方块外的白底用边界色无缝延续成满幅；自适应图标的主体（笔记本 / 铅笔 / 叶子 / 金币）额外收在安全区内，圆形与圆角方形遮罩都不会裁到。`app.config.test.js` 守住「文件存在、1024×1024、最外圈无白边、主体在安全区、开屏配置齐备」。
-   - 换图标直接覆盖 `assets/` 下两个 PNG（保持 1024×1024 正方形）即可，无需改代码：启动器图标、原生开屏、应用内开屏与登录 / 关于页的 `AppLogo` 都用这一份资源（原生开屏要重新构建才生效）。
+4. **应用图标与原生开屏**：`app.config.js` 已配置 `icon`、`android.adaptiveIcon` 与 `expo-splash-screen`。替换图标时直接覆盖 `assets/icon.png` 与 `assets/adaptive-icon.png`（保持 1024×1024），无需改代码；原生开屏需要重新构建才生效。`app.config.test.js` 会校验图标尺寸、白边、安全区与开屏配置。
 
-### 触发与产物
+</details>
 
-```bash
-# 手动触发：Actions → Release Build → Run workflow
-git tag v0.1.1 && git push origin v0.1.1   # 打标签触发，版本名取 tag 去掉 v
-```
-
-产物发布在仓库的 **Releases** 页面（不是 Actions Artifacts —— Artifacts 会被 GitHub 强制打成 zip）：
-
-| 触发方式 | 发布标签 | 说明 |
-| --- | --- | --- |
-| 推送 `v*` 标签 | 该标签（如 `v0.1.2`） | 正式 Release |
-| 手动 Run workflow | `build-<run_number>` | 预发布（prerelease），便于随时拿到安装包 |
-
-在 Release 页面的 **Assets** 里直接点击 `family-piggy-<tag>.apk` 即可下载安装，**无需解压**；同一标签重跑会覆盖同名资产（幂等）。工作流会打印 APK 的签名信息、校验签名不是 debug 证书，并把 Release 链接写入运行摘要。
-
-> 工作流需要 `contents: write` 权限来创建 Release（已在 `release.yml` 中声明）。若仓库/组织策略把默认 `GITHUB_TOKEN` 限制为只读，请到 Settings → Actions → General → Workflow permissions 调整为 "Read and write permissions"。
-
-### 环境变量与版本号注入链路
-
-```
-GitHub Secrets
-  └─ job 级 env：EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY
-       └─ gradle assembleRelease 触发 Metro 打包时，把 EXPO_PUBLIC_* 内联进 bundle
-
-github.run_number → ANDROID_VERSION_CODE → app.config.js 的 android.versionCode（每次构建递增，保证可覆盖升级）
-tag v0.1.1        → APP_VERSION          → app.config.js 的 version
-```
-
-> `EXPO_PUBLIC_*` 会被内联进客户端代码，属于公开信息；真正需要保密的是 keystore 与其密码，仅以 Secrets 形式保存在仓库设置中。
-
-### 构建失败排查
+<details>
+<summary><strong>构建失败排查</strong></summary>
 
 | 现象 | 原因与处理 |
 | --- | --- |
-| `Plugin [id: 'expo-module-gradle-plugin'] was not found` | node_modules 里混入了其他 SDK 版本的原生模块（多为 `expo-font` / `expo-asset` 等被宽松版本范围拉高）。跑 `npx expo install --check` 看清单，再用 `npx expo install <包名>` 装回 SDK 期望版本；本地开发用 Expo Go 不会暴露此问题，只有原生构建才会 |
-| `Could not get unknown property 'release' for SoftwareComponent container` | 同上，是版本错配的连带报错，依赖对齐后即消失 |
-| `APK 仍是 debug 签名` | keystore Secrets 未生效，检查 `ANDROID_KEYSTORE_BASE64` / 密码 / 别名 |
-| 发布构建很久，卡在 `Downloading …gradle-*-all.zip` | GitHub 缓存按 ref 隔离，tag 构建只能读默认分支的缓存，而 main 上从不执行 Gradle，所以每次都是冷启动。处理：到 Actions 手动触发一次 **Warm Android Cache**（或 push 改动 `package.json` / `package-lock.json`）把缓存预热到 main 作用域；另外 release 已把分发包换成体积更小的 `-bin` |
+| `Plugin [id: 'expo-module-gradle-plugin'] was not found` | `node_modules` 混入其他 SDK 版本的原生模块；运行 `npx expo install --check`，再用 `npx expo install <包名>` 装回期望版本 |
+| `Could not get unknown property 'release' for SoftwareComponent container` | 通常是上一条版本错配的连带报错，依赖对齐后消失 |
+| APK 仍是 debug 签名 | keystore Secrets 未生效，检查 `ANDROID_KEYSTORE_BASE64` / 密码 / 别名 |
+| 发布构建卡在下载 `gradle-*-all.zip` | 到 Actions 手动触发一次 **Warm Android Cache**，或 push `package.json` / `package-lock.json` 预热 main 缓存 |
 
-依赖约定：Expo 生态包一律用 `npx expo install <包名>` 安装（版本范围由 SDK 决定），不要手写 `^` 范围。
+</details>
 
+> 发布工作流需要 `contents: write` 权限来创建 Release（已在 `release.yml` 中声明）。若仓库或组织策略将默认 `GITHUB_TOKEN` 限制为只读，请到 Settings → Actions → General → Workflow permissions 调整为 “Read and write permissions”。
+
+<a id="in-app-update"></a>
 ## 应用内更新
 
-Android 端「关于我们」页会自动检查新版本，并支持应用内下载与安装（思路参照 [life_tools](https://github.com/sprogFall/life_tools)）：
+Android 端「关于我们」页会自动检查新版本，并支持应用内下载与安装：
 
-- **检查**：匿名调 GitHub Releases API 取最新**正式**版本（草稿与预发布包不会推给用户），再与当前 `version` 做语义化版本比较；
-- **下载**：按「Release 说明里的 `APK-Mirror` → `gh-proxy.com` 镜像 → GitHub 直连」依次回退，边下边显示进度；
-- **校验**：按资产大小 + Release 说明里的 `SHA256` 行做完整性校验（纯 JS 分块哈希，几十 MB 的包不会一次性读进内存）；
-- **安装**：唤起系统安装器；Android 8+ 首次需在手机上允许本应用「安装未知应用」，卡片会给出跳转入口；
-- **忽略版本**：点「忽略此版本」后不再提示，随时可「仍要查看」。
+- **检查**：匿名调用 GitHub Releases API 获取最新**正式**版本（草稿与预发布不会推给用户），再与当前 `version` 做语义化版本比较；
+- **下载**：按「Release 说明中的 `APK-Mirror` → `gh-proxy.com` 镜像 → GitHub 直连」顺序回退，展示下载进度；
+- **校验**：按资产大小 + Release 说明中的 `SHA256` 行做完整性校验，使用纯 JS 4MB 分块哈希，避免一次性读入大包；
+- **安装**：校验通过后拉起系统安装器；Android 8+ 首次需在手机上允许本应用「安装未知应用」；
+- **忽略版本**：点击「忽略此版本」后不再提示，随时可重新查看。
 
-> ⚠️ 该功能要求仓库为**公开**：私有仓库匿名访问 GitHub API 与 Release 资产一律 404（此时卡片显示「暂时无法获取更新信息」而不是报错）。
-> `SHA256` 行由 `release.yml` 在发布时自动写入 Release 说明；镜像行可选，追加 `APK-Mirror: https://...` 即可，App 端无需发版。
+> ⚠️ 该能力要求仓库保持**公开**：私有仓库匿名访问 GitHub API 与 Release 资产会 404，此时卡片会优雅提示「暂时无法获取更新信息」而非报错。
+> `SHA256` 行由 `release.yml` 发布时自动写入 Release 说明；若配置了镜像，可在说明中追加 `APK-Mirror: https://...`，App 端无需发版即可生效。
 
-## 常用命令
+<a id="documents"></a>
+## 相关文档
 
-```bash
-npm test          # 运行全部测试（Jest）
-npm run test:watch
-npm run typecheck # tsc --noEmit
-```
+- [开发与测试规范 AGENTS.md](./AGENTS.md)
+- [项目手册：现状、数据流与模块说明](./docs/项目手册.md)
+- [环境变量模板 .env.example](./.env.example)
+- [数据库全量脚本 supabase/schema.sql](./supabase/schema.sql)
+- [CI 工作流 .github/workflows/ci.yml](./.github/workflows/ci.yml)
+- [Release 工作流 .github/workflows/release.yml](./.github/workflows/release.yml)
+- [外观参考 life_tools](https://github.com/sprogFall/life_tools)
 
-## 功能清单
-
-- 邮箱注册 / 登录（注册即自动创建「个人账本」与默认分类）
-- 多账本：个人账本、家庭账本自由切换；「我的 → 账单管理」可改名 / 新增 / 删除个人账单；按账号记住上次打开的账本，重启 App 后自动恢复
-- 记一笔：顶部**加高的金额行**（币种符号 + 大号金额，未输入时为弱化的 0.00）与右侧日期（「今天 21:25 / 8月3日 / 2024年8月3日」），下方是支出/收入切换、分类九宫格、标签选择（可新增 / 复用 / 长按删除）、备注、记账类型、账单图片；金额键盘右侧加减乘除与完成无缝拼接；输入表达式时顶部实时显示计算结果、灰色小字保留计算过程；点击金额行唤起键盘，备注输入时自动隐藏
-- 标签与备注：一笔流水可多选标签，流水保存标签名快照，标签库删除后不影响历史账单；标签隶属于分类并可复用；备注是本笔独有字段，与标签分开保存、不可复用。账单列表把标签拼在分类后展示，例如「餐饮[午餐,奶茶]」
-- 记账类型：数据库以 `transactions.attributes` JSONB 预留扩展；记一笔用边框胶囊勾选「报销」，账单页支持按 全部 / 报销 / 未报销 筛选，后续新增类型无需改表
-- 账单图片：每笔最多 3 张，上传到 Supabase Storage `transaction-images/<uid>/`，账单列表展示缩略图，编辑时可删除
-- 多币种：每笔流水记录自己的币种，明细按各自符号展示（`¥` / `$` / `€` / `HK$` / `£`）；首页 / 统计 / 账单的汇总、占比、趋势一律只统计当月**主币种**（出现次数最多的币种），另有外币时给出「另有 N 笔外币记录未计入」提示，绝不跨币种相加
-- 账单列表：按天分组、日小计、月汇总；支持按收入/支出、记录人筛选，支持按分类 / 标签关键词搜索，支持下拉刷新；点击账单进入预览（预览页可修改 / 删除），左滑账单行可露出编辑 / 删除按钮
-- 成员记账标注：家庭账本的每条账单标明「谁记的」，统一显示成员昵称
-- 月度预算：按账本设置，首页汇总卡展示使用进度与超支提醒
-- 首页与统计：首页为月度汇总卡（支持眼睛图标隐藏 / 显示金额）、每日收支趋势、支出占比；统计页支持按月 / 年切换，展示月 / 年度结余、分类构成、年度 12 个月明细，以及按金额倒序的支出 / 收入排行（默认前 10 条，滚动加载更多，可点击查看账单详情并展示标签）
-- 分类管理：新增 / 编辑 / 删除（支出与收入独立）；长按分类可拖拽排序，排序在前端预览，点「保存排序」后落库并同步到记账页分类网格；未保存退出会二次确认
-- 家庭：创建家庭（自动建家庭账本）、邀请码加入、成员头像 / 管理、退出 / 解散；家庭创建者可修改家庭名（同步家庭账单名）并重新生成邀请码
-- 多人共同记账：家庭账本全员可记账，流水 Realtime 实时同步
-- 头像与昵称：头像从相册选择上传至 Supabase Storage；昵称可点击修改（1-12 个字符），更新后个人资料与记录人展示同步
-- 导出：当月流水导出 Excel(.xlsx) / CSV（表头为 日期/类型/分类/标签/备注/金额/币种/记录人/报销），家庭账本写出成员昵称，系统分享
-- 导入：先选择目标账本，再解析 Excel / CSV、映射来源记录人并预览前 20 条确认；识别交易类型 / 类别 / 描述 / 创建者 / 是否报销等常见表头，标签字段按 `/` 拆分多个标签并自动创建 / 复用，缺失分类自动创建后批量入库
-- 设置：深色模式三档（跟随系统 / 浅色 / 深色，深色为微信风格：`#111111` 页面底 + `#1E1E1E` 卡片）、全局字体大小四档（小 / 标准 / 大 / 超大，标准为设计基准），两者都有本地持久化、即时生效（无需重启）
-- 应用内更新：「关于我们」页以应用图标 + 更新卡片展示；检查 GitHub Release（仅正式版）→ 应用内下载（镜像回退）→ SHA-256 完整性校验（校验分块 4MB，Release 未提供哈希时只校验大小）→ 拉起系统安装器，可忽略指定版本
-
-## 目录结构
-
-```
-src/
-  domain/      纯函数业务逻辑（金额、日期、统计、图表几何、CSV）+ 测试
-  services/    Supabase 数据访问层 + 测试
-  stores/      zustand 状态层 + 测试
-  components/  通用 UI 组件与图表
-  screens/     页面（auth / home / add / bills / stats / category / family / export / import / profile / settings / about）
-  navigation/  路由与类型
-  theme/       设计令牌（浅色/深色调色板、间距、字号）+ makeStyles/useColors 样式工厂 + 图标映射
-  types/       领域类型、数据库行类型与 GitHub Release 行类型映射
-  lib/         supabase client 与通用工具
-assets/        应用图标（icon.png 通用图标 / adaptive-icon.png Android 自适应前景）
-supabase/      schema.sql（表结构 / RLS / 触发器 / Realtime）+ migrations/（增量迁移）
-```
-
-## 开发约定
-
-见 [AGENTS.md](./AGENTS.md)：TDD 强制、TypeScript strict、彻底改造原则（不做补丁）、金额一律以「分」计算、页面禁止直连 Supabase。
-
+<a id="roadmap"></a>
 ## 路线图
 
-- 手机号 + 短信验证码登录（需 Supabase SMS Provider）
-- iOS 正式包（AAB / TestFlight）发布流水线
+- 手机号 + 短信验证码登录（需 Supabase SMS Provider）；
+- iOS 正式包（AAB / TestFlight）发布流水线；
+- 持续清理 [`docs/项目手册.md`](./docs/项目手册.md) 中记录的技术债与已知问题。
+
+<a id="repo"></a>
+## 仓库地址
+
+- GitHub: [https://github.com/sprogFall/family-piggy](https://github.com/sprogFall/family-piggy)
