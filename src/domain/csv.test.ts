@@ -52,7 +52,7 @@ describe('transactionToDraft', () => {
       kind: 'expense',
       amount: 1230,
       currency: 'CNY',
-      tagIds: ['g1'],
+      tagNames: ['午饭'],
       note: '和客户吃饭',
       attributes: { reimbursement: true },
       images: ['https://cdn/receipt.jpg'],
@@ -62,8 +62,7 @@ describe('transactionToDraft', () => {
     const draft = transactionToDraft(
       tx,
       (id) => (id === 'c1' ? '餐饮' : ''),
-      (id) => (id === 'g1' ? '午饭' : ''),
-      (id) => (id === 'u1' ? '小明' : ''),
+      () => '小明',
     );
     expect(draft).toEqual({
       occurredAt: '2024-05-20 14:30',
@@ -96,19 +95,14 @@ describe('transactionToDraft 多标签', () => {
       kind: 'expense',
       amount: 1230,
       currency: 'CNY',
-      tagIds: ['g1', 'g2'],
+      tagNames: ['午餐', '晚餐'],
       note: '',
       attributes: { reimbursement: false },
       images: [],
       occurredAt: new Date(2024, 4, 20, 14, 30).toISOString(),
       createdBy: 'u1',
     };
-    const draft = transactionToDraft(
-      tx,
-      () => '餐饮',
-      (id) => (id === 'g1' ? '午餐' : '晚餐'),
-      () => '',
-    );
+    const draft = transactionToDraft(tx, () => '餐饮', () => '');
     expect(draft.tagName).toBe('午餐/晚餐');
   });
 });

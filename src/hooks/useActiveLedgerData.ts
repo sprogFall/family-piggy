@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -30,21 +30,6 @@ export const useCategoryOf = (): ((categoryId: string) => Category | undefined) 
 export const useActiveTags = (categoryId: string | null): Tag[] => {
   const ledger = useActiveLedger();
   return useTagStore((state) => selectTags(state, ledger?.id, categoryId));
-};
-
-/** 标签 ID -> 标签名；未加载或已删除时返回空串 */
-export const useTagNameOf = (): ((tagId: string) => string) => {
-  const ledger = useActiveLedger();
-  const ledgerTags = useTagStore((state) =>
-    ledger?.id ? state.byLedger[ledger.id] : undefined,
-  );
-  return useMemo(() => {
-    const nameById = new Map<string, string>();
-    for (const tags of Object.values(ledgerTags ?? {})) {
-      for (const tag of tags) nameById.set(tag.id, tag.name);
-    }
-    return (tagId: string) => nameById.get(tagId) ?? '';
-  }, [ledgerTags]);
 };
 
 /**

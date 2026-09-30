@@ -33,7 +33,6 @@ import {
   useActiveFamilyMembers,
   useActiveLedger,
   useCreatorLabel,
-  useTagNameOf,
 } from '@/hooks/useActiveLedgerData';
 import type { RootStackParamList, TabParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
@@ -75,7 +74,6 @@ export const BillsScreen = ({ navigation }: Props) => {
   const familyMembers = useActiveFamilyMembers();
   /** 家庭账本展示「谁记的」；个人账本恒为 null，不展示 */
   const creatorLabelOf = useCreatorLabel();
-  const tagNameOf = useTagNameOf();
   const transactions = useTransactionStore((state) =>
     selectMonthTransactions(state, ledger?.id, month),
   );
@@ -123,9 +121,8 @@ export const BillsScreen = ({ navigation }: Props) => {
           keyword,
         },
         categoryNameOf,
-        tagNameOf,
       ),
-    [categoryNameOf, kindFilter, keyword, recorderFilter, tagNameOf, transactions, typeFilter],
+    [categoryNameOf, kindFilter, keyword, recorderFilter, transactions, typeFilter],
   );
 
   const confirmDeleteTransaction = (transaction: Transaction) => {
@@ -292,8 +289,7 @@ export const BillsScreen = ({ navigation }: Props) => {
                 key={group.key}
                 group={group}
                 categories={categories}
-                tagNameOf={tagNameOf}
-                creatorNameOf={(tx) => creatorLabelOf(tx.createdBy)}
+                  creatorNameOf={(tx) => creatorLabelOf(tx.createdBy)}
                 onRowPress={(tx) =>
                   navigation.navigate('TransactionPreview', { transactionId: tx.id })
                 }

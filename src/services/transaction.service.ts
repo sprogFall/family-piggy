@@ -27,7 +27,7 @@ export const transactionService = {
         kind: input.kind,
         amount: input.amount,
         currency: input.currency,
-        tag_ids: input.tagIds,
+        tag_names: input.tagNames,
         note: input.note,
         attributes: input.attributes,
         images: input.images,
@@ -49,7 +49,7 @@ export const transactionService = {
       kind: input.kind,
       amount: input.amount,
       currency: input.currency,
-      tag_ids: input.tagIds,
+      tag_names: input.tagNames,
       note: input.note,
       attributes: input.attributes,
       images: input.images,
@@ -66,7 +66,7 @@ export const transactionService = {
     if (patch.kind !== undefined) row.kind = patch.kind;
     if (patch.amount !== undefined) row.amount = patch.amount;
     if (patch.currency !== undefined) row.currency = patch.currency;
-    if (patch.tagIds !== undefined) row.tag_ids = patch.tagIds;
+    if (patch.tagNames !== undefined) row.tag_names = patch.tagNames;
     if (patch.note !== undefined) row.note = patch.note;
     if (patch.attributes !== undefined) row.attributes = patch.attributes;
     if (patch.images !== undefined) row.images = patch.images;

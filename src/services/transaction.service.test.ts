@@ -14,7 +14,7 @@ const row = {
   kind: 'expense',
   amount: '1230',
   currency: 'USD',
-  tag_ids: ['g1'],
+  tag_names: ['午餐'],
   note: '出差',
   attributes: { reimbursement: true },
   images: ['https://cdn/img.jpg'],
@@ -42,7 +42,7 @@ describe('transactionService', () => {
     expect(txs[0].note).toBe('出差');
     expect(txs[0].attributes.reimbursement).toBe(true);
     expect(txs[0].images).toEqual(['https://cdn/img.jpg']);
-    expect(txs[0].tagIds).toEqual(['g1']);
+    expect(txs[0].tagNames).toEqual(['午餐']);
   });
 
   it('库中币种缺失或非法时回落 CNY', async () => {
@@ -66,7 +66,7 @@ describe('transactionService', () => {
         kind: 'expense',
         amount: 1230,
         currency: 'JPY',
-        tagIds: ['g1'],
+        tagNames: ['午餐'],
         note: '出差',
         attributes: { reimbursement: true },
         images: ['https://cdn/img.jpg'],
@@ -82,7 +82,7 @@ describe('transactionService', () => {
         note: '出差',
         attributes: { reimbursement: true },
         images: ['https://cdn/img.jpg'],
-        tag_ids: ['g1'],
+        tag_names: ['午餐'],
       }),
     );
   });
@@ -92,7 +92,7 @@ describe('transactionService', () => {
     fromMock.mockReturnValue(chain);
     await transactionService.update('t1', {
       amount: 100,
-      tagIds: [],
+      tagNames: [],
       currency: 'EUR',
       note: '改成可报销',
       attributes: { reimbursement: true },
@@ -100,7 +100,7 @@ describe('transactionService', () => {
     });
     expect(chain.update).toHaveBeenCalledWith({
       amount: 100,
-      tag_ids: [],
+      tag_names: [],
       currency: 'EUR',
       note: '改成可报销',
       attributes: { reimbursement: true },

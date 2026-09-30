@@ -10,7 +10,6 @@ import {
   useActiveCategories,
   useActiveLedger,
   useCreatorLabel,
-  useTagNameOf,
 } from '@/hooks/useActiveLedgerData';
 import { showAlert } from '@/lib/alert';
 import { getErrorMessage } from '@/lib/errors';
@@ -28,7 +27,6 @@ export const TransactionPreviewScreen = ({ navigation, route }: Props) => {
   const insets = useSafeAreaInsets();
   const ledger = useActiveLedger();
   const categories = useActiveCategories();
-  const tagNameOf = useTagNameOf();
   const creatorLabelOf = useCreatorLabel();
   const transaction = useTransactionStore((state) =>
     selectTransactionById(state, route.params.transactionId),
@@ -49,7 +47,7 @@ export const TransactionPreviewScreen = ({ navigation, route }: Props) => {
   }
 
   const category = categories.find((item) => item.id === transaction.categoryId);
-  const tagNames = transaction.tagIds.map(tagNameOf).filter((name) => name !== '');
+  const tagNames = transaction.tagNames.filter((name) => name !== '');
   const creatorName = creatorLabelOf(transaction.createdBy);
   const isIncome = transaction.kind === 'income';
   const showReimbursement = transaction.attributes.reimbursement;

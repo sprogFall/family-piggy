@@ -12,7 +12,6 @@ import {
   useActiveFamilyMembers,
   useActiveLedger,
   useCategoryOf,
-  useTagNameOf,
 } from '@/hooks/useActiveLedgerData';
 import { showAlert } from '@/lib/alert';
 import type { RootStackParamList } from '@/navigation/types';
@@ -37,7 +36,6 @@ export const ExportScreen = ({ navigation }: Props) => {
 
   const ledger = useActiveLedger();
   const categoryOf = useCategoryOf();
-  const tagNameOf = useTagNameOf();
   const familyMembers = useActiveFamilyMembers();
   const profile = useAuthStore((state) => state.profile);
   const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
@@ -77,7 +75,6 @@ export const ExportScreen = ({ navigation }: Props) => {
       await exportTransactions(
         transactions,
         (id) => categoryOf(id)?.name ?? '未知分类',
-        (id) => tagNameOf(id),
         recorderNameOf,
         { ledgerName: ledger.name, month, format },
       );

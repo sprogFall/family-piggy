@@ -11,7 +11,7 @@ const tx: Transaction = {
   kind: 'expense',
   amount: 236800,
   currency: 'CNY',
-  tagIds: ['g1'],
+  tagNames: ['午餐'],
   note: '',
   attributes: { reimbursement: false },
   images: [],
@@ -29,7 +29,7 @@ describe('TransactionRow', () => {
   });
 
   it('未打标签时不展示标签文案', () => {
-    render(<TransactionRow transaction={{ ...tx, tagIds: [] }} categoryName="餐饮" iconKey="restaurant" />);
+    render(<TransactionRow transaction={{ ...tx, tagNames: [] }} categoryName="餐饮" iconKey="restaurant" />);
     expect(screen.getByText('餐饮')).toBeTruthy();
     expect(screen.queryByText(/^#/)).toBeNull();
   });
@@ -37,7 +37,7 @@ describe('TransactionRow', () => {
   it('收入金额带 + 号，展示时间与标签', () => {
     render(
       <TransactionRow
-        transaction={{ ...tx, kind: 'income', amount: 380000, tagIds: ['g2'] }}
+        transaction={{ ...tx, kind: 'income', amount: 380000, tagNames: ['晚餐'] }}
         categoryName="工资"
         iconKey="cash"
         tagNames={['月薪']}

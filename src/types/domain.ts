@@ -84,8 +84,8 @@ export interface Transaction {
   amount: number;
   /** 币种，默认 CNY */
   currency: CurrencyCode;
-  /** 标签 ID 数组，空数组表示未打标签。标签可复用，与本笔备注无关 */
-  tagIds: string[];
+  /** 标签名快照数组，空数组表示未打标签；标签库删除后不影响存量流水 */
+  tagNames: string[];
   /** 本笔备注；与标签分开，仅属于本笔、不可复用 */
   note: string;
   /** 记账类型扩展属性（当前含是否报销） */
@@ -103,7 +103,7 @@ export interface CreateTransactionInput {
   kind: TxKind;
   amount: number;
   currency: CurrencyCode;
-  tagIds: string[];
+  tagNames: string[];
   note: string;
   attributes: TransactionAttributes;
   images: string[];
@@ -115,7 +115,7 @@ export interface UpdateTransactionInput {
   kind?: TxKind;
   amount?: number;
   currency?: CurrencyCode;
-  tagIds?: string[];
+  tagNames?: string[];
   note?: string;
   attributes?: TransactionAttributes;
   images?: string[];

@@ -10,8 +10,6 @@ import { SwipeableTransactionRow } from './SwipeableTransactionRow';
 interface Props {
   group: DayGroup;
   categories: Category[];
-  /** 标签 ID -> 标签名（取自当前账本标签表） */
-  tagNameOf: (tagId: string) => string;
   onRowPress?: (transaction: Transaction) => void;
   onEdit?: (transaction: Transaction) => void;
   onDelete?: (transaction: Transaction) => void;
@@ -22,7 +20,6 @@ interface Props {
 export const DaySection = ({
   group,
   categories,
-  tagNameOf,
   onRowPress,
   onEdit,
   onDelete,
@@ -53,7 +50,7 @@ export const DaySection = ({
             transaction={tx}
             categoryName={category?.name ?? '未知分类'}
             iconKey={category?.icon ?? 'ellipsis-horizontal'}
-            tagNames={tx.tagIds.map(tagNameOf).filter((name) => name !== '')}
+            tagNames={tx.tagNames}
             showTime
             createdByName={creatorNameOf?.(tx) ?? null}
             onPress={() => onRowPress?.(tx)}

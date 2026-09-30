@@ -136,13 +136,12 @@ export const draftsToCsv = (drafts: CsvDraft[]): string => {
 export const transactionToDraft = (
   tx: Transaction,
   categoryNameOf: (categoryId: string) => string,
-  tagNameOf: (tagId: string) => string,
   recorderNameOf: (createdBy: string) => string,
 ): CsvDraft => ({
   occurredAt: formatDateTimeCN(tx.occurredAt),
   kind: tx.kind,
   categoryName: categoryNameOf(tx.categoryId),
-  tagName: tx.tagIds.map(tagNameOf).filter((name) => name !== '').join('/'),
+  tagName: tx.tagNames.filter((name) => name !== '').join('/'),
   note: tx.note,
   amountCents: tx.amount,
   currency: tx.currency,

@@ -68,7 +68,7 @@ export interface TransactionRow {
   /** Postgres bigint 经 supabase-js 可能返回 string */
   amount: number | string;
   currency: string;
-  tag_ids: unknown;
+  tag_names: unknown;
   note: string | null;
   /** 记账类型扩展字段（Postgres jsonb，旧行可能为 null） */
   attributes: unknown;
@@ -149,7 +149,7 @@ export const toTransaction = (row: TransactionRow): Transaction => ({
   kind: row.kind,
   amount: Number(row.amount),
   currency: isCurrencyCode(row.currency) ? row.currency : DEFAULT_CURRENCY,
-  tagIds: toStringArray(row.tag_ids),
+  tagNames: toStringArray(row.tag_names),
   note: row.note ?? '',
   attributes: toTransactionAttributes(row.attributes),
   images: toTransactionImages(row.images),

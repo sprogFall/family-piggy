@@ -23,10 +23,9 @@ import {
   monthlySummaryPoints,
   scopeToCurrency,
 } from '@/domain/statement';
-import { useActiveLedger, useCategoryOf, useTagNameOf } from '@/hooks/useActiveLedgerData';
+import { useActiveLedger, useCategoryOf } from '@/hooks/useActiveLedgerData';
 import type { RootStackParamList, TabParamList } from '@/navigation/types';
 import { useCategoryStore } from '@/stores/category.store';
-import { useTagStore } from '@/stores/tag.store';
 import {
   selectMonthBucket,
   selectMonthTransactions,
@@ -64,7 +63,6 @@ export const StatsScreen = ({ navigation }: Props) => {
 
   const ledger = useActiveLedger();
   const categoryOf = useCategoryOf();
-  const tagNameOf = useTagNameOf();
   const loadMonth = useTransactionStore((state) => state.loadMonth);
   const loadYear = useTransactionStore((state) => state.loadYear);
   const monthTransactions = useTransactionStore((state) =>
@@ -80,14 +78,12 @@ export const StatsScreen = ({ navigation }: Props) => {
     selectYearBucket(state, ledger?.id, year),
   );
   const loadCategories = useCategoryStore((state) => state.load);
-  const loadTags = useTagStore((state) => state.load);
 
   const monthKeyValue = monthKey(month);
   useFocusEffect(
     useCallback(() => {
       if (!ledger) return;
       void loadCategories(ledger.id).catch(() => undefined);
-      void loadTags(ledger.id).catch(() => undefined);
       if (granularity === 'year') void loadYear(ledger.id, year);
       else void loadMonth(ledger.id, month);
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -241,9 +237,7 @@ export const StatsScreen = ({ navigation }: Props) => {
           {visibleRanking.length > 0 ? (
             <>
               {visibleRanking.map((tx, index) => {
-                const tagNames = tx.tagIds
-                  .map(tagNameOf)
-                  .filter((name) => name !== '');
+                const tagNames = tx.tagNames.filter((name) => name !== '');
                 return (
                   <Pressable
                     key={tx.id}

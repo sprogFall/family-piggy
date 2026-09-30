@@ -111,7 +111,7 @@ describe('importDrafts', () => {
     txMock.createMany.mockResolvedValue(undefined);
   });
 
-  it('标签按分类复用（同名标签在不同分类下相互独立），并随流水写入 tag_ids', async () => {
+  it('标签按分类复用（同名标签在不同分类下相互独立），并随流水写入 tag_names', async () => {
     const count = await importDrafts(
       'l1',
       [draft({ tagName: '午饭' }), draft({ tagName: '午饭', kind: 'income', categoryName: '工资' })],
@@ -125,7 +125,7 @@ describe('importDrafts', () => {
     expect(categoryMock.create).toHaveBeenCalledTimes(1); // 「工资」分类缺失 → 自动创建
     expect(txMock.createMany).toHaveBeenCalledWith([
       expect.objectContaining({
-        tagIds: ['c1-g0'],
+        tagNames: ['午饭'],
         categoryId: 'c1',
         currency: 'CNY',
         note: '',
@@ -133,7 +133,7 @@ describe('importDrafts', () => {
         images: [],
         createdBy: 'u1',
       }),
-      expect.objectContaining({ tagIds: ['c-created-g0'], categoryId: 'c-created' }),
+      expect.objectContaining({ tagNames: ['午饭'], categoryId: 'c-created' }),
     ]);
   });
 
@@ -155,16 +155,16 @@ describe('importDrafts', () => {
     ]);
   });
 
-  it('标签用 / 分隔时拆成多个并写入 tag_ids 数组', async () => {
+  it('标签用 / 分隔时拆成多个并写入 tag_names 数组', async () => {
     await importDrafts('l1', [draft({ tagName: '午餐/晚餐' })], { defaultCreatedBy: 'u1' });
 
     expect(tagMock.ensureMany).toHaveBeenCalledWith('l1', 'c1', ['午餐', '晚餐']);
     expect(txMock.createMany).toHaveBeenCalledWith([
-      expect.objectContaining({ tagIds: ['c1-g0', 'c1-g1'] }),
+      expect.objectContaining({ tagNames: ['午餐', '晚餐'] }),
     ]);
   });
 
-  it('多行出现相同标签时，同分类下只请求一次并复用同一个标签 ID', async () => {
+  it('多行出现相同标签时，同分类下只请求一次并复用标签库', async () => {
     await importDrafts(
       'l1',
       [
@@ -178,17 +178,17 @@ describe('importDrafts', () => {
     expect(tagMock.ensureMany).toHaveBeenCalledTimes(1);
     expect(tagMock.ensureMany).toHaveBeenCalledWith('l1', 'c1', ['午餐', '晚餐']);
     expect(txMock.createMany).toHaveBeenCalledWith([
-      expect.objectContaining({ tagIds: ['c1-g0', 'c1-g1'] }),
-      expect.objectContaining({ tagIds: ['c1-g1'] }),
-      expect.objectContaining({ tagIds: ['c1-g0'] }),
+      expect.objectContaining({ tagNames: ['午餐', '晚餐'] }),
+      expect.objectContaining({ tagNames: ['晚餐'] }),
+      expect.objectContaining({ tagNames: ['午餐'] }),
     ]);
   });
 
-  it('无标签的流水不请求标签且 tag_ids 为空数组；空草稿不写库', async () => {
+  it('无标签的流水不请求标签且 tag_names 为空数组；空草稿不写库', async () => {
     await importDrafts('l1', [draft({ tagName: '  ' })], { defaultCreatedBy: 'u1' });
 
     expect(tagMock.ensureMany).not.toHaveBeenCalled();
-    expect(txMock.createMany).toHaveBeenCalledWith([expect.objectContaining({ tagIds: [] })]);
+    expect(txMock.createMany).toHaveBeenCalledWith([expect.objectContaining({ tagNames: [] })]);
     expect(await importDrafts('l1', [], { defaultCreatedBy: 'u1' })).toBe(0);
   });
 

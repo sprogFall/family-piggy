@@ -42,7 +42,6 @@ export const filterTransactions = (
   transactions: Transaction[],
   criteria: TransactionFilterCriteria,
   categoryNameOf: (categoryId: string) => string,
-  tagNameOf: (tagId: string) => string,
 ): Transaction[] => {
   const keyword = criteria.keyword.trim().toLowerCase();
   return transactions.filter((transaction) => {
@@ -52,10 +51,7 @@ export const filterTransactions = (
     if (keyword === '') return true;
 
     const categoryName = categoryNameOf(transaction.categoryId).toLowerCase();
-    const tagNames = transaction.tagIds
-      .map(tagNameOf)
-      .join(' ')
-      .toLowerCase();
+    const tagNames = transaction.tagNames.join(' ').toLowerCase();
     return categoryName.includes(keyword) || tagNames.includes(keyword);
   });
 };

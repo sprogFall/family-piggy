@@ -16,7 +16,7 @@ const tx = (
   kind: 'expense',
   amount: 100,
   currency: 'CNY',
-  tagIds: [],
+  tagNames: [],
   note: '',
   attributes: { reimbursement: false },
   images: [],
@@ -27,9 +27,6 @@ const tx = (
 
 const categoryNameOf = (id: string): string =>
   id === 'c1' ? '餐饮' : id === 'c2' ? '交通' : '未知分类';
-const tagNameOf = (id: string): string =>
-  id === 'g1' ? '午餐' : id === 'g2' ? '奶茶' : '';
-
 describe('transaction-filter', () => {
   it('提供全部 / 报销两个选项，不再包含未报销', () => {
     expect(TRANSACTION_TYPE_FILTER_OPTIONS.map((option) => option.value)).toEqual([
@@ -50,7 +47,6 @@ describe('transaction-filter', () => {
       list,
       { type: 'all', kind: 'income', createdBy: 'all', keyword: '' },
       categoryNameOf,
-      tagNameOf,
     );
     expect(filtered.map((item) => item.id)).toEqual(['t2']);
   });
@@ -61,22 +57,20 @@ describe('transaction-filter', () => {
       list,
       { type: 'all', kind: 'all', createdBy: 'u2', keyword: '' },
       categoryNameOf,
-      tagNameOf,
     );
     expect(filtered.map((item) => item.id)).toEqual(['t2']);
   });
 
   it('支持按分类名 / 标签名做关键词搜索', () => {
     const list = [
-      tx('t1', { categoryId: 'c1', tagIds: ['g1'] }),
-      tx('t2', { categoryId: 'c2', tagIds: ['g2'] }),
-      tx('t3', { categoryId: 'c1', tagIds: [] }),
+      tx('t1', { categoryId: 'c1', tagNames: ['午餐'] }),
+      tx('t2', { categoryId: 'c2', tagNames: ['奶茶'] }),
+      tx('t3', { categoryId: 'c1', tagNames: [] }),
     ];
     const byCategory = filterTransactions(
       list,
       { type: 'all', kind: 'all', createdBy: 'all', keyword: '交通' },
       categoryNameOf,
-      tagNameOf,
     );
     expect(byCategory.map((item) => item.id)).toEqual(['t2']);
 
@@ -84,7 +78,6 @@ describe('transaction-filter', () => {
       list,
       { type: 'all', kind: 'all', createdBy: 'all', keyword: '奶茶' },
       categoryNameOf,
-      tagNameOf,
     );
     expect(byTag.map((item) => item.id)).toEqual(['t2']);
 
@@ -92,7 +85,6 @@ describe('transaction-filter', () => {
       list,
       { type: 'all', kind: 'all', createdBy: 'all', keyword: '餐饮' },
       categoryNameOf,
-      tagNameOf,
     );
     expect(byCategoryKeyword.map((item) => item.id)).toEqual(['t1', 't3']);
   });

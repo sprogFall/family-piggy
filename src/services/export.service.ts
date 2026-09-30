@@ -40,12 +40,11 @@ export interface ExportOptions {
 export const exportTransactions = async (
   transactions: Transaction[],
   categoryNameOf: (categoryId: string) => string,
-  tagNameOf: (tagId: string) => string,
   recorderNameOf: (createdBy: string) => string,
   options: ExportOptions,
 ): Promise<string> => {
   const drafts = transactions
-    .map((tx) => transactionToDraft(tx, categoryNameOf, tagNameOf, recorderNameOf))
+    .map((tx) => transactionToDraft(tx, categoryNameOf, recorderNameOf))
     .sort((a, b) => (a.occurredAt < b.occurredAt ? -1 : 1));
 
   const base = `记账-${options.ledgerName}-${monthKey(options.month)}`;

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import RNDateTimePicker from '@react-native-community/datetimepicker';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Keyboard, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -56,7 +56,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   const [amount, setAmount] = useState(
     editing ? formatCents(editing.amount, { thousands: false }) : '',
   );
-  const [tagIds, setTagIds] = useState<string[]>(editing?.tagIds ?? []);
+  const [tagNames, setTagNames] = useState<string[]>(editing?.tagNames ?? []);
   const [note, setNote] = useState(editing?.note ?? '');
   const [reimbursement, setReimbursement] = useState(editing?.attributes.reimbursement ?? false);
   const [images, setImages] = useState<TransactionImageDraft[]>(() =>
@@ -73,6 +73,13 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   const categories = useActiveCategories();
   /** 标签隶属于分类：未选分类时不展示、也不能新增 */
   const tags = useActiveTags(categoryId);
+  const selectedTagIds = useMemo(
+    () =>
+      tagNames
+        .map((name) => tags.find((tag) => tag.name === name)?.id)
+        .filter((id): id is string => id !== undefined),
+    [tagNames, tags],
+  );
   const loadCategories = useCategoryStore((state) => state.load);
   const loadTags = useTagStore((state) => state.load);
   const ensureTag = useTagStore((state) => state.ensure);
@@ -109,13 +116,13 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
     setKind(next);
     setCategoryId(null);
     // 标签隶属于分类，切换类型后原分类与标签都不再适用
-    setTagIds([]);
+    setTagNames([]);
   };
 
   const changeCategory = (nextId: string) => {
     setCategoryId(nextId);
     // 每个分类有自己的标签集合，换分类后清空已选标签
-    setTagIds([]);
+    setTagNames([]);
   };
 
   const changeCurrency = (next: CurrencyCode) => {
@@ -128,7 +135,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
     if (!ledger || !categoryId) return;
     void ensureTag({ ledgerId: ledger.id, categoryId, name })
       .then((tag) =>
-        setTagIds((current) => (current.includes(tag.id) ? current : [...current, tag.id])),
+        setTagNames((current) => (current.includes(tag.name) ? current : [...current, tag.name])),
       )
       .catch((error: unknown) =>
         showAlert('标签保存失败', error instanceof Error ? error.message : '请稍后再试'),
@@ -138,14 +145,14 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   const confirmRemoveTag = (tag: Tag) => {
     if (!ledger) return;
     const ledgerId = ledger.id;
-    showAlert('删除标签', `删除后已有账单不再显示「${tag.name}」，确定删除吗？`, [
+    showAlert('删除标签', `删除后已记账单不受影响，只是之后不能再复用「${tag.name}」，确定删除吗？`, [
       { text: '取消', style: 'cancel' },
       {
         text: '删除',
         style: 'destructive',
         onPress: () => {
           void removeTag(tag.id, ledgerId)
-            .then(() => setTagIds((current) => current.filter((id) => id !== tag.id)))
+            .then(() => setTagNames((current) => current.filter((name) => name !== tag.name)))
             .catch((error: unknown) =>
               showAlert('删除失败', error instanceof Error ? error.message : '请稍后再试'),
             );
@@ -203,7 +210,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
         kind,
         amount: cents,
         currency,
-        tagIds,
+        tagNames,
         note: note.trim(),
         // 编辑时保留数据库里预留的其它记账类型字段，只覆盖当前 UI 支持的报销
         attributes: { ...(editing?.attributes ?? {}), reimbursement },
@@ -307,14 +314,16 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
         {categoryId ? (
           <TagSelector
             tags={tags}
-            selectedIds={tagIds}
-            onToggle={(tagId) =>
-              setTagIds((current) =>
-                current.includes(tagId)
-                  ? current.filter((id) => id !== tagId)
-                  : [...current, tagId],
-              )
-            }
+            selectedIds={selectedTagIds}
+            onToggle={(tagId) => {
+              const tag = tags.find((item) => item.id === tagId);
+              if (!tag) return;
+              setTagNames((current) =>
+                current.includes(tag.name)
+                  ? current.filter((name) => name !== tag.name)
+                  : [...current, tag.name],
+              );
+            }}
             onCreate={createTag}
             onRemove={confirmRemoveTag}
           />
