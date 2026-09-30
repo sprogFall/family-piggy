@@ -358,7 +358,6 @@ Android 端「关于我们」页会自动检查新版本，并支持应用内下
 - [数据库全量脚本 supabase/schema.sql](./supabase/schema.sql)
 - [CI 工作流 .github/workflows/ci.yml](./.github/workflows/ci.yml)
 - [Release 工作流 .github/workflows/release.yml](./.github/workflows/release.yml)
-- [外观参考 life_tools](https://github.com/sprogFall/life_tools)
 
 <a id="roadmap"></a>
 ## 路线图
