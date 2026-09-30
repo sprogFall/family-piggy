@@ -5,6 +5,7 @@ import { Appearance } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { SplashView } from '@/components/SplashView';
+import { DialogHost } from '@/components/ui/DialogHost';
 import { Toast } from '@/components/ui/Toast';
 import { AuthNavigator, MainNavigator, navigationRef } from '@/navigation';
 import { useAuthStore } from '@/stores/auth.store';
@@ -67,6 +68,7 @@ export default function App() {
         {status === 'loading' ? <SplashView /> : status === 'signedIn' ? <MainNavigator /> : <AuthNavigator />}
       </NavigationContainer>
       <Toast />
+      <DialogHost />
     </SafeAreaProvider>
   );
 }

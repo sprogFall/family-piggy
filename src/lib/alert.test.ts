@@ -1,58 +1,48 @@
-import { Alert, Platform } from 'react-native';
+import {
+  dismissDialog,
+  getDialogRequest,
+  pressDialogButton,
+  showAlert,
+  subscribeDialog,
+} from './alert';
 
-import { showAlert } from './alert';
+describe('dialog bus', () => {
+  afterEach(() => dismissDialog());
 
-const replacePlatform = (os: typeof Platform.OS) => jest.replaceProperty(Platform, 'OS', os);
+  it('showAlert 发布弹窗请求，无按钮时补「好的」', () => {
+    const listener = jest.fn();
+    const unsubscribe = subscribeDialog(listener);
 
-describe('showAlert', () => {
-  let alertSpy: jest.SpyInstance;
+    showAlert('标题', '内容');
 
-  beforeEach(() => {
-    alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(getDialogRequest()).toEqual({
+      title: '标题',
+      message: '内容',
+      buttons: [{ text: '好的' }],
+    });
+    unsubscribe();
   });
 
-  afterEach(() => {
-    alertSpy.mockRestore();
-    delete (globalThis as { window?: unknown }).window;
-  });
-
-  it('native 平台委托 Alert.alert', () => {
-    replacePlatform('ios');
+  it('带按钮时保留按钮并在点击后关闭、执行回调', () => {
     const onOk = jest.fn();
-    const buttons = [{ text: '好的', onPress: onOk }];
-
-    showAlert('标题', '内容', buttons);
-
-    expect(alertSpy).toHaveBeenCalledWith('标题', '内容', buttons);
-    expect(onOk).not.toHaveBeenCalled();
-  });
-
-  it('web 平台无取消按钮时用 window.alert 并触发回调', () => {
-    replacePlatform('web');
-    const alertSpy = jest.fn();
-    (globalThis as { window: unknown }).window = { alert: alertSpy, confirm: jest.fn() };
-    const onOk = jest.fn();
-
-    showAlert('标题', '内容', [{ text: '好的', onPress: onOk }]);
-
-    expect(alertSpy).toHaveBeenCalledWith('标题\n内容');
-    expect(onOk).toHaveBeenCalled();
-  });
-
-  it('web 平台有取消按钮时用 window.confirm 分发回调', () => {
-    replacePlatform('web');
-    const confirmSpy = jest.fn(() => true);
-    (globalThis as { window: unknown }).window = { alert: jest.fn(), confirm: confirmSpy };
-    const onOk = jest.fn();
-    const onCancel = jest.fn();
-
     showAlert('删除', '确定吗？', [
-      { text: '取消', style: 'cancel', onPress: onCancel },
+      { text: '取消', style: 'cancel' },
       { text: '删除', style: 'destructive', onPress: onOk },
     ]);
 
-    expect(confirmSpy).toHaveBeenCalledWith('删除\n确定吗？');
-    expect(onOk).toHaveBeenCalled();
-    expect(onCancel).not.toHaveBeenCalled();
+    const dialog = getDialogRequest();
+    expect(dialog?.buttons).toHaveLength(2);
+
+    pressDialogButton(dialog!.buttons[1]);
+    expect(onOk).toHaveBeenCalledTimes(1);
+    expect(getDialogRequest()).toBeNull();
+  });
+
+  it('dismissDialog 清空当前请求', () => {
+    showAlert('提示');
+    expect(getDialogRequest()).not.toBeNull();
+    dismissDialog();
+    expect(getDialogRequest()).toBeNull();
   });
 });

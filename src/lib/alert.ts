@@ -1,34 +1,50 @@
-import { Alert, Platform } from 'react-native';
-
 export interface AlertButton {
   text: string;
   style?: 'default' | 'cancel' | 'destructive';
   onPress?: () => void;
 }
 
+export interface DialogRequest {
+  title: string;
+  message?: string;
+  buttons: AlertButton[];
+}
+
+let current: DialogRequest | null = null;
+const listeners = new Set<() => void>();
+
+const emit = (): void => {
+  for (const listener of listeners) listener();
+};
+
+const normalizeButtons = (buttons?: AlertButton[]): AlertButton[] =>
+  buttons && buttons.length > 0 ? buttons : [{ text: '好的' }];
+
 /**
- * 跨平台弹窗提示：
- * - native：Alert.alert
- * - web：react-native-web 的 Alert.alert 是 no-op（只打 console.warn），
- *   改用 window.alert / window.confirm，否则用户看不到任何反馈
+ * 统一弹窗入口：所有提示 / 确认都通过它进入根组件 DialogHost 渲染，
+ * 禁止业务代码直接调用 React Native Alert.alert / window.confirm。
  */
 export const showAlert = (title: string, message?: string, buttons?: AlertButton[]): void => {
-  const text = message ? `${title}\n${message}` : title;
+  current = { title, message, buttons: normalizeButtons(buttons) };
+  emit();
+};
 
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    const hasCancel = buttons?.some((button) => button.style === 'cancel') ?? false;
-    if (hasCancel) {
-      if (window.confirm(text)) {
-        buttons?.filter((button) => button.style !== 'cancel').at(-1)?.onPress?.();
-      } else {
-        buttons?.find((button) => button.style === 'cancel')?.onPress?.();
-      }
-      return;
-    }
-    window.alert(text);
-    buttons?.at(-1)?.onPress?.();
-    return;
-  }
+export const subscribeDialog = (listener: () => void): (() => void) => {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+};
 
-  Alert.alert(title, message, buttons);
+export const getDialogRequest = (): DialogRequest | null => current;
+
+export const dismissDialog = (): void => {
+  if (current === null) return;
+  current = null;
+  emit();
+};
+
+export const pressDialogButton = (button: AlertButton): void => {
+  dismissDialog();
+  button.onPress?.();
 };

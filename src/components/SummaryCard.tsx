@@ -1,9 +1,11 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { budgetProgress } from '@/domain/budget';
 import type { CurrencyCode } from '@/domain/currency';
 import { formatMoney } from '@/domain/money';
-import { makeStyles, fontSize, space } from '@/theme';
+import { makeStyles, useColors, fontSize, space } from '@/theme';
 
 interface Props {
   expense: number;
@@ -25,19 +27,39 @@ export const SummaryCard = ({
   onPressBudget,
 }: Props) => {
   const styles = useStyles();
+  const colors = useColors();
+  const [amountsHidden, setAmountsHidden] = useState(false);
   const progress = budgetProgress(expense, budget);
+  const mask = (value: string): string => (amountsHidden ? '••••' : value);
+
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>本月支出</Text>
-      <Text style={styles.expense}>{formatMoney(expense, currency)}</Text>
+      <View style={styles.labelRow}>
+        <Text style={styles.label}>本月支出</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={amountsHidden ? '显示金额' : '隐藏金额'}
+          hitSlop={8}
+          onPress={() => setAmountsHidden((value) => !value)}
+        >
+          <Ionicons
+            name={amountsHidden ? 'eye-off-outline' : 'eye-outline'}
+            size={18}
+            color={colors.white}
+          />
+        </Pressable>
+      </View>
+      <Text style={styles.expense}>{mask(formatMoney(expense, currency))}</Text>
       <View style={styles.row}>
         <View style={styles.item}>
           <Text style={styles.subLabel}>本月收入</Text>
-          <Text style={styles.subValue}>{formatMoney(income, currency)}</Text>
+          <Text style={styles.subValue}>{mask(formatMoney(income, currency))}</Text>
         </View>
         <View style={styles.item}>
           <Text style={styles.subLabel}>结余</Text>
-          <Text style={styles.subValue}>{formatMoney(balance, currency, { signed: true })}</Text>
+          <Text style={styles.subValue}>
+            {mask(formatMoney(balance, currency, { signed: true }))}
+          </Text>
         </View>
       </View>
 
@@ -49,8 +71,8 @@ export const SummaryCard = ({
           </View>
           <Text style={styles.budgetText}>
             {progress.isOver
-              ? `已超支 ${formatMoney(-progress.remainingCents, currency)} / ${formatMoney(budget, currency)}`
-              : `剩余 ${formatMoney(progress.remainingCents, currency)} / ${formatMoney(budget, currency)}`}
+              ? `已超支 ${mask(formatMoney(-progress.remainingCents, currency))} / ${mask(formatMoney(budget, currency))}`
+              : `剩余 ${mask(formatMoney(progress.remainingCents, currency))} / ${mask(formatMoney(budget, currency))}`}
           </Text>
         </Pressable>
       ) : (
@@ -104,6 +126,11 @@ const useStyles = makeStyles((colors) => ({
   label: {
     color: 'rgba(255,255,255,0.75)',
     fontSize: fontSize.sm,
+  },
+  labelRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space(2),
   },
   row: {
     flexDirection: 'row',

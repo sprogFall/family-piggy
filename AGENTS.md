@@ -40,6 +40,17 @@
 - **金额一律以“分”（整数 cents）存储与计算**，仅展示层格式化为元
 - UI 颜色、间距、字号统一走 `src/theme`，禁止散落硬编码样式值；颜色只能在**组件内**用 `makeStyles((colors) => ...)` / `useColors()` 读取（禁止在模块作用域取色），新增颜色令牌必须同时补齐浅色 / 深色两套调色板
 
+### 3.4 弹窗与确认框规范（强制）
+
+- 禁止业务代码直接调用 React Native `Alert.alert`、浏览器 `window.alert` / `window.confirm`。
+- 所有提示 / 确认统一使用 `src/lib/alert.ts` 的 `showAlert`，由根组件 `DialogHost` 渲染 App 风格弹窗。
+- 确认类操作按钮语义：
+  - `{ text: '取消', style: 'cancel' }`：取消；
+  - `{ text: '删除' / '退出' / '解散', style: 'destructive' }`：危险操作；
+  - 普通确认使用 `style: 'default'`。
+- 简单提示不传 `buttons` 时自动显示「好的」按钮。
+- 新增确认弹窗时禁止再写平台判断或原生 `Alert`，保证 Android / iOS / Web 样式一致。
+
 ## 4. 分层架构（依赖方向不可违反）
 
 ```

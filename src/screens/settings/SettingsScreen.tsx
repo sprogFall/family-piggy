@@ -70,12 +70,6 @@ export const SettingsScreen = ({ navigation }: Props) => {
         </View>
 
         <MenuItem
-          icon="cloud-upload-outline"
-          label="数据备份"
-          hint="云端自动同步"
-          onPress={() => showAlert('提示', '账单数据已实时同步至云端，无需手动备份')}
-        />
-        <MenuItem
           icon="trash-outline"
           label="清除本地缓存"
           onPress={() =>
