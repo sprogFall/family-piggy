@@ -14,8 +14,8 @@ describe('RecurringScheduleSheet', () => {
       />,
     );
 
-    expect(screen.getByLabelText('每月10号').props.accessibilityState).toEqual({ selected: true });
-    fireEvent.press(screen.getByLabelText('每月15号'));
+    expect(screen.getByLabelText('10号').props.accessibilityState).toEqual({ selected: true });
+    fireEvent.press(screen.getByLabelText('15号'));
     fireEvent.press(screen.getByText('确定'));
     expect(onConfirm).toHaveBeenCalledWith({ frequency: 'monthly', monthlyDay: 15 });
   });
@@ -31,10 +31,9 @@ describe('RecurringScheduleSheet', () => {
       />,
     );
 
-    fireEvent.press(screen.getByText('每周'));
-    fireEvent.press(screen.getByLabelText('每周三'));
+    fireEvent.press(screen.getByLabelText('每周'));
+    fireEvent.press(screen.getByLabelText('周三'));
     fireEvent.press(screen.getByText('确定'));
     expect(onConfirm).toHaveBeenCalledWith({ frequency: 'weekly', weeklyDay: 3 });
   });
-
 });

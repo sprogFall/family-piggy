@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import {
   formatRecurringSchedule,
@@ -7,11 +7,11 @@ import {
   RECURRING_WEEKDAY_LABELS,
 } from '@/domain/recurring';
 import type { RecurringFrequency, RecurringSchedule } from '@/types/domain';
-import { fontSize, makeStyles, radius, space } from '@/theme';
+import { fontSize, makeStyles, space } from '@/theme';
 
 import { BottomSheet } from './BottomSheet';
 import { PrimaryButton } from './PrimaryButton';
-import { SegmentedTabs } from './SegmentedTabs';
+import { WheelPicker, type WheelPickerOption } from './WheelPicker';
 
 interface Props {
   visible: boolean;
@@ -20,9 +20,9 @@ interface Props {
   onConfirm: (schedule: RecurringSchedule) => void;
 }
 
-const FREQUENCY_TABS = [
-  { key: 'monthly' as const, label: '每月' },
-  { key: 'weekly' as const, label: '每周' },
+const FREQUENCY_OPTIONS: WheelPickerOption<RecurringFrequency>[] = [
+  { label: '每月', value: 'monthly' },
+  { label: '每周', value: 'weekly' },
 ];
 
 const DEFAULT_MONTHLY_DAY = 10;
@@ -55,60 +55,47 @@ export const RecurringScheduleSheet = ({ visible, value, onClose, onConfirm }: P
     setWeeklyDay(value.weeklyDay);
   }, [value, visible]);
 
+  const dayOptions: WheelPickerOption<number>[] =
+    frequency === 'monthly'
+      ? MONTHLY_DAY_OPTIONS.map((day) => ({ label: `${day}号`, value: day }))
+      : RECURRING_WEEKDAY_LABELS.map((label, index) => ({ label: `周${label}`, value: index }));
+
+  const selectedDay = frequency === 'monthly' ? monthlyDay : weeklyDay;
   const schedule: RecurringSchedule =
     frequency === 'monthly'
       ? { frequency: 'monthly', monthlyDay }
       : { frequency: 'weekly', weeklyDay };
 
+  const changeDay = (next: number) => {
+    if (frequency === 'monthly') {
+      setMonthlyDay(next);
+      return;
+    }
+    setWeeklyDay(next);
+  };
+
   return (
     <BottomSheet visible={visible} onClose={onClose} title="选择定时时间">
-      <SegmentedTabs items={FREQUENCY_TABS} value={frequency} onChange={setFrequency} />
+      <View style={styles.wheelHeader}>
+        <Text style={styles.wheelHeaderText}>频率</Text>
+        <Text style={styles.wheelHeaderText}>日期</Text>
+      </View>
 
-      {frequency === 'monthly' ? (
-        <ScrollView
-          style={styles.dayScroll}
-          contentContainerStyle={styles.dayGrid}
-          showsVerticalScrollIndicator={false}
-        >
-          {MONTHLY_DAY_OPTIONS.map((day) => {
-            const selected = day === monthlyDay;
-            return (
-              <Pressable
-                key={day}
-                accessibilityRole="button"
-                accessibilityLabel={`每月${day}号`}
-                accessibilityState={{ selected }}
-                style={[styles.dayChip, selected ? styles.dayChipSelected : null]}
-                onPress={() => setMonthlyDay(day)}
-              >
-                <Text style={[styles.dayText, selected ? styles.dayTextSelected : null]}>
-                  {day}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      ) : (
-        <View style={styles.weekRow}>
-          {RECURRING_WEEKDAY_LABELS.map((label, index) => {
-            const selected = index === weeklyDay;
-            return (
-              <Pressable
-                key={label}
-                accessibilityRole="button"
-                accessibilityLabel={`每周${label}`}
-                accessibilityState={{ selected }}
-                style={[styles.weekChip, selected ? styles.weekChipSelected : null]}
-                onPress={() => setWeeklyDay(index)}
-              >
-                <Text style={[styles.weekText, selected ? styles.weekTextSelected : null]}>
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      )}
+      <View style={styles.wheelRow}>
+        <WheelPicker
+          options={FREQUENCY_OPTIONS}
+          value={frequency}
+          onChange={setFrequency}
+          testID="recurring-frequency-wheel"
+        />
+        <View style={styles.wheelDivider} />
+        <WheelPicker
+          options={dayOptions}
+          value={selectedDay}
+          onChange={changeDay}
+          testID="recurring-day-wheel"
+        />
+      </View>
 
       <Text style={styles.preview}>已选择：{formatRecurringSchedule(schedule)}</Text>
       <PrimaryButton title="确定" onPress={() => onConfirm(schedule)} />
@@ -117,68 +104,31 @@ export const RecurringScheduleSheet = ({ visible, value, onClose, onConfirm }: P
 };
 
 const useStyles = makeStyles((colors) => ({
-  dayChip: {
-    alignItems: 'center',
-    backgroundColor: colors.bg,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    height: 40,
-    justifyContent: 'center',
-    width: '13.2%',
-  },
-  dayChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  dayGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space(1.5),
-    paddingVertical: space(3),
-  },
-  dayScroll: {
-    maxHeight: 260,
-  },
-  dayText: {
-    color: colors.text,
-    fontSize: fontSize.sm,
-  },
-  dayTextSelected: {
-    color: colors.white,
-    fontWeight: '600',
-  },
   preview: {
     color: colors.textSecondary,
     fontSize: fontSize.sm,
     marginBottom: space(3),
     textAlign: 'center',
   },
-  weekChip: {
-    alignItems: 'center',
-    backgroundColor: colors.bg,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    flex: 1,
-    height: 44,
-    justifyContent: 'center',
+  wheelDivider: {
+    backgroundColor: colors.border,
+    width: 1,
   },
-  weekChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  weekRow: {
+  wheelHeader: {
     flexDirection: 'row',
-    gap: space(1),
-    paddingVertical: space(4),
+    marginTop: space(2),
   },
-  weekText: {
-    color: colors.text,
-    fontSize: fontSize.sm,
-  },
-  weekTextSelected: {
-    color: colors.white,
+  wheelHeaderText: {
+    color: colors.textSecondary,
+    flex: 1,
+    fontSize: fontSize.xs,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  wheelRow: {
+    flexDirection: 'row',
+    gap: space(2),
+    marginBottom: space(3),
+    marginTop: space(1),
   },
 }));
