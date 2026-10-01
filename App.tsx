@@ -10,6 +10,7 @@ import { Toast } from '@/components/ui/Toast';
 import { AuthNavigator, MainNavigator, navigationRef } from '@/navigation';
 import { useAuthStore } from '@/stores/auth.store';
 import { useLedgerStore } from '@/stores/ledger.store';
+import { useRecurringRuleStore } from '@/stores/recurring-rule.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { useTagStore } from '@/stores/tag.store';
 import { useThemeStore } from '@/stores/theme.store';
@@ -41,6 +42,7 @@ export default function App() {
       useLedgerStore.getState().reset();
       useTransactionStore.getState().reset();
       useCategoryStore.getState().reset();
+      useRecurringRuleStore.getState().reset();
       useTagStore.getState().reset();
     }
   }, [status]);

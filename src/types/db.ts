@@ -7,6 +7,8 @@ import type {
   Family,
   Ledger,
   Profile,
+  RecurringRule,
+  RecurringSchedule,
   Tag,
   Transaction,
   TransactionAttributes,
@@ -76,6 +78,27 @@ export interface TransactionRow {
   images: unknown;
   occurred_at: string;
   created_by: string;
+}
+
+export interface RecurringRuleRow {
+  id: string;
+  ledger_id: string;
+  category_id: string;
+  kind: 'expense' | 'income';
+  amount: number | string;
+  currency: string;
+  tag_names: unknown;
+  note: string | null;
+  attributes: unknown;
+  images: unknown;
+  frequency: string;
+  monthly_day: number | null;
+  weekly_day: number | null;
+  time_zone: string;
+  next_run_on: string;
+  is_active: boolean;
+  created_by: string;
+  created_at: string;
 }
 
 export const toProfile = (row: ProfileRow): Profile => ({
@@ -156,3 +179,30 @@ export const toTransaction = (row: TransactionRow): Transaction => ({
   occurredAt: row.occurred_at,
   createdBy: row.created_by,
 });
+
+const toRecurringSchedule = (row: RecurringRuleRow): RecurringSchedule => {
+  if (row.frequency === 'weekly') {
+    return { frequency: 'weekly', weeklyDay: row.weekly_day ?? 0 };
+  }
+  return { frequency: 'monthly', monthlyDay: row.monthly_day ?? 1 };
+};
+
+export const toRecurringRule = (row: RecurringRuleRow): RecurringRule => ({
+  id: row.id,
+  ledgerId: row.ledger_id,
+  categoryId: row.category_id,
+  kind: row.kind,
+  amount: Number(row.amount),
+  currency: isCurrencyCode(row.currency) ? row.currency : DEFAULT_CURRENCY,
+  tagNames: toStringArray(row.tag_names),
+  note: row.note ?? '',
+  attributes: toTransactionAttributes(row.attributes),
+  images: toTransactionImages(row.images),
+  schedule: toRecurringSchedule(row),
+  timeZone: row.time_zone,
+  nextRunOn: row.next_run_on,
+  isActive: row.is_active,
+  createdBy: row.created_by,
+  createdAt: row.created_at,
+});
+

@@ -22,6 +22,7 @@ import { ImportScreen } from '@/screens/import/ImportScreen';
 import { LedgerManagerScreen } from '@/screens/ledger/LedgerManagerScreen';
 import { LoginScreen } from '@/screens/auth/LoginScreen';
 import { ProfileScreen } from '@/screens/profile/ProfileScreen';
+import { RecurringRuleManagerScreen } from '@/screens/recurring/RecurringRuleManagerScreen';
 import { RegisterScreen } from '@/screens/auth/RegisterScreen';
 import { SettingsScreen } from '@/screens/settings/SettingsScreen';
 import { StatsScreen } from '@/screens/stats/StatsScreen';
@@ -145,6 +146,7 @@ export const MainNavigator = () => (
     />
     <RootStack.Screen name="CategoryManager" component={CategoryManagerScreen} />
     <RootStack.Screen name="LedgerManager" component={LedgerManagerScreen} />
+    <RootStack.Screen name="RecurringRuleManager" component={RecurringRuleManagerScreen} />
     <RootStack.Screen name="Budget" component={BudgetScreen} />
     <RootStack.Screen name="Export" component={ExportScreen} />
     <RootStack.Screen name="Import" component={ImportScreen} />

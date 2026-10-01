@@ -36,7 +36,7 @@
 
 - 邮箱注册 / 登录，注册后自动创建用户资料、个人账本与默认分类；
 - 个人账本 + 家庭账本自由切换，按账号记住上次打开的账本；
-- 完整的「记一笔」体验：金额表达式、币种、日期、分类、多标签、备注、报销标记与账单图片；
+- 完整的「记一笔」体验：金额表达式、币种、日期、分类、多标签、备注、报销标记与账单图片；可选择「定时记账」按月 / 周自动生成流水；
 - 账单按天 / 月分组汇总，支持筛选、搜索、下拉刷新、预览、编辑与左滑删除；
 - 月 / 年统计、分类构成、收支排行与按账本月度预算；
 - Excel / CSV 导入导出、记录人映射、多标签解析与系统分享；
@@ -64,6 +64,7 @@ UI 以根目录 [`记账原型.png`](./记账原型.png) 为设计原型，设�
 | --- | --- | --- |
 | 账号与多账本 | ✅ | 邮箱注册 / 登录；注册自动创建资料、个人账本与默认分类；个人账本 / 家庭账本切换；按账号记住上次打开的账本 |
 | 记一笔 | ✅ | 顶部币种 + 大号金额 + 日期；支出 / 收入切换；分类九宫格；多标签；备注；记账类型（报销）；最多 3 张账单图片；金额表达式实时计算 |
+| 定时记账 | ✅ | 记一笔时选择「定时记账」，可按每月几号或每周周几创建规则；规则本身不计入流水，由 Supabase Cron 每小时检查并到期生成真实流水；「我的 → 定时记账」可管理、编辑、删除规则 |
 | 账单管理 | ✅ | 按天分组、日小计、月汇总；收入 / 支出 / 记录人筛选；分类 / 标签关键词搜索；下拉刷新；预览、编辑、删除与左滑操作 |
 | 多币种 | ✅ | 每笔流水独立币种（CNY / USD / EUR / JPY / HKD / GBP）；汇总 / 统计 / 趋势只统计当月主币种，有其他币种时提示未计入笔数 |
 | 统计与预算 | ✅ | 月 / 年统计、分类构成、年度 12 个月明细、支出 / 收入金额排行；排行可点击查看详情；按账本设置月度预算与超支提醒 |
@@ -174,8 +175,19 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
 | `20260930100000_transaction_multi_tags.sql` | 单标签升级为多标签数组，并回填历史数据 |
 | `20260930110000_family_management.sql` | 家庭改名与重新生成邀请码 RPC |
 | `20260930120000_transaction_tag_names.sql` | 流水标签由关联改为 `tag_names text[]` 快照，删除标签不影响历史账单 |
+| `20261001090000_recurring_rules.sql` | 新增定时记账规则表、流水防重约束与 Supabase Cron 调度 |
 
-`schema.sql` 会创建 7 张核心表：`profiles`、`families`、`family_members`、`ledgers`、`categories`、`tags`、`transactions`，并处理注册自动建档、新账本默认分类播种、邀请码加入、Realtime 发布与 Storage 策略。
+`schema.sql` 会创建 8 张核心表：`profiles`、`families`、`family_members`、`ledgers`、`categories`、`tags`、`transactions`、`recurring_rules`，并处理注册自动建档、新账本默认分类播种、邀请码加入、Realtime 发布与 Storage 策略。定时记账还需要 Supabase Cron 每小时调用 `public.generate_due_recurring_transactions()`。
+
+> 定时记账依赖 `pg_cron`。`schema.sql` / 迁移会尝试自动启用并创建每小时任务；如果当前项目没有权限，请在 Supabase Dashboard → Database → Extensions 启用 `pg_cron` 后手动执行：
+>
+> ```sql
+> select cron.schedule(
+>   'generate-recurring-transactions',
+>   '0 * * * *',
+>   $$select public.generate_due_recurring_transactions();$$
+> );
+> ```
 
 ### 2. 启动应用
 

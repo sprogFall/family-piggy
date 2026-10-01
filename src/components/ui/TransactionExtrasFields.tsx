@@ -17,6 +17,11 @@ interface Props {
   onNoteChange: (value: string) => void;
   reimbursement: boolean;
   onReimbursementChange: (value: boolean) => void;
+  /** 定时记账开关；未传时不展示该类型 */
+  recurring?: boolean;
+  onRecurringChange?: (value: boolean) => void;
+  /** 已选择的定时计划文案，如「每月10号」 */
+  recurringScheduleLabel?: string | null;
   images: TransactionImageDraft[];
   onImagesChange: (images: TransactionImageDraft[]) => void;
   /** 备注输入获得焦点时隐藏金额键盘 */
@@ -34,6 +39,9 @@ export const TransactionExtrasFields = ({
   onNoteChange,
   reimbursement,
   onReimbursementChange,
+  recurring = false,
+  onRecurringChange,
+  recurringScheduleLabel,
   images,
   onImagesChange,
   onNoteFocus,
@@ -71,20 +79,46 @@ export const TransactionExtrasFields = ({
     <View style={styles.container}>
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>记账类型</Text>
-        <Pressable
-          accessibilityRole="checkbox"
-          accessibilityLabel="报销"
-          accessibilityState={{ checked: reimbursement }}
-          style={[styles.typeChip, reimbursement ? styles.typeChipSelected : null]}
-          onPress={() => onReimbursementChange(!reimbursement)}
-        >
-          {reimbursement ? (
-            <Ionicons name="checkmark" size={14} color={colors.white} />
+        <View style={styles.typeChipRow}>
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityLabel="报销"
+            accessibilityState={{ checked: reimbursement }}
+            style={[styles.typeChip, reimbursement ? styles.typeChipSelected : null]}
+            onPress={() => onReimbursementChange(!reimbursement)}
+          >
+            {reimbursement ? (
+              <Ionicons name="checkmark" size={14} color={colors.white} />
+            ) : null}
+            <Text style={[styles.typeChipText, reimbursement ? styles.typeChipTextSelected : null]}>
+              报销
+            </Text>
+          </Pressable>
+
+          {onRecurringChange ? (
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityLabel="定时记账"
+              accessibilityState={{ checked: recurring }}
+              style={[styles.typeChip, recurring ? styles.typeChipSelected : null]}
+              onPress={() => onRecurringChange(!recurring)}
+            >
+              {recurring ? (
+                <Ionicons name="checkmark" size={14} color={colors.white} />
+              ) : null}
+              <Text
+                style={[styles.typeChipText, recurring ? styles.typeChipTextSelected : null]}
+              >
+                定时记账
+              </Text>
+            </Pressable>
           ) : null}
-          <Text style={[styles.typeChipText, reimbursement ? styles.typeChipTextSelected : null]}>
-            报销
+        </View>
+        {recurring ? (
+          <Text style={styles.typeHint}>
+            {recurringScheduleLabel ? `已设为 ${recurringScheduleLabel}` : '点上方定时记账选择时间'}
           </Text>
-        </Pressable>
+        ) : null}
       </View>
 
       <View style={styles.section}>
@@ -225,6 +259,16 @@ const useStyles = makeStyles((colors) => ({
   thumbWrap: {
     height: 68,
     width: 68,
+  },
+  typeChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space(2),
+  },
+  typeHint: {
+    color: colors.textTertiary,
+    fontSize: fontSize.xs,
+    marginTop: space(2),
   },
   typeChip: {
     alignItems: 'center',

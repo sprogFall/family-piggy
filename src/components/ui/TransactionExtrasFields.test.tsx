@@ -32,6 +32,43 @@ describe('TransactionExtrasFields', () => {
     expect(onReimbursementChange).toHaveBeenCalledWith(true);
   });
 
+  it('定时记账类型可勾选并显示已选计划', () => {
+    const onRecurringChange = jest.fn();
+    const { rerender } = render(
+      <TransactionExtrasFields
+        note=""
+        onNoteChange={jest.fn()}
+        reimbursement={false}
+        onReimbursementChange={jest.fn()}
+        recurring={false}
+        onRecurringChange={onRecurringChange}
+        recurringScheduleLabel={null}
+        images={[]}
+        onImagesChange={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('定时记账').props.accessibilityState).toEqual({ checked: false });
+    fireEvent.press(screen.getByLabelText('定时记账'));
+    expect(onRecurringChange).toHaveBeenCalledWith(true);
+
+    rerender(
+      <TransactionExtrasFields
+        note=""
+        onNoteChange={jest.fn()}
+        reimbursement={false}
+        onReimbursementChange={jest.fn()}
+        recurring
+        onRecurringChange={onRecurringChange}
+        recurringScheduleLabel="每月10号"
+        images={[]}
+        onImagesChange={jest.fn()}
+      />,
+    );
+    expect(screen.getByLabelText('定时记账').props.accessibilityState).toEqual({ checked: true });
+    expect(screen.getByText('已设为 每月10号')).toBeTruthy();
+  });
+
   it('备注与是否报销分别回调', () => {
     const onNoteChange = jest.fn();
     const onReimbursementChange = jest.fn();

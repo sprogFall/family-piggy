@@ -122,6 +122,67 @@ export interface UpdateTransactionInput {
   occurredAt?: string;
 }
 
+/** 定时记账频率：monthly=每月某天，weekly=每周某天 */
+export type RecurringFrequency = 'monthly' | 'weekly';
+
+/** 定时记账计划：每月几号或每周周几 */
+export type RecurringSchedule =
+  | { frequency: 'monthly'; monthlyDay: number }
+  | { frequency: 'weekly'; weeklyDay: number };
+
+/** 定时记账规则：到期后由 Supabase Cron 生成真实流水，本身不计入账本记录 */
+export interface RecurringRule {
+  id: string;
+  ledgerId: string;
+  categoryId: string;
+  kind: TxKind;
+  /** 金额，单位：该币种的最小单位（人民币/美元为分） */
+  amount: number;
+  currency: CurrencyCode;
+  tagNames: string[];
+  note: string;
+  attributes: TransactionAttributes;
+  images: string[];
+  schedule: RecurringSchedule;
+  /** IANA 时区名，例如 Asia/Shanghai */
+  timeZone: string;
+  /** 下一次生成日期，本地日期 yyyy-MM-dd */
+  nextRunOn: string;
+  isActive: boolean;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface CreateRecurringRuleInput {
+  ledgerId: string;
+  categoryId: string;
+  kind: TxKind;
+  amount: number;
+  currency: CurrencyCode;
+  tagNames: string[];
+  note: string;
+  attributes: TransactionAttributes;
+  images: string[];
+  schedule: RecurringSchedule;
+  timeZone: string;
+  nextRunOn: string;
+}
+
+export interface UpdateRecurringRuleInput {
+  categoryId?: string;
+  kind?: TxKind;
+  amount?: number;
+  currency?: CurrencyCode;
+  tagNames?: string[];
+  note?: string;
+  attributes?: TransactionAttributes;
+  images?: string[];
+  schedule?: RecurringSchedule;
+  timeZone?: string;
+  nextRunOn?: string;
+  isActive?: boolean;
+}
+
 export interface TagInput {
   ledgerId: string;
   categoryId: string;

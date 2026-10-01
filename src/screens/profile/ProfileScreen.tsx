@@ -141,6 +141,11 @@ export const ProfileScreen = ({ navigation }: Props) => {
           onPress={() => navigation.navigate('CategoryManager')}
         />
         <MenuItem
+          icon="repeat-outline"
+          label="定时记账"
+          onPress={() => navigation.navigate('RecurringRuleManager')}
+        />
+        <MenuItem
           icon="download-outline"
           label="导出数据"
           onPress={() => navigation.navigate('Export')}

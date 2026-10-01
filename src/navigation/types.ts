@@ -13,12 +13,15 @@ export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   Tabs: NavigatorScreenParams<TabParamList>;
-  /** 传 transactionId 进入编辑模式，否则为记一笔 */
-  AddTransaction: { transactionId?: string } | undefined;
+  /** 传 transactionId 进入账单编辑；recurringRuleId 进入定时记账编辑；startRecurring 直接打开定时选择 */
+  AddTransaction:
+    | { transactionId?: string; recurringRuleId?: string; startRecurring?: boolean }
+    | undefined;
   /** 账单预览：删除 / 修改入口 */
   TransactionPreview: { transactionId: string };
   CategoryManager: undefined;
   LedgerManager: undefined;
+  RecurringRuleManager: undefined;
   Budget: undefined;
   Export: undefined;
   Import: undefined;
