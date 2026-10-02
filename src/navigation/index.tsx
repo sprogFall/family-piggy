@@ -11,6 +11,7 @@ import { AboutScreen } from '@/screens/about/AboutScreen';
 import { AddTransactionScreen } from '@/screens/add/AddTransactionScreen';
 import { BillsScreen } from '@/screens/bills/BillsScreen';
 import { CategoryManagerScreen } from '@/screens/category/CategoryManagerScreen';
+import { CategoryTransactionsScreen } from '@/screens/stats/CategoryTransactionsScreen';
 import { BudgetScreen } from '@/screens/budget/BudgetScreen';
 import { ExportScreen } from '@/screens/export/ExportScreen';
 import { FamilyCreateScreen } from '@/screens/family/FamilyCreateScreen';
@@ -142,6 +143,11 @@ export const MainNavigator = () => (
     <RootStack.Screen
       name="TransactionPreview"
       component={TransactionPreviewScreen}
+      options={{ animation: 'slide_from_right' }}
+    />
+    <RootStack.Screen
+      name="CategoryTransactions"
+      component={CategoryTransactionsScreen}
       options={{ animation: 'slide_from_right' }}
     />
     <RootStack.Screen name="CategoryManager" component={CategoryManagerScreen} />

@@ -1,4 +1,10 @@
-import { formatCents, formatMoney, formatRatio, parseAmountToCents } from './money';
+import {
+  formatCents,
+  formatCompactMoney,
+  formatMoney,
+  formatRatio,
+  parseAmountToCents,
+} from './money';
 
 describe('parseAmountToCents', () => {
   it('解析整数元', () => {
@@ -75,5 +81,19 @@ describe('formatRatio', () => {
     expect(formatRatio(0.354)).toBe('35%');
     expect(formatRatio(1)).toBe('100%');
     expect(formatRatio(0)).toBe('0%');
+  });
+});
+
+describe('formatCompactMoney', () => {
+  it('万元以下按整数元展示', () => {
+    expect(formatCompactMoney(0, 'CNY')).toBe('¥0');
+    expect(formatCompactMoney(350_000, 'CNY')).toBe('¥3,500');
+    expect(formatCompactMoney(-12_00, 'USD')).toBe('-$12');
+  });
+
+  it('万元以上用「万」并去掉无意义的小数', () => {
+    expect(formatCompactMoney(1_000_000, 'CNY')).toBe('¥1万');
+    expect(formatCompactMoney(1_200_000, 'CNY')).toBe('¥1.2万');
+    expect(formatCompactMoney(-5_200_000, 'CNY')).toBe('-¥5.2万');
   });
 });

@@ -137,4 +137,22 @@ describe('StatsScreen', () => {
 
     expect(navigation.navigate).toHaveBeenCalledWith('TransactionPreview', { transactionId: 't1' });
   });
+
+  it('点击分类分布项带当前周期 / 成员条件进入分类明细', () => {
+    renderScreen();
+    const period = periodFromPreset('thisMonth');
+
+    fireEvent.press(screen.getByLabelText('查看餐饮分类明细'));
+
+    expect(navigation.navigate).toHaveBeenCalledWith('CategoryTransactions', {
+      categoryId: 'c1',
+      categoryName: '餐饮',
+      periodKey: period.key,
+      periodLabel: '本月',
+      start: period.start,
+      end: period.end,
+      currency: 'CNY',
+      memberId: null,
+    });
+  });
 });

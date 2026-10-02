@@ -19,6 +19,7 @@ import {
   monthSummary,
   scopeToCurrency,
   trendInRange,
+  type DistributionItem,
   type DistributionMode,
 } from '@/domain/statement';
 import { useActiveFamilyMembers, useActiveLedger, useCategoryOf } from '@/hooks/useActiveLedgerData';
@@ -129,6 +130,21 @@ export const StatsScreen = ({ navigation }: Props) => {
   const distributionLabel =
     distributionMode === 'all' ? '收支' : distributionMode === 'income' ? '收入' : '支出';
   const rankingTitle = `${distributionLabel}排行（金额倒序）`;
+  const openCategoryTransactions = useCallback(
+    (item: DistributionItem) => {
+      navigation.navigate('CategoryTransactions', {
+        categoryId: item.categoryId,
+        categoryName: item.name,
+        periodKey: period.key,
+        periodLabel: period.label,
+        start: period.start,
+        end: period.end,
+        currency,
+        memberId,
+      });
+    },
+    [currency, memberId, navigation, period.end, period.key, period.label, period.start],
+  );
 
   return (
     <View style={styles.container}>
@@ -196,6 +212,7 @@ export const StatsScreen = ({ navigation }: Props) => {
 
           <TrendSection
             points={trendPoints}
+            currency={currency}
             mode={trendMode}
             chartType={chartType}
             onModeChange={setTrendMode}
@@ -207,6 +224,7 @@ export const StatsScreen = ({ navigation }: Props) => {
             currency={currency}
             mode={distributionMode}
             onModeChange={setDistributionMode}
+            onPressItem={openCategoryTransactions}
           />
 
           <RankingSection

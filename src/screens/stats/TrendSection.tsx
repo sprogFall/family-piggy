@@ -1,6 +1,7 @@
 import { Text, View } from 'react-native';
 
 import { EmptyState } from '@/components/EmptyState';
+import type { CurrencyCode } from '@/domain/currency';
 import { StatsTrendChart, type TrendChartType, type TrendSeriesMode } from '@/components/charts/StatsTrendChart';
 import type { RangeTrendPoint } from '@/domain/statement';
 import { makeStyles, fontSize, space } from '@/theme';
@@ -20,6 +21,7 @@ const CHART_ITEMS: { key: TrendChartType; label: string }[] = [
 
 interface Props {
   points: RangeTrendPoint[];
+  currency: CurrencyCode;
   mode: TrendSeriesMode;
   chartType: TrendChartType;
   onModeChange: (mode: TrendSeriesMode) => void;
@@ -28,6 +30,7 @@ interface Props {
 
 export const TrendSection = ({
   points,
+  currency,
   mode,
   chartType,
   onModeChange,
@@ -56,7 +59,12 @@ export const TrendSection = ({
       </View>
 
       {points.length > 0 ? (
-        <StatsTrendChart points={points} mode={mode} chartType={chartType} />
+        <StatsTrendChart
+          points={points}
+          currency={currency}
+          mode={mode}
+          chartType={chartType}
+        />
       ) : (
         <EmptyState icon="stats-chart-outline" message="当前周期暂无趋势数据" />
       )}

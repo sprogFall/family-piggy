@@ -1,5 +1,7 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
+import type { CurrencyCode } from '@/domain/currency';
+
 export type TabParamList = {
   Home: undefined;
   Bills: undefined;
@@ -19,6 +21,17 @@ export type RootStackParamList = {
     | undefined;
   /** 账单预览：删除 / 修改入口 */
   TransactionPreview: { transactionId: string };
+  /** 统计页分类下钻：在统计时的周期 / 成员 / 币种条件下查看该分类明细 */
+  CategoryTransactions: {
+    categoryId: string;
+    categoryName: string;
+    periodKey: string;
+    periodLabel: string;
+    start: string;
+    end: string;
+    currency: CurrencyCode;
+    memberId?: string | null;
+  };
   CategoryManager: undefined;
   LedgerManager: undefined;
   RecurringRuleManager: undefined;

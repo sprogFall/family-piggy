@@ -20,9 +20,16 @@ interface Props {
   currency: CurrencyCode;
   mode: DistributionMode;
   onModeChange: (mode: DistributionMode) => void;
+  onPressItem?: (item: DistributionItem) => void;
 }
 
-export const DistributionSection = ({ items, currency, mode, onModeChange }: Props) => {
+export const DistributionSection = ({
+  items,
+  currency,
+  mode,
+  onModeChange,
+  onPressItem,
+}: Props) => {
   const styles = useStyles();
   const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
   const totalCount = items.reduce((sum, item) => sum + item.count, 0);
@@ -51,7 +58,7 @@ export const DistributionSection = ({ items, currency, mode, onModeChange }: Pro
               centerSub={`共 ${totalCount} 笔`}
             />
           </View>
-          <DistributionList items={items} currency={currency} />
+          <DistributionList items={items} currency={currency} onPressItem={onPressItem} />
         </>
       ) : (
         <EmptyState icon="pie-chart-outline" message="当前周期暂无分布数据" />

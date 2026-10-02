@@ -1,37 +1,59 @@
-import { Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Pressable, Text, View } from 'react-native';
 
 import type { CurrencyCode } from '@/domain/currency';
 import { formatMoney, formatRatio } from '@/domain/money';
 import type { DistributionItem } from '@/domain/statement';
-import { makeStyles, CHART_PALETTE, fontSize, radius, space } from '@/theme';
+import { makeStyles, CHART_PALETTE, useColors, fontSize, radius, space } from '@/theme';
 
 interface Props {
   items: DistributionItem[];
   currency: CurrencyCode;
+  /** 点击分类进入该分类在当前统计条件下的明细；「其他」为聚合项不可下钻 */
+  onPressItem?: (item: DistributionItem) => void;
 }
 
 /** 分类分布明细：分类名、金额、占比与笔数 */
-export const DistributionList = ({ items, currency }: Props) => {
+export const DistributionList = ({ items, currency, onPressItem }: Props) => {
   const styles = useStyles();
+  const colors = useColors();
   return (
     <View>
-      {items.map((item, index) => (
-        <View key={`${item.categoryId}-${index}`} style={styles.row}>
-          <View
-            style={[
-              styles.dot,
-              { backgroundColor: CHART_PALETTE[index % CHART_PALETTE.length] },
-            ]}
-          />
-          <View style={styles.info}>
-            <Text style={styles.name} numberOfLines={1}>
-              {item.name}
-            </Text>
-            <Text style={styles.meta}>{`${formatRatio(item.ratio)} · 共 ${item.count} 笔`}</Text>
-          </View>
-          <Text style={styles.amount}>{formatMoney(item.amount, currency)}</Text>
-        </View>
-      ))}
+      {items.map((item, index) => {
+        const pressable = item.categoryId !== 'other' && Boolean(onPressItem);
+        return (
+          <Pressable
+            key={`${item.categoryId}-${index}`}
+            accessibilityRole={pressable ? 'button' : undefined}
+            accessibilityLabel={pressable ? `查看${item.name}分类明细` : undefined}
+            disabled={!pressable}
+            style={({ pressed }) => [styles.row, pressed ? styles.pressed : null]}
+            onPress={() => onPressItem?.(item)}
+          >
+            <View
+              style={[
+                styles.dot,
+                { backgroundColor: CHART_PALETTE[index % CHART_PALETTE.length] },
+              ]}
+            />
+            <View style={styles.info}>
+              <Text style={styles.name} numberOfLines={1}>
+                {item.name}
+              </Text>
+              <Text style={styles.meta}>{`${formatRatio(item.ratio)} · 共 ${item.count} 笔`}</Text>
+            </View>
+            <Text style={styles.amount}>{formatMoney(item.amount, currency)}</Text>
+            {pressable ? (
+              <Ionicons
+                name="chevron-forward"
+                size={15}
+                color={colors.textTertiary}
+                style={styles.chevron}
+              />
+            ) : null}
+          </Pressable>
+        );
+      })}
     </View>
   );
 };
@@ -50,6 +72,9 @@ const useStyles = makeStyles((colors) => ({
     marginTop: 4,
     width: 8,
   },
+  chevron: {
+    marginLeft: space(1),
+  },
   info: {
     flex: 1,
   },
@@ -62,8 +87,11 @@ const useStyles = makeStyles((colors) => ({
     color: colors.text,
     fontSize: fontSize.sm,
   },
+  pressed: {
+    opacity: 0.6,
+  },
   row: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
     borderTopColor: colors.border,
     borderTopWidth: 1,
     flexDirection: 'row',
