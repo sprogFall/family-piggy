@@ -19,10 +19,20 @@ export interface MonthBucket {
   transactions: Transaction[];
 }
 
+export interface PeriodBucket {
+  status: BucketStatus;
+  transactions: Transaction[];
+  start: string;
+  end: string;
+}
+
 interface TransactionState {
   buckets: Record<string, MonthBucket>;
+  /** 统计页按任意时间区间缓存的流水；key 由 PeriodRange.key 决定 */
+  periodBuckets: Record<string, PeriodBucket>;
   loadMonth: (ledgerId: string, month: MonthRef) => Promise<void>;
   loadYear: (ledgerId: string, year: number) => Promise<void>;
+  loadPeriod: (ledgerId: string, periodKey: string, start: string, end: string) => Promise<void>;
   add: (input: CreateTransactionInput) => Promise<Transaction>;
   update: (id: string, ledgerId: string, patch: UpdateTransactionInput) => Promise<void>;
   remove: (id: string, ledgerId: string) => Promise<void>;
@@ -36,6 +46,13 @@ const bucketKey = (ledgerId: string, month: MonthRef): string =>
   `${ledgerId}::${monthKey(month)}`;
 
 const yearBucketKey = (ledgerId: string, year: number): string => `${ledgerId}::${year}`;
+
+const PERIOD_MARKER = '::period::';
+
+const periodBucketKey = (ledgerId: string, periodKey: string): string =>
+  `${ledgerId}${PERIOD_MARKER}${periodKey}`;
+
+const periodKeyOfBucket = (key: string): string => key.split(PERIOD_MARKER)[1] ?? key;
 
 const contains = (iso: string, month: MonthRef): boolean => {
   const time = new Date(iso).getTime();
@@ -71,11 +88,20 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
       if (!key.startsWith(`${ledgerId}::`)) continue;
       buckets[key] = { ...buckets[key], transactions: transform(buckets[key].transactions) };
     }
-    set({ buckets });
+    const periodBuckets = { ...get().periodBuckets };
+    for (const key of Object.keys(periodBuckets)) {
+      if (!key.startsWith(`${ledgerId}${PERIOD_MARKER}`)) continue;
+      periodBuckets[key] = {
+        ...periodBuckets[key],
+        transactions: transform(periodBuckets[key].transactions),
+      };
+    }
+    set({ buckets, periodBuckets });
   };
 
   return {
     buckets: {},
+    periodBuckets: {},
 
     loadMonth: async (ledgerId, month) => {
       const key = bucketKey(ledgerId, month);
@@ -93,6 +119,37 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
         });
       } catch {
         set({ buckets: { ...get().buckets, [key]: { status: 'error', transactions: [] } } });
+      }
+    },
+
+    loadPeriod: async (ledgerId, periodKey, start, end) => {
+      const key = periodBucketKey(ledgerId, periodKey);
+      set({
+        periodBuckets: {
+          ...get().periodBuckets,
+          [key]: {
+            status: 'loading',
+            transactions: get().periodBuckets[key]?.transactions ?? [],
+            start,
+            end,
+          },
+        },
+      });
+      try {
+        const transactions = await transactionService.listMonth(ledgerId, start, end);
+        set({
+          periodBuckets: {
+            ...get().periodBuckets,
+            [key]: { status: 'ready', transactions, start, end },
+          },
+        });
+      } catch {
+        set({
+          periodBuckets: {
+            ...get().periodBuckets,
+            [key]: { status: 'error', transactions: [], start, end },
+          },
+        });
       }
     },
 
@@ -136,6 +193,10 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
           await state.loadMonth(ledgerId, monthOfKey(key));
         }
       }
+      for (const [key, bucket] of Object.entries(state.periodBuckets)) {
+        if (!key.startsWith(`${ledgerId}${PERIOD_MARKER}`)) continue;
+        await state.loadPeriod(ledgerId, periodKeyOfBucket(key), bucket.start, bucket.end);
+      }
     },
 
     remove: async (id, ledgerId) => {
@@ -158,7 +219,23 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
           transactions: sortByTimeDesc([tx, ...buckets[key].transactions.filter((t) => t.id !== tx.id)]),
         };
       }
-      set({ buckets });
+      const periodBuckets = { ...get().periodBuckets };
+      for (const key of Object.keys(periodBuckets)) {
+        if (!key.startsWith(`${ledgerId}${PERIOD_MARKER}`)) continue;
+        const bucket = periodBuckets[key];
+        const time = new Date(tx.occurredAt).getTime();
+        if (time < new Date(bucket.start).getTime() || time >= new Date(bucket.end).getTime()) {
+          continue;
+        }
+        periodBuckets[key] = {
+          ...bucket,
+          transactions: sortByTimeDesc([
+            tx,
+            ...bucket.transactions.filter((t) => t.id !== tx.id),
+          ]),
+        };
+      }
+      set({ buckets, periodBuckets });
     },
 
     deleteLocal: (ledgerId, id) => {
@@ -171,9 +248,24 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
         onDelete: (id) => get().deleteLocal(ledgerId, id),
       }),
 
-    reset: () => set({ buckets: {} }),
+    reset: () => set({ buckets: {}, periodBuckets: {} }),
   };
 });
+
+export const selectPeriodBucket = (
+  state: TransactionState,
+  ledgerId: string | null | undefined,
+  periodKey: string,
+): PeriodBucket | undefined =>
+  ledgerId ? state.periodBuckets[periodBucketKey(ledgerId, periodKey)] : undefined;
+
+/** 某账本某时间区间的流水；未加载时返回稳定的空数组 */
+export const selectPeriodTransactions = (
+  state: TransactionState,
+  ledgerId: string | null | undefined,
+  periodKey: string,
+): Transaction[] =>
+  selectPeriodBucket(state, ledgerId, periodKey)?.transactions ?? EMPTY_TRANSACTIONS;
 
 export const selectMonthBucket = (
   state: TransactionState,
@@ -216,6 +308,10 @@ export const selectTransactionById = (
 ): Transaction | undefined => {
   if (!id) return undefined;
   for (const bucket of Object.values(state.buckets)) {
+    const found = bucket.transactions.find((tx) => tx.id === id);
+    if (found) return found;
+  }
+  for (const bucket of Object.values(state.periodBuckets)) {
     const found = bucket.transactions.find((tx) => tx.id === id);
     if (found) return found;
   }

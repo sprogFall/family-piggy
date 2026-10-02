@@ -4,11 +4,14 @@ import { dominantCurrency } from './currency';
 import {
   breakdown,
   breakdownWithOther,
+  distribution,
+  distributionWithOther,
   groupByDay,
   monthSummary,
   monthlySummaryPoints,
   scopeToCurrency,
   trendByDay,
+  trendInRange,
 } from './statement';
 
 const tx = (partial: Partial<Transaction> & { id: string }): Transaction => ({
@@ -229,5 +232,96 @@ describe('monthlySummaryPoints', () => {
     expect(points[0]).toMatchObject({ month: 1, expense: 100, income: 0, balance: -100 });
     expect(points[1]).toMatchObject({ month: 2, expense: 0, income: 300, balance: 300 });
     expect(points[2]).toMatchObject({ month: 3, expense: 0, income: 0, balance: 0 });
+  });
+});
+
+describe('distribution / distributionWithOther', () => {
+  const list = [
+    tx({ id: '1', categoryId: 'c1', amount: 3500 }),
+    tx({ id: '2', categoryId: 'c2', amount: 2000 }),
+    tx({ id: '3', categoryId: 'c1', amount: 1500 }),
+    tx({ id: '4', kind: 'income', categoryId: 'c1', amount: 9999 }),
+  ];
+
+  it('按分类统计金额、笔数与占比', () => {
+    expect(distribution(list, 'expense', categoryNameOf)).toEqual([
+      { categoryId: 'c1', name: '餐饮', amount: 5000, count: 2, ratio: 5000 / 7000 },
+      { categoryId: 'c2', name: '交通', amount: 2000, count: 1, ratio: 2000 / 7000 },
+    ]);
+  });
+
+  it('all 合并收支两侧', () => {
+    const items = distribution(list, 'all', categoryNameOf);
+    expect(items[0]).toEqual({
+      categoryId: 'c1',
+      name: '餐饮',
+      amount: 14999,
+      count: 3,
+      ratio: 14999 / 16999,
+    });
+  });
+
+  it('其它分类合并时保留金额与笔数', () => {
+    const many = Array.from({ length: 4 }, (_, index) =>
+      tx({
+        id: `m${index}`,
+        categoryId: `cx${index}`,
+        amount: 1000 - index * 100,
+      }),
+    );
+    const items = distributionWithOther(many, 'expense', (id) => id, 2);
+    expect(items).toHaveLength(3);
+    expect(items[2]).toMatchObject({ categoryId: 'other', amount: 1500, count: 2 });
+  });
+});
+
+describe('trendInRange', () => {
+  it('62 天内按自然日聚合，缺失日补 0', () => {
+    const start = new Date(2024, 4, 1, 0, 0, 0, 0).toISOString();
+    const end = new Date(2024, 4, 4, 0, 0, 0, 0).toISOString();
+    const points = trendInRange(
+      [
+        tx({ id: '1', occurredAt: new Date(2024, 4, 2, 8).toISOString(), amount: 100 }),
+        tx({ id: '2', occurredAt: new Date(2024, 4, 2, 9).toISOString(), kind: 'income', amount: 300 }),
+      ],
+      start,
+      end,
+    );
+    expect(points).toHaveLength(3);
+    expect(points[0]).toMatchObject({ key: '2024-05-01', expense: 0, income: 0, balance: 0 });
+    expect(points[1]).toMatchObject({ key: '2024-05-02', expense: 100, income: 300, balance: 200 });
+    expect(points[2]).toMatchObject({ key: '2024-05-03', expense: 0, income: 0, balance: 0 });
+  });
+
+  it('超过 62 天按自然月聚合', () => {
+    const start = new Date(2024, 0, 1, 0, 0, 0, 0).toISOString();
+    const end = new Date(2024, 3, 1, 0, 0, 0, 0).toISOString();
+    const points = trendInRange(
+      [tx({ id: '1', occurredAt: new Date(2024, 2, 15, 12).toISOString(), amount: 500 })],
+      start,
+      end,
+    );
+    expect(points.map((point) => point.key)).toEqual(['2024-01', '2024-02', '2024-03']);
+    expect(points[2]).toMatchObject({ expense: 500, income: 0, balance: -500 });
+  });
+
+  it('只统计指定币种', () => {
+    const start = new Date(2024, 4, 1, 0, 0, 0, 0).toISOString();
+    const end = new Date(2024, 4, 4, 0, 0, 0, 0).toISOString();
+    const points = trendInRange(
+      [
+        tx({ id: '1', occurredAt: new Date(2024, 4, 2, 8).toISOString(), amount: 100 }),
+        tx({
+          id: '2',
+          occurredAt: new Date(2024, 4, 2, 9).toISOString(),
+          amount: 500,
+          currency: 'USD',
+        }),
+      ],
+      start,
+      end,
+      'CNY',
+    );
+    expect(points[1]?.expense).toBe(100);
   });
 });

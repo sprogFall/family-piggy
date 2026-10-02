@@ -194,3 +194,152 @@ export const trendByDay = (
   }
   return points;
 };
+
+export type DistributionMode = TxKind | 'all';
+
+export interface DistributionItem {
+  categoryId: string;
+  name: string;
+  amount: number;
+  /** 该分类下的流水笔数 */
+  count: number;
+  /** 总额占比 0~1 */
+  ratio: number;
+}
+
+/** 按分类统计金额、笔数与占比；mode 为 all 时合并收支两侧 */
+export const distribution = (
+  transactions: Transaction[],
+  mode: DistributionMode,
+  categoryNameOf: (categoryId: string) => string,
+): DistributionItem[] => {
+  const map = new Map<string, { amount: number; count: number }>();
+  let total = 0;
+  for (const tx of transactions) {
+    if (mode !== 'all' && tx.kind !== mode) continue;
+    const current = map.get(tx.categoryId) ?? { amount: 0, count: 0 };
+    current.amount += tx.amount;
+    current.count += 1;
+    map.set(tx.categoryId, current);
+    total += tx.amount;
+  }
+  return [...map.entries()]
+    .map(([categoryId, value]) => ({
+      categoryId,
+      name: categoryNameOf(categoryId),
+      amount: value.amount,
+      count: value.count,
+      ratio: total > 0 ? value.amount / total : 0,
+    }))
+    .sort((a, b) => b.amount - a.amount);
+};
+
+/** Top N + 其余合并为「其他」，合并时保留笔数 */
+export const distributionWithOther = (
+  transactions: Transaction[],
+  mode: DistributionMode,
+  categoryNameOf: (categoryId: string) => string,
+  topN = 8,
+): DistributionItem[] => {
+  const items = distribution(transactions, mode, categoryNameOf);
+  if (items.length <= topN) return items;
+  const otherAmount = items.slice(topN).reduce((sum, item) => sum + item.amount, 0);
+  const otherCount = items.slice(topN).reduce((sum, item) => sum + item.count, 0);
+  const total = items.reduce((sum, item) => sum + item.amount, 0);
+  return [
+    ...items.slice(0, topN),
+    {
+      categoryId: 'other',
+      name: '其他',
+      amount: otherAmount,
+      count: otherCount,
+      ratio: total > 0 ? otherAmount / total : 0,
+    },
+  ];
+};
+
+export interface RangeTrendPoint {
+  /** 日期或月份 key，供稳定 React key 使用 */
+  key: string;
+  /** 横轴文案，如 10月2日 / 2026年10月 */
+  label: string;
+  expense: number;
+  income: number;
+  balance: number;
+}
+
+const localDayStart = (date: Date): Date =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+
+const localAddDays = (date: Date, days: number): Date =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate() + days, 0, 0, 0, 0);
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MONTH_DAYS_THRESHOLD = 62;
+
+/**
+ * 任意时间区间的收支趋势：
+ * - 区间 <= 62 天按自然日聚合；
+ * - 更长区间按自然月聚合，避免一年以上出现数百个点。
+ * 默认只统计主币种。
+ */
+export const trendInRange = (
+  transactions: Transaction[],
+  startISO: string,
+  endISO: string,
+  currency: CurrencyCode = dominantCurrency(transactions),
+): RangeTrendPoint[] => {
+  const start = new Date(startISO);
+  const end = new Date(endISO);
+  if (!(start.getTime() < end.getTime())) return [];
+  const totalDays = Math.round((end.getTime() - start.getTime()) / DAY_MS);
+  const useMonth = totalDays > MONTH_DAYS_THRESHOLD;
+
+  const points: RangeTrendPoint[] = [];
+  const indexByKey = new Map<string, number>();
+  if (useMonth) {
+    let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+    while (cursor.getTime() < end.getTime()) {
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+      indexByKey.set(key, points.length);
+      points.push({
+        key,
+        label: `${cursor.getFullYear()}年${cursor.getMonth() + 1}月`,
+        expense: 0,
+        income: 0,
+        balance: 0,
+      });
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+    }
+  } else {
+    for (let cursor = localDayStart(start); cursor.getTime() < end.getTime(); cursor = localAddDays(cursor, 1)) {
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+      indexByKey.set(key, points.length);
+      points.push({
+        key,
+        label: `${cursor.getMonth() + 1}月${cursor.getDate()}日`,
+        expense: 0,
+        income: 0,
+        balance: 0,
+      });
+    }
+  }
+
+  for (const tx of transactions) {
+    if (tx.currency !== currency) continue;
+    const date = new Date(tx.occurredAt);
+    if (date.getTime() < start.getTime() || date.getTime() >= end.getTime()) continue;
+    const key = useMonth
+      ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const index = indexByKey.get(key);
+    if (index === undefined) continue;
+    const point = points[index];
+    if (!point) continue;
+    if (tx.kind === 'expense') point.expense += tx.amount;
+    else point.income += tx.amount;
+  }
+
+  for (const point of points) point.balance = point.income - point.expense;
+  return points;
+};

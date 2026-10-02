@@ -211,3 +211,82 @@ export const tooltipPlacement = ({
 
 /** 折线图浮层日期文案，如 (8, 3) -> "8月3日" */
 export const trendDayLabel = (month: number, day: number): string => `${month}月${day}日`;
+
+export interface BarRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** 0 值所在的 y 坐标，负值柱向下画 */
+  baselineY: number;
+}
+
+export interface SeriesBounds {
+  min: number;
+  max: number;
+}
+
+/** 多序列共用纵轴范围：始终包含 0，避免柱状图/结余线偏离基线 */
+export const seriesBounds = (series: number[][]): SeriesBounds => {
+  const values = series.flat();
+  if (values.length === 0) return { min: 0, max: 1 };
+  const min = Math.min(0, ...values);
+  const max = Math.max(0, ...values);
+  return { min, max: max > min ? max : min + 1 };
+};
+
+/** 带正负值的折线几何：纵轴范围由调用方给出 */
+export const lineGeometryRange = (
+  values: number[],
+  width: number,
+  height: number,
+  padding: number,
+  min: number,
+  max: number,
+): LineChartGeometry => {
+  const innerW = width - padding * 2;
+  const innerH = height - padding * 2;
+  const span = max > min ? max - min : 1;
+  const coords = values.map((value, index) => ({
+    x: values.length === 1 ? width / 2 : padding + (innerW * index) / (values.length - 1),
+    y: padding + ((max - value) / span) * innerH,
+  }));
+  const points = coords.map((coord) => `${fmt(coord.x)},${fmt(coord.y)}`).join(' ');
+  return { points, area: '', coords };
+};
+
+/**
+ * 柱状图几何：支持正负值，同一数据点可横向并排多组柱子。
+ * groupIndex / groupCount 用于「收支」这种多序列模式。
+ */
+export const barRects = (
+  values: number[],
+  width: number,
+  height: number,
+  padding: number,
+  min: number,
+  max: number,
+  groupIndex = 0,
+  groupCount = 1,
+  groupGap = 2,
+): BarRect[] => {
+  if (values.length === 0 || groupCount <= 0) return [];
+  const innerW = width - padding * 2;
+  const innerH = height - padding * 2;
+  const span = max > min ? max - min : 1;
+  const slotWidth = innerW / values.length;
+  const barWidth = Math.max(1, (slotWidth - groupGap * (groupCount - 1)) / groupCount);
+  const baselineY = padding + ((max - 0) / span) * innerH;
+  return values.map((value, index) => {
+    const valueY = padding + ((max - value) / span) * innerH;
+    const top = value >= 0 ? valueY : baselineY;
+    const bottom = value >= 0 ? baselineY : valueY;
+    return {
+      x: padding + index * slotWidth + groupIndex * (barWidth + groupGap),
+      y: top,
+      width: barWidth,
+      height: Math.max(0, bottom - top),
+      baselineY,
+    };
+  });
+};

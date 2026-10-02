@@ -1,10 +1,13 @@
 import {
   arcPath,
+  barRects,
   donutArcs,
   donutCenterBox,
   lineGeometry,
+  lineGeometryRange,
   nearestPointIndex,
   polar,
+  seriesBounds,
   tooltipPlacement,
   trendDayLabel,
 } from './charts';
@@ -179,5 +182,40 @@ describe('trendDayLabel', () => {
   it('生成浮层日期文案', () => {
     expect(trendDayLabel(8, 3)).toBe('8月3日');
     expect(trendDayLabel(12, 31)).toBe('12月31日');
+  });
+});
+
+describe('seriesBounds / lineGeometryRange', () => {
+  it('多序列范围始终包含 0', () => {
+    expect(seriesBounds([[10, 20], [5, 30]])).toEqual({ min: 0, max: 30 });
+    expect(seriesBounds([[-10, -20]])).toEqual({ min: -20, max: 0 });
+    expect(seriesBounds([[]])).toEqual({ min: 0, max: 1 });
+  });
+
+  it('带正负值的折线按统一范围映射到基线两侧', () => {
+    const { coords } = lineGeometryRange([-50, 50], 100, 100, 10, -50, 50);
+    expect(coords).toEqual([
+      { x: 10, y: 90 },
+      { x: 90, y: 10 },
+    ]);
+  });
+});
+
+describe('barRects', () => {
+  it('正值从基线向上、负值从基线向下，基线在 0 值处', () => {
+    const bars = barRects([50, -50], 100, 100, 10, -50, 50);
+    expect(bars[0]).toMatchObject({ y: 10, baselineY: 50, height: 40 });
+    expect(bars[1]).toMatchObject({ y: 50, baselineY: 50, height: 40 });
+  });
+
+  it('多组柱子在同一数据点横向并排', () => {
+    const first = barRects([100, 100], 100, 100, 10, 0, 100, 0, 2);
+    const second = barRects([100, 100], 100, 100, 10, 0, 100, 1, 2);
+    expect(second[0].x).toBeGreaterThan(first[0].x);
+    expect(second[0].width).toBe(first[0].width);
+  });
+
+  it('空数据返回空数组', () => {
+    expect(barRects([], 100, 100, 10, 0, 100)).toEqual([]);
   });
 });

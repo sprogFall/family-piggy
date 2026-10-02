@@ -18,6 +18,8 @@ import type { Transaction } from '@/types/domain';
 
 import {
   selectMonthTransactions,
+  selectPeriodBucket,
+  selectPeriodTransactions,
   selectTransactionById,
   selectYearTransactions,
   useTransactionStore,
@@ -46,7 +48,7 @@ const MAY = { year: 2024, month: 5 };
 describe('useTransactionStore', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    useTransactionStore.setState({ buckets: {} });
+    useTransactionStore.setState({ buckets: {}, periodBuckets: {} });
   });
 
   it('loadMonth 拉取并写入桶', async () => {
@@ -130,7 +132,10 @@ describe('useTransactionStore', () => {
   });
 
   it('reset 清空桶', () => {
-    useTransactionStore.setState({ buckets: { 'l1::2024-05': { status: 'ready', transactions: [] } } });
+    useTransactionStore.setState({
+      buckets: { 'l1::2024-05': { status: 'ready', transactions: [] } },
+      periodBuckets: {},
+    });
     useTransactionStore.getState().reset();
     expect(useTransactionStore.getState().buckets).toEqual({});
   });
@@ -167,5 +172,65 @@ describe('年份统计', () => {
     expect(selectYearTransactions(useTransactionStore.getState(), 'l1', 2024).map((t) => t.id)).toEqual([
       't1',
     ]);
+  });
+});
+
+describe('任意周期统计', () => {
+  const START = new Date(2024, 4, 1, 0, 0, 0, 0).toISOString();
+  const END = new Date(2024, 5, 1, 0, 0, 0, 0).toISOString();
+  const PERIOD_KEY = `${START}_${END}`;
+
+  it('loadPeriod 拉取任意区间并写入周期桶', async () => {
+    txMock.listMonth.mockResolvedValue([tx('t1', 20)]);
+    await useTransactionStore.getState().loadPeriod('l1', PERIOD_KEY, START, END);
+
+    expect(txMock.listMonth).toHaveBeenCalledWith('l1', START, END);
+    expect(selectPeriodBucket(useTransactionStore.getState(), 'l1', PERIOD_KEY)).toEqual({
+      status: 'ready',
+      transactions: [tx('t1', 20)],
+      start: START,
+      end: END,
+    });
+  });
+
+  it('loadPeriod 失败置 error 桶', async () => {
+    txMock.listMonth.mockRejectedValue(new Error('offline'));
+    await useTransactionStore.getState().loadPeriod('l1', PERIOD_KEY, START, END);
+    expect(selectPeriodBucket(useTransactionStore.getState(), 'l1', PERIOD_KEY)?.status).toBe(
+      'error',
+    );
+  });
+
+  it('upsertLocal 只插入时间区间匹配的周期桶', async () => {
+    txMock.listMonth.mockResolvedValue([tx('t1', 20)]);
+    await useTransactionStore.getState().loadPeriod('l1', PERIOD_KEY, START, END);
+
+    useTransactionStore.getState().upsertLocal('l1', tx('t9', 15));
+    expect(selectPeriodTransactions(useTransactionStore.getState(), 'l1', PERIOD_KEY).map((t) => t.id)).toEqual([
+      't1',
+      't9',
+    ]);
+
+    useTransactionStore.getState().upsertLocal(
+      'l1',
+      tx('t10', 15, { occurredAt: new Date(2024, 5, 15, 8).toISOString() }),
+    );
+    expect(selectPeriodTransactions(useTransactionStore.getState(), 'l1', PERIOD_KEY).map((t) => t.id)).toEqual([
+      't1',
+      't9',
+    ]);
+  });
+
+  it('deleteLocal 同步移除周期桶数据，空态选择器引用稳定', async () => {
+    txMock.listMonth.mockResolvedValue([tx('t1', 20)]);
+    await useTransactionStore.getState().loadPeriod('l1', PERIOD_KEY, START, END);
+    useTransactionStore.getState().deleteLocal('l1', 't1');
+
+    expect(selectPeriodTransactions(useTransactionStore.getState(), 'l1', PERIOD_KEY)).toEqual([]);
+
+    const state = useTransactionStore.getState();
+    expect(selectPeriodTransactions(state, 'missing', PERIOD_KEY)).toBe(
+      selectPeriodTransactions(state, 'missing', PERIOD_KEY),
+    );
   });
 });
