@@ -8,7 +8,7 @@ interface Props {
   onPress: () => void;
   disabled?: boolean;
   loading?: boolean;
-  variant?: 'primary' | 'danger';
+  variant?: 'primary' | 'danger' | 'secondary';
   style?: StyleProp<ViewStyle>;
 }
 
@@ -22,11 +22,18 @@ export const PrimaryButton = ({
 }: Props) => {
   const styles = useStyles();
   const colors = useColors();
+  /** 次级按钮用主色浅底 + 主色文字，与实心主按钮形成颜色区分 */
+  const secondary = variant === 'secondary';
   const bg = disabled
-    ? colors.primaryDisabled
+    ? secondary
+      ? colors.bg
+      : colors.primaryDisabled
     : variant === 'danger'
       ? colors.danger
-      : colors.primary;
+      : secondary
+        ? colors.primaryLight
+        : colors.primary;
+  const contentColor = secondary ? colors.primary : colors.white;
   return (
     <Pressable
       accessibilityRole="button"
@@ -35,9 +42,9 @@ export const PrimaryButton = ({
       style={({ pressed }) => [styles.button, { backgroundColor: bg, opacity: pressed ? 0.85 : 1 }, style]}
     >
       {loading ? (
-        <ActivityIndicator color={colors.white} />
+        <ActivityIndicator color={contentColor} />
       ) : (
-        <Text style={styles.title}>{title}</Text>
+        <Text style={[styles.title, secondary && styles.secondaryTitle]}>{title}</Text>
       )}
     </Pressable>
   );
@@ -49,6 +56,9 @@ const useStyles = makeStyles((colors) => ({
     borderRadius: radius.lg,
     height: 48,
     justifyContent: 'center',
+  },
+  secondaryTitle: {
+    color: colors.primary,
   },
   title: {
     color: colors.white,

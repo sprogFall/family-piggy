@@ -37,6 +37,20 @@ describe('AmountKeypad', () => {
     expect(onSubmit).toHaveBeenCalled();
   });
 
+  it('showSubmitButton 为 false 时只保留金额键盘，不渲染提交按钮', () => {
+    render(
+      <AmountKeypad
+        value="23.68"
+        onChange={jest.fn()}
+        onSubmit={jest.fn()}
+        showSubmitButton={false}
+      />,
+    );
+
+    expect(screen.queryByText('完成')).toBeNull();
+    expect(screen.getByLabelText('operator-+')).toBeTruthy();
+  });
+
   it('右上角的加减乘除按钮接入表达式规则', () => {
     const onChange = jest.fn();
     render(<AmountKeypad value="12" onChange={onChange} onSubmit={jest.fn()} />);

@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AmountKeypad } from '@/components/ui/AmountKeypad';
 import { AmountPanel } from '@/components/ui/AmountPanel';
 import { CategoryGrid } from '@/components/ui/CategoryGrid';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { CurrencyPickerSheet } from '@/components/ui/CurrencyPickerSheet';
 import { RecurringScheduleSheet } from '@/components/ui/RecurringScheduleSheet';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
@@ -86,7 +87,11 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   const [images, setImages] = useState<TransactionImageDraft[]>(() =>
     initialTransactionImageDrafts(editingRule?.images ?? editing?.images ?? []),
   );
-  const [date, setDate] = useState(editing ? new Date(editing.occurredAt) : new Date());
+  const [date, setDate] = useState(() => {
+    if (editing) return new Date(editing.occurredAt);
+    const initialDate = route.params?.initialDate ? new Date(route.params.initialDate) : null;
+    return initialDate && !Number.isNaN(initialDate.getTime()) ? initialDate : new Date();
+  });
   const [showPicker, setShowPicker] = useState(false);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -167,6 +172,8 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
   const kindCategories = categories.filter((category) => category.kind === kind);
   const isRecurringMode = recurringEnabled || isEditingRule;
   const recurringScheduleLabel = schedule ? formatRecurringSchedule(schedule) : null;
+  /** 新建普通流水时才展示「再记一笔」；编辑 / 定时记账不适用 */
+  const canContinueAdding = !editing && !isRecurringMode;
 
   const changeKind = (next: TxKind) => {
     setKind(next);
@@ -217,7 +224,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
     ]);
   };
 
-  const submit = async () => {
+  const submit = async (mode: 'finish' | 'continue' = 'finish') => {
     const evaluatedAmount = evaluateAmountExpression(amount);
     const cents = evaluatedAmount === null ? null : parseAmountToCents(evaluatedAmount);
     if (!ledger) {
@@ -306,6 +313,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
         return;
       }
 
+      const occurredAt = date.toISOString();
       const payload = {
         categoryId,
         kind,
@@ -316,7 +324,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
         // 编辑时保留数据库里预留的其它记账类型字段，只覆盖当前 UI 支持的报销
         attributes: { ...(editing?.attributes ?? {}), reimbursement },
         images: imageUrls,
-        occurredAt: date.toISOString(),
+        occurredAt,
       };
 
       if (editing) {
@@ -331,7 +339,11 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
       }
 
       showToast(editing ? '已保存' : '记账成功');
-      navigation.goBack();
+      if (mode === 'continue' && canContinueAdding) {
+        navigation.replace('AddTransaction', { initialDate: occurredAt });
+      } else {
+        navigation.goBack();
+      }
     } catch (error) {
       if (uploadedImageUrls.length > 0) {
         void transactionImageService.remove(uploadedImageUrls).catch(() => undefined);
@@ -418,6 +430,24 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
           setKeypadVisible(true);
         }}
       />
+
+      <View style={styles.actionBar}>
+        {canContinueAdding ? (
+          <PrimaryButton
+            title="再记一笔"
+            variant="secondary"
+            disabled={submitting}
+            style={styles.actionButton}
+            onPress={() => void submit('continue')}
+          />
+        ) : null}
+        <PrimaryButton
+          title={editing || editingRule ? '保存' : '完成'}
+          disabled={submitting}
+          style={styles.actionButton}
+          onPress={() => void submit()}
+        />
+      </View>
 
       <View style={styles.tabsCard}>
         <SegmentedTabs items={KIND_TABS} value={kind} onChange={changeKind} />
@@ -506,8 +536,7 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
             value={amount}
             onChange={setAmount}
             onSubmit={() => void submit()}
-            submitDisabled={submitting}
-            submitLabel={editing || editingRule ? '保存' : '完成'}
+            showSubmitButton={false}
           />
         ) : null}
       </View>
@@ -516,6 +545,16 @@ export const AddTransactionScreen = ({ navigation, route }: Props) => {
 };
 
 const useStyles = makeStyles((colors) => ({
+  actionBar: {
+    backgroundColor: colors.card,
+    flexDirection: 'row',
+    gap: space(3),
+    paddingHorizontal: space(4),
+    paddingVertical: space(3),
+  },
+  actionButton: {
+    flex: 1,
+  },
   body: {
     flex: 1,
   },

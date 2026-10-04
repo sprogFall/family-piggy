@@ -15,6 +15,8 @@ interface Props {
   onSubmit: () => void;
   submitDisabled?: boolean;
   submitLabel?: string;
+  /** 记一笔页把提交按钮移到顶部操作区后，键盘只保留金额与运算符 */
+  showSubmitButton?: boolean;
 }
 
 const GRID_KEYS: AmountKey[] = [
@@ -35,6 +37,7 @@ export const AmountKeypad = ({
   onSubmit,
   submitDisabled = false,
   submitLabel = '完成',
+  showSubmitButton = true,
 }: Props) => {
   const styles = useStyles();
   const colors = useColors();
@@ -57,7 +60,7 @@ export const AmountKeypad = ({
         ))}
       </View>
 
-      {/* 右侧：加减乘除 + 完成无缝拼成一整列，完成按钮位于右下角 */}
+      {/* 右侧：加减乘除；需要时在右下角渲染提交按钮，无缝拼成一整列 */}
       <View style={styles.sidebar}>
         {OPERATOR_ROWS.map((row, rowIndex) => (
           <View key={`operator-row-${rowIndex}`} style={styles.operatorRow}>
@@ -75,19 +78,21 @@ export const AmountKeypad = ({
           </View>
         ))}
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={submitLabel}
-          disabled={submitDisabled}
-          style={({ pressed }) => [
-            styles.submit,
-            submitDisabled && styles.submitDisabled,
-            pressed && styles.keyPressed,
-          ]}
-          onPress={onSubmit}
-        >
-          <Text style={styles.submitText}>{submitLabel}</Text>
-        </Pressable>
+        {showSubmitButton ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={submitLabel}
+            disabled={submitDisabled}
+            style={({ pressed }) => [
+              styles.submit,
+              submitDisabled && styles.submitDisabled,
+              pressed && styles.keyPressed,
+            ]}
+            onPress={onSubmit}
+          >
+            <Text style={styles.submitText}>{submitLabel}</Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );

@@ -15,9 +15,17 @@ export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   Tabs: NavigatorScreenParams<TabParamList>;
-  /** 传 transactionId 进入账单编辑；recurringRuleId 进入定时记账编辑；startRecurring 直接打开定时选择 */
+  /**
+   * 传 transactionId 进入账单编辑；recurringRuleId 进入定时记账编辑；
+   * startRecurring 直接打开定时选择；initialDate 用于「再记一笔」保持日期一致。
+   */
   AddTransaction:
-    | { transactionId?: string; recurringRuleId?: string; startRecurring?: boolean }
+    | {
+        transactionId?: string;
+        recurringRuleId?: string;
+        startRecurring?: boolean;
+        initialDate?: string;
+      }
     | undefined;
   /** 账单预览：删除 / 修改入口 */
   TransactionPreview: { transactionId: string };
