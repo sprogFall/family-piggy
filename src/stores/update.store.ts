@@ -17,7 +17,7 @@ export type UpdateStatus =
   | 'ignored'
   | 'unavailable'
   | 'downloading'
-  /** 下载完成、正在校验安装包完整性（纯 JS 分块哈希，需要数秒） */
+  /** Release 显式提供 SHA256 时，下载完成后的分块哈希校验状态 */
   | 'verifying'
   | 'ready'
   | 'failed';
@@ -30,7 +30,7 @@ interface UpdateState {
   currentVersion: string;
   receivedBytes: number;
   totalBytes: number | null;
-  /** 已校验字节数（verifying 期间展示校验进度） */
+  /** 已校验字节数（仅 Release 提供 SHA256 时在 verifying 期间展示） */
   verifiedBytes: number;
   /** 下载完成的本地文件 URI */
   localUri: string | null;
@@ -42,7 +42,7 @@ interface UpdateState {
   hydrate: () => Promise<void>;
   /** 检查更新；`force` 用于忽略该版本后仍想手动查看 */
   check: (options?: { force?: boolean }) => Promise<void>;
-  /** 下载并校验安装包 */
+  /** 下载安装包；若 Release 提供 SHA256 则额外做哈希校验 */
   download: () => Promise<void>;
   /** 拉起系统安装器 */
   install: () => Promise<void>;
@@ -133,12 +133,17 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
         set({ receivedBytes: progress.received, totalBytes: progress.total ?? release.apkSize });
       });
 
-      // 下载完成后还有一步 SHA-256 完整性校验：单独进入 verifying 并上报进度，
-      // 否则界面会停在「下载 100%」上干等数秒，看起来像卡死
-      set({ status: 'verifying', verifiedBytes: 0 });
-      await updateService.verifyDownloadedApk(release, uri, (progress) => {
-        set({ verifiedBytes: progress.hashed });
-      });
+      // 只有 Release 显式提供 SHA256 时才进入哈希校验状态；默认发布策略只校验
+      // 资产大小，APK 篡改由 Android 安装器校验签名。
+      const hasSha256 = release.sha256 !== null;
+      if (hasSha256) {
+        set({ status: 'verifying', verifiedBytes: 0 });
+      }
+      await updateService.verifyDownloadedApk(
+        release,
+        uri,
+        hasSha256 ? (progress) => set({ verifiedBytes: progress.hashed }) : undefined,
+      );
 
       set({
         status: 'ready',

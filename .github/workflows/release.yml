@@ -144,10 +144,12 @@ jobs:
           APK=$(ls android/app/build/outputs/apk/release/*.apk | head -1)
           NAME="family-piggy-${RELEASE_TAG}.apk"
           cp "$APK" "$NAME"
-          ls -lh "$NAME"
+          # SHA256 只作为独立附件供需要手动校验的用户下载；App 不再为了它阻塞安装。
+          SHA256_FILE="${NAME}.sha256"
+          sha256sum "$NAME" | awk '{print $1}' > "$SHA256_FILE"
+          ls -lh "$NAME" "$SHA256_FILE"
           echo "APK_NAME=$NAME" >> "$GITHUB_ENV"
-          # 应用内更新会带下载地址、大小与 SHA256 做完整性校验，这里一并算好写进 Release 说明
-          echo "APK_SHA256=$(sha256sum "$NAME" | awk '{print $1}')" >> "$GITHUB_ENV"
+          echo "APK_SHA256_FILE=$SHA256_FILE" >> "$GITHUB_ENV"
           echo "APK_SIZE=$(stat -c%s "$NAME")" >> "$GITHUB_ENV"
 
       # Actions Artifacts 一定会被打包成 zip，下载后还要解压；
@@ -157,11 +159,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           APK="$APK_NAME"
+          SHA256_FILE="$APK_SHA256_FILE"
           TITLE="家庭记账 ${RELEASE_TAG}"
-          # 末行 SHA256 为机器可读行，App 端解析后用于安装包完整性校验，请勿删改格式。
+          # 默认不写机器可读的 SHA256 行：App 端只做资产大小校验，
+          # APK 完整性交给 Android 安装器的签名校验。若某次需要恢复应用内哈希，
+          # 只要在 Release 说明中显式加入 SHA256: <64 位十六进制> 即可。
           # tag 发布时使用 annotated tag 的说明作为更新内容，App 内会直接展示这些文字。
           if [ "$GITHUB_REF_TYPE" = "tag" ] && [ -n "${RELEASE_NOTES:-}" ]; then
-            NOTES=$(printf '%s\n\nSHA256: %s\n' "$RELEASE_NOTES" "$APK_SHA256")
+            NOTES=$(printf '%s\n' "$RELEASE_NOTES")
           else
             NOTES=$(printf '%s\n' \
               "Android 安装包（已用仓库 keystore 签名，可直接覆盖安装升级）。" \
@@ -173,12 +178,12 @@ jobs:
               "" \
               "在下方 Assets 中直接下载 .apk 安装，无需解压。" \
               "" \
-              "SHA256: ${APK_SHA256}")
+              "如需手动校验，可下载 ${SHA256_FILE}。")
           fi
 
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             # 同一标签重跑时覆盖资产与说明，保持幂等
-            gh release upload "$RELEASE_TAG" "$APK" --clobber
+            gh release upload "$RELEASE_TAG" "$APK" "$SHA256_FILE" --clobber
             gh release edit "$RELEASE_TAG" --notes "$NOTES"
           else
             if [ "$GITHUB_REF_TYPE" = "tag" ]; then
@@ -186,7 +191,7 @@ jobs:
             else
               EXTRA="--prerelease --target=$GITHUB_SHA"
             fi
-            gh release create "$RELEASE_TAG" "$APK" --title "$TITLE" --notes "$NOTES" $EXTRA
+            gh release create "$RELEASE_TAG" "$APK" "$SHA256_FILE" --title "$TITLE" --notes "$NOTES" $EXTRA
           fi
 
           URL=$(gh release view "$RELEASE_TAG" --json url -q .url)

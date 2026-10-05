@@ -242,7 +242,8 @@ export const verifyDownloadedApk = async (
     await FileSystem.deleteAsync(uri, { idempotent: true });
     throw new Error('安装包大小与发布信息不一致，请重新下载');
   }
-  // Release 说明里没有 SHA256 时只做大小校验，避免用户为一次无意义哈希等待
+  // 默认发布策略不写 SHA256，此时只做大小校验，不再为全量哈希阻塞安装；
+  // APK 完整性由 Android 安装器的签名校验兜底。
   if (release.sha256 === null) return;
 
   const actualSha256 = await sha256OfFile(uri, onProgress);

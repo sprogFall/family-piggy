@@ -205,7 +205,7 @@ export interface AppRelease {
   version: string;
   /** Release 标题 */
   title: string;
-  /** Release 说明原文（含 SHA256 / 镜像行） */
+  /** Release 说明原文（可能含可选的 SHA256 / 镜像行） */
   notes: string;
   /** Release 页面地址（无可下载安装包时给用户兜底跳转） */
   pageUrl: string;

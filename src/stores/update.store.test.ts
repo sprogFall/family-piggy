@@ -142,6 +142,27 @@ describe('useUpdateStore', () => {
       );
     });
 
+    it('Release 未提供 SHA256 时跳过 verifying，只做大小校验后进入 ready', async () => {
+      const releaseWithoutHash = { ...release, sha256: null };
+      mocked.fetchLatestRelease.mockResolvedValue(releaseWithoutHash);
+      mocked.downloadApk.mockResolvedValue('file:///local/app.apk');
+      let statusWhileVerifying: string | undefined;
+      mocked.verifyDownloadedApk.mockImplementation(async () => {
+        statusWhileVerifying = useUpdateStore.getState().status;
+      });
+
+      await useUpdateStore.getState().check();
+      await useUpdateStore.getState().download();
+
+      expect(statusWhileVerifying).toBe('downloading');
+      expect(mocked.verifyDownloadedApk).toHaveBeenCalledWith(
+        releaseWithoutHash,
+        'file:///local/app.apk',
+        undefined,
+      );
+      expect(useUpdateStore.getState().status).toBe('ready');
+    });
+
     it('下载完成先进入 verifying 并上报校验进度，通过后才是 ready', async () => {
       mocked.fetchLatestRelease.mockResolvedValue(release);
       mocked.downloadApk.mockResolvedValue('file:///local/app.apk');
