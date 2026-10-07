@@ -133,4 +133,40 @@ describe('CategoryTransactionsScreen', () => {
     expect(screen.getByText('10:00 · 小明')).toBeTruthy();
     expect(screen.getByText('1 笔 · ¥2.00')).toBeTruthy();
   });
+
+  it('周期桶加载失败且无缓存时展示失败兜底与重试，而不是「暂无明细」', () => {
+    useTransactionStore.setState({
+      buckets: {},
+      periodBuckets: {
+        [`l1::period::${PERIOD_KEY}`]: { status: 'error', start: START, end: END, transactions: [] },
+      },
+    });
+
+    renderScreen();
+
+    expect(screen.getByText('分类明细加载失败，请检查网络后重试')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '重试' })).toBeTruthy();
+    expect(screen.queryByText('当前统计条件下暂无该分类明细')).toBeNull();
+  });
+
+  it('刷新失败但仍有缓存时保留旧数据并提示重试', () => {
+    useTransactionStore.setState({
+      buckets: {},
+      periodBuckets: {
+        [`l1::period::${PERIOD_KEY}`]: {
+          status: 'error',
+          start: START,
+          end: END,
+          transactions: [
+            transaction({ id: 't1', occurredAt: new Date(2024, 4, 20, 10).toISOString() }),
+          ],
+        },
+      },
+    });
+
+    renderScreen();
+
+    expect(screen.getByText('刷新失败，当前展示的是本地缓存')).toBeTruthy();
+    expect(screen.getAllByText('餐饮').length).toBeGreaterThan(0);
+  });
 });

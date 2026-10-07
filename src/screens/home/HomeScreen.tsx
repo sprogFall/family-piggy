@@ -10,6 +10,7 @@ import { BreakdownList } from '@/components/BreakdownList';
 import { DonutChart } from '@/components/charts/DonutChart';
 import { TrendChart } from '@/components/charts/TrendChart';
 import { EmptyState } from '@/components/EmptyState';
+import { ErrorBanner, ErrorState } from '@/components/ErrorState';
 import { LedgerSwitcherSheet } from '@/components/LedgerSwitcherSheet';
 import { SummaryCard } from '@/components/SummaryCard';
 import { LoadingView } from '@/components/ui/LoadingView';
@@ -59,6 +60,11 @@ export const HomeScreen = ({ navigation }: Props) => {
     ledger !== null &&
     (monthBucket === undefined ||
       (monthBucket.status === 'loading' && monthBucket.transactions.length === 0));
+  /** 桶处于 error 态：有缓存就展示缓存并提示，没有缓存则整屏兜底 + 重试 */
+  const loadFailed = monthBucket?.status === 'error';
+  const handleRetry = useCallback(() => {
+    if (ledger) void loadMonth(ledger.id, month);
+  }, [ledger, loadMonth, month]);
   useFocusEffect(
     useCallback(() => {
       if (!ledger) return undefined;
@@ -104,10 +110,13 @@ export const HomeScreen = ({ navigation }: Props) => {
 
       {ledger && loadingInitial ? (
         <LoadingView message="正在加载账单…" />
+      ) : ledger && loadFailed && transactions.length === 0 ? (
+        <ErrorState message="账单加载失败，请检查网络后重试" onRetry={handleRetry} />
       ) : (
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {ledger ? (
           <>
+            {loadFailed ? <ErrorBanner onRetry={handleRetry} /> : null}
             <SummaryCard
               expense={summary.expense}
               income={summary.income}

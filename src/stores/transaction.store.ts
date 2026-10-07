@@ -118,7 +118,13 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
           buckets: { ...get().buckets, [key]: { status: 'ready', transactions } },
         });
       } catch {
-        set({ buckets: { ...get().buckets, [key]: { status: 'error', transactions: [] } } });
+        // 拉取失败时保留旧快照：清空会让账单页把「加载失败」显示成「本月暂无账单」
+        set({
+          buckets: {
+            ...get().buckets,
+            [key]: { status: 'error', transactions: get().buckets[key]?.transactions ?? [] },
+          },
+        });
       }
     },
 
@@ -144,10 +150,16 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
           },
         });
       } catch {
+        // 同上：统计周期桶刷新失败时保留旧数据，避免统计页被清空
         set({
           periodBuckets: {
             ...get().periodBuckets,
-            [key]: { status: 'error', transactions: [], start, end },
+            [key]: {
+              status: 'error',
+              transactions: get().periodBuckets[key]?.transactions ?? [],
+              start,
+              end,
+            },
           },
         });
       }
@@ -185,8 +197,8 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
 
     update: async (id, ledgerId, patch) => {
       await transactionService.update(id, patch);
-      patchLedgerBuckets(ledgerId, (list) => list.filter((t) => t.id !== id));
-      // 若该账本当前月份桶包含此流水则重新拉取，保证跨月修改后归属正确
+      // 不在重拉前删除本地快照：重拉成功才用服务端数据替换，失败时保留旧数据并置 error。
+      // 跨月修改仍由这里重拉各已加载桶完成：旧月桶查不到该流水即被移除，新月桶会补上。
       const state = get();
       for (const key of Object.keys(state.buckets)) {
         if (key.startsWith(`${ledgerId}::`)) {

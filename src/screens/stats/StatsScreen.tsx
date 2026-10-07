@@ -9,6 +9,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import type { TrendChartType, TrendSeriesMode } from '@/components/charts/StatsTrendChart';
 import { EmptyState } from '@/components/EmptyState';
+import { ErrorBanner, ErrorState } from '@/components/ErrorState';
 import { LoadingView } from '@/components/ui/LoadingView';
 import { ScreenTopBar } from '@/components/ui/ScreenTopBar';
 import { dominantCurrency } from '@/domain/currency';
@@ -124,6 +125,11 @@ export const StatsScreen = ({ navigation }: Props) => {
     ledger !== null &&
     (periodBucket === undefined ||
       (periodBucket.status === 'loading' && transactions.length === 0));
+  /** 周期桶处于 error 态：有缓存就展示缓存并提示，没有缓存则整屏兜底 + 重试 */
+  const loadFailed = periodBucket?.status === 'error';
+  const handleRetry = useCallback(() => {
+    if (ledger) void loadPeriod(ledger.id, period.key, period.start, period.end);
+  }, [ledger, loadPeriod, period.key, period.start, period.end]);
   const memberLabel = memberId
     ? members.find((member) => member.userId === memberId)?.nickname ?? '成员'
     : '全部成员';
@@ -187,6 +193,8 @@ export const StatsScreen = ({ navigation }: Props) => {
         <EmptyState icon="wallet-outline" message="暂无账本，请先创建或切换账本" />
       ) : loadingInitial ? (
         <LoadingView message="正在加载统计数据…" />
+      ) : loadFailed && transactions.length === 0 ? (
+        <ErrorState message="统计数据加载失败，请检查网络后重试" onRetry={handleRetry} />
       ) : (
         <ScrollView
           contentContainerStyle={styles.content}
@@ -194,6 +202,7 @@ export const StatsScreen = ({ navigation }: Props) => {
           scrollEventThrottle={120}
           onScroll={handleScroll}
         >
+          {loadFailed ? <ErrorBanner onRetry={handleRetry} /> : null}
           <View style={styles.summaryCard}>
             <Text style={styles.summaryTitle}>{period.label}收支</Text>
             <SummaryRow label="支出" value={formatMoney(summary.expense, currency)} />

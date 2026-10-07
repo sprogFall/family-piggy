@@ -67,6 +67,18 @@ describe('useTransactionStore', () => {
     expect(useTransactionStore.getState().buckets['l1::2024-05'].status).toBe('error');
   });
 
+  it('loadMonth 失败保留旧快照，不清空列表', async () => {
+    txMock.listMonth.mockResolvedValue([tx('t1', 20)]);
+    await useTransactionStore.getState().loadMonth('l1', MAY);
+
+    txMock.listMonth.mockRejectedValue(new Error('offline'));
+    await useTransactionStore.getState().loadMonth('l1', MAY);
+
+    const bucket = useTransactionStore.getState().buckets['l1::2024-05'];
+    expect(bucket.status).toBe('error');
+    expect(bucket.transactions.map((t) => t.id)).toEqual(['t1']);
+  });
+
   it('add 写入服务并同步到桶内', async () => {
     txMock.listMonth.mockResolvedValue([tx('t1', 20)]);
     txMock.create.mockResolvedValue(tx('t2', 21, { amount: 500 }));
@@ -120,6 +132,41 @@ describe('useTransactionStore', () => {
     await useTransactionStore.getState().update('t1', 'l1', { amount: 999 });
     expect(txMock.update).toHaveBeenCalledWith('t1', { amount: 999 });
     expect(txMock.listMonth).toHaveBeenCalledTimes(2);
+  });
+
+  it('update 重拉失败时保留旧数据与编辑中的流水（不清空列表）', async () => {
+    txMock.listMonth.mockResolvedValue([tx('t1', 20), tx('t2', 21)]);
+    await useTransactionStore.getState().loadMonth('l1', MAY);
+
+    // 保存成功，但随后的重拉失败（网络抖动 / 超时）
+    txMock.update.mockResolvedValue(undefined);
+    txMock.listMonth.mockRejectedValue(new Error('offline'));
+    await useTransactionStore.getState().update('t1', 'l1', { amount: 999 });
+
+    const bucket = useTransactionStore.getState().buckets['l1::2024-05'];
+    expect(bucket.status).toBe('error');
+    // 关键回归：编辑的流水不能被本地无条件删除，其余流水也不能丢
+    expect(bucket.transactions.map((t) => t.id).sort()).toEqual(['t1', 't2']);
+  });
+
+  it('update 把流水改到别的月份后，重拉会从旧月移除并写入新月', async () => {
+    const JUNE = { year: 2024, month: 6 };
+    txMock.listMonth.mockImplementation(async (_ledgerId, start) => {
+      const iso = new Date(start).toISOString();
+      const juneStart = new Date(2024, 5, 1, 0, 0, 0, 0).toISOString();
+      // 修改后 t1 移到 6 月：5 月桶查不到它，6 月桶能查到
+      return iso === juneStart ? [tx('t1', 15, { occurredAt: new Date(2024, 5, 15, 10).toISOString() })] : [];
+    });
+    // 先让 5 月桶有 t1
+    txMock.listMonth.mockResolvedValueOnce([tx('t1', 20)]);
+    await useTransactionStore.getState().loadMonth('l1', MAY);
+    await useTransactionStore.getState().loadMonth('l1', JUNE);
+
+    txMock.update.mockResolvedValue(undefined);
+    await useTransactionStore.getState().update('t1', 'l1', { occurredAt: new Date(2024, 5, 15, 10).toISOString() });
+
+    expect(selectMonthTransactions(useTransactionStore.getState(), 'l1', MAY)).toEqual([]);
+    expect(selectMonthTransactions(useTransactionStore.getState(), 'l1', JUNE).map((t) => t.id)).toEqual(['t1']);
   });
 
   it('subscribe 委托 realtime 服务', () => {
@@ -199,6 +246,18 @@ describe('任意周期统计', () => {
     expect(selectPeriodBucket(useTransactionStore.getState(), 'l1', PERIOD_KEY)?.status).toBe(
       'error',
     );
+  });
+
+  it('loadPeriod 失败保留旧快照，不清空列表', async () => {
+    txMock.listMonth.mockResolvedValue([tx('t1', 20)]);
+    await useTransactionStore.getState().loadPeriod('l1', PERIOD_KEY, START, END);
+
+    txMock.listMonth.mockRejectedValue(new Error('offline'));
+    await useTransactionStore.getState().loadPeriod('l1', PERIOD_KEY, START, END);
+
+    const bucket = selectPeriodBucket(useTransactionStore.getState(), 'l1', PERIOD_KEY);
+    expect(bucket?.status).toBe('error');
+    expect(selectPeriodTransactions(useTransactionStore.getState(), 'l1', PERIOD_KEY).map((t) => t.id)).toEqual(['t1']);
   });
 
   it('upsertLocal 只插入时间区间匹配的周期桶', async () => {

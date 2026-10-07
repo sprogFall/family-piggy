@@ -138,6 +138,49 @@ describe('StatsScreen', () => {
     expect(navigation.navigate).toHaveBeenCalledWith('TransactionPreview', { transactionId: 't1' });
   });
 
+  it('周期桶加载失败且无缓存时展示失败兜底与重试，而不是空的统计卡片', () => {
+    const period = periodFromPreset('thisMonth');
+    useTransactionStore.setState({
+      buckets: {},
+      periodBuckets: {
+        [`l1::period::${period.key}`]: {
+          status: 'error',
+          start: period.start,
+          end: period.end,
+          transactions: [],
+        },
+      },
+    });
+
+    renderScreen();
+
+    expect(screen.getByText('统计数据加载失败，请检查网络后重试')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '重试' })).toBeTruthy();
+    expect(screen.queryByText('本月收支')).toBeNull();
+  });
+
+  it('刷新失败但仍有缓存时保留统计并提示重试', () => {
+    const period = periodFromPreset('thisMonth');
+    const cached = useTransactionStore.getState().periodBuckets[`l1::period::${period.key}`]
+      .transactions;
+    useTransactionStore.setState({
+      buckets: {},
+      periodBuckets: {
+        [`l1::period::${period.key}`]: {
+          status: 'error',
+          start: period.start,
+          end: period.end,
+          transactions: cached,
+        },
+      },
+    });
+
+    renderScreen();
+
+    expect(screen.getByText('刷新失败，当前展示的是本地缓存')).toBeTruthy();
+    expect(screen.getByText('本月收支')).toBeTruthy();
+  });
+
   it('点击分类分布项带当前周期 / 成员条件进入分类明细', () => {
     renderScreen();
     const period = periodFromPreset('thisMonth');

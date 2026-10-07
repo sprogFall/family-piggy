@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { DaySection } from '@/components/DaySection';
 import { EmptyState } from '@/components/EmptyState';
+import { ErrorBanner, ErrorState } from '@/components/ErrorState';
 import { LedgerSwitcherSheet } from '@/components/LedgerSwitcherSheet';
 import { LoadingView } from '@/components/ui/LoadingView';
 import { MonthSwitcher } from '@/components/ui/MonthSwitcher';
@@ -152,6 +153,8 @@ export const BillsScreen = ({ navigation }: Props) => {
     (monthBucket === undefined ||
       (monthBucket.status === 'loading' && transactions.length === 0));
   const refreshing = monthBucket?.status === 'loading' && transactions.length > 0;
+  /** 桶处于 error 态：有缓存就展示缓存并提示，没有缓存则整屏兜底 + 重试 */
+  const loadFailed = monthBucket?.status === 'error';
   const handleRefresh = useCallback(() => {
     if (ledger) void loadMonth(ledger.id, month);
   }, [ledger?.id, monthKeyValue]);
@@ -279,24 +282,31 @@ export const BillsScreen = ({ navigation }: Props) => {
 
         <View style={styles.list}>
           {groups.length === 0 ? (
-            <EmptyState
-              icon="receipt-outline"
-              message={hasActiveFilter ? '没有符合条件的账单' : '本月暂无账单，点击下方 + 记一笔'}
-            />
-          ) : (
-            groups.map((group) => (
-              <DaySection
-                key={group.key}
-                group={group}
-                categories={categories}
-                  creatorNameOf={(tx) => creatorLabelOf(tx.createdBy)}
-                onRowPress={(tx) =>
-                  navigation.navigate('TransactionPreview', { transactionId: tx.id })
-                }
-                onEdit={(tx) => navigation.navigate('AddTransaction', { transactionId: tx.id })}
-                onDelete={confirmDeleteTransaction}
+            loadFailed ? (
+              <ErrorState message="账单加载失败，请检查网络后重试" onRetry={handleRefresh} />
+            ) : (
+              <EmptyState
+                icon="receipt-outline"
+                message={hasActiveFilter ? '没有符合条件的账单' : '本月暂无账单，点击下方 + 记一笔'}
               />
-            ))
+            )
+          ) : (
+            <>
+              {loadFailed ? <ErrorBanner onRetry={handleRefresh} /> : null}
+              {groups.map((group) => (
+                <DaySection
+                  key={group.key}
+                  group={group}
+                  categories={categories}
+                  creatorNameOf={(tx) => creatorLabelOf(tx.createdBy)}
+                  onRowPress={(tx) =>
+                    navigation.navigate('TransactionPreview', { transactionId: tx.id })
+                  }
+                  onEdit={(tx) => navigation.navigate('AddTransaction', { transactionId: tx.id })}
+                  onDelete={confirmDeleteTransaction}
+                />
+              ))}
+            </>
           )}
         </View>
       </ScrollView>

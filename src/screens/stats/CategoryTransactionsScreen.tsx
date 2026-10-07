@@ -5,6 +5,7 @@ import { ScrollView, Text, View } from 'react-native';
 
 import { DaySection } from '@/components/DaySection';
 import { EmptyState } from '@/components/EmptyState';
+import { ErrorBanner, ErrorState } from '@/components/ErrorState';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { LoadingView } from '@/components/ui/LoadingView';
 import { formatMoney } from '@/domain/money';
@@ -68,6 +69,11 @@ export const CategoryTransactionsScreen = ({ navigation, route }: Props) => {
     ledger !== null &&
     (periodBucket === undefined ||
       (periodBucket.status === 'loading' && periodTransactions.length === 0));
+  /** 周期桶处于 error 态：有缓存就展示缓存并提示，没有缓存则整屏兜底 + 重试 */
+  const loadFailed = periodBucket?.status === 'error';
+  const handleRetry = useCallback(() => {
+    if (ledger) void loadPeriod(ledger.id, periodKey, start, end);
+  }, [end, ledger, loadPeriod, periodKey, start]);
 
   return (
     <View style={styles.container}>
@@ -84,8 +90,11 @@ export const CategoryTransactionsScreen = ({ navigation, route }: Props) => {
 
       {loadingInitial ? (
         <LoadingView message="正在加载分类明细…" />
+      ) : loadFailed && periodTransactions.length === 0 ? (
+        <ErrorState message="分类明细加载失败，请检查网络后重试" onRetry={handleRetry} />
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          {loadFailed ? <ErrorBanner onRetry={handleRetry} /> : null}
           {groups.length > 0 ? (
             groups.map((group) => (
               <DaySection
