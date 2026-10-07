@@ -31,7 +31,6 @@ interface TransactionState {
   /** 统计页按任意时间区间缓存的流水；key 由 PeriodRange.key 决定 */
   periodBuckets: Record<string, PeriodBucket>;
   loadMonth: (ledgerId: string, month: MonthRef) => Promise<void>;
-  loadYear: (ledgerId: string, year: number) => Promise<void>;
   loadPeriod: (ledgerId: string, periodKey: string, start: string, end: string) => Promise<void>;
   add: (input: CreateTransactionInput) => Promise<Transaction>;
   update: (id: string, ledgerId: string, patch: UpdateTransactionInput) => Promise<void>;
@@ -44,8 +43,6 @@ interface TransactionState {
 
 const bucketKey = (ledgerId: string, month: MonthRef): string =>
   `${ledgerId}::${monthKey(month)}`;
-
-const yearBucketKey = (ledgerId: string, year: number): string => `${ledgerId}::${year}`;
 
 const PERIOD_MARKER = '::period::';
 
@@ -69,14 +66,9 @@ const monthOfKey = (key: string): MonthRef => {
   return { year, month };
 };
 
-/** 判断某个月桶 / 年桶是否包含该流水 */
-const bucketIncludesTransaction = (key: string, transaction: Transaction): boolean => {
-  const [, period] = key.split('::');
-  if (/^\d{4}$/.test(period)) {
-    return new Date(transaction.occurredAt).getFullYear() === Number(period);
-  }
-  return contains(transaction.occurredAt, monthOfKey(key));
-};
+/** 判断某个月桶是否包含该流水 */
+const bucketIncludesTransaction = (key: string, transaction: Transaction): boolean =>
+  contains(transaction.occurredAt, monthOfKey(key));
 
 export const useTransactionStore = create<TransactionState>((set, get) => {
   const patchLedgerBuckets = (
@@ -165,26 +157,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
       }
     },
 
-    loadYear: async (ledgerId, year) => {
-      const key = yearBucketKey(ledgerId, year);
-      set({
-        buckets: {
-          ...get().buckets,
-          [key]: { status: 'loading', transactions: get().buckets[key]?.transactions ?? [] },
-        },
-      });
-      try {
-        const start = new Date(year, 0, 1, 0, 0, 0, 0).toISOString();
-        const end = new Date(year + 1, 0, 1, 0, 0, 0, 0).toISOString();
-        const transactions = await transactionService.listMonth(ledgerId, start, end);
-        set({
-          buckets: { ...get().buckets, [key]: { status: 'ready', transactions } },
-        });
-      } catch {
-        set({ buckets: { ...get().buckets, [key]: { status: 'error', transactions: [] } } });
-      }
-    },
-
     add: async (input) => {
       const userId = useAuthStore.getState().session?.user.id;
       if (!userId) throw new Error('未登录');
@@ -221,7 +193,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
         const without = list.filter((t) => t.id !== tx.id);
         return sortByTimeDesc(without);
       });
-      // 仅在流水所属月份 / 年份桶已加载时插入
+      // 仅在流水所属月份桶已加载时插入
       const buckets = { ...get().buckets };
       for (const key of Object.keys(buckets)) {
         if (!key.startsWith(`${ledgerId}::`)) continue;
@@ -297,21 +269,6 @@ export const selectMonthTransactions = (
   ledgerId
     ? (selectMonthBucket(state, ledgerId, month)?.transactions ?? EMPTY_TRANSACTIONS)
     : EMPTY_TRANSACTIONS;
-
-/** 某账本某年的年份桶；未加载时返回 undefined */
-export const selectYearBucket = (
-  state: TransactionState,
-  ledgerId: string | null | undefined,
-  year: number,
-): MonthBucket | undefined =>
-  ledgerId ? state.buckets[yearBucketKey(ledgerId, year)] : undefined;
-
-/** 某账本某年的流水；未加载时返回稳定的空数组 */
-export const selectYearTransactions = (
-  state: TransactionState,
-  ledgerId: string | null | undefined,
-  year: number,
-): Transaction[] => selectYearBucket(state, ledgerId, year)?.transactions ?? EMPTY_TRANSACTIONS;
 
 /** 在所有已加载月份桶中查找流水（编辑入口来自账单列表，桶必然已加载） */
 export const selectTransactionById = (

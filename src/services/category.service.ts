@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { Category, CategoryInput, TxKind } from '@/types/domain';
+import type { Category, CategoryInput } from '@/types/domain';
 import { toCategory, type CategoryRow } from '@/types/db';
 
 export interface CategoryPatch {
@@ -48,12 +48,5 @@ export const categoryService = {
   async remove(id: string): Promise<void> {
     const { error } = await supabase.from('categories').delete().eq('id', id);
     if (error) throw new Error('删除分类失败');
-  },
-
-  async maxSortOrder(ledgerId: string, kind: TxKind): Promise<number> {
-    const categories = await this.list(ledgerId);
-    return categories
-      .filter((c) => c.kind === kind)
-      .reduce((max, c) => Math.max(max, c.sortOrder), 0);
   },
 };

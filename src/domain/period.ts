@@ -7,9 +7,6 @@
 
 import { monthLabel, type MonthRef } from './dates';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const pad2 = (value: number): string => String(value).padStart(2, '0');
-
 export type PeriodPreset =
   | 'thisMonth'
   | 'lastMonth'
@@ -128,10 +125,3 @@ export const recentYears = (count: number, from: Date = new Date()): number[] =>
   const year = from.getFullYear();
   return Array.from({ length: count }, (_, index) => year - index);
 };
-
-/** 周期长度（自然日），用于选择趋势聚合粒度 */
-export const periodDayCount = (period: Pick<PeriodRange, 'start' | 'end'>): number =>
-  Math.max(1, Math.round((new Date(period.end).getTime() - new Date(period.start).getTime()) / DAY_MS));
-
-export const formatDateKey = (date: Date): string =>
-  `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;

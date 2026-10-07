@@ -5,7 +5,7 @@ import { utils, write } from 'xlsx';
 import { draftsToCsv, CSV_HEADERS, transactionToDraft, type CsvDraft } from '@/domain/csv';
 import { formatCents } from '@/domain/money';
 import { monthKey, type MonthRef } from '@/domain/dates';
-import type { Transaction, TxKind } from '@/types/domain';
+import type { Transaction } from '@/types/domain';
 
 export type ExportFormat = 'xlsx' | 'csv';
 
@@ -70,5 +70,3 @@ export const exportTransactions = async (
   }
   return fileUri;
 };
-
-export const kindLabelOf = (kind: TxKind): string => (kind === 'expense' ? '支出' : '收入');

@@ -3,7 +3,7 @@
  * 日期全部按本地日历处理，输出 yyyy-MM-dd，避免 toISOString 的 UTC 偏移。
  */
 
-import type { RecurringRule, RecurringSchedule } from '@/types/domain';
+import type { RecurringSchedule } from '@/types/domain';
 
 /** 周日到周六，对应 JS Date.getDay() 与数据库 weekly_day */
 export const RECURRING_WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六'] as const;
@@ -84,9 +84,6 @@ export const validateRecurringSchedule = (schedule: RecurringSchedule | null): s
   }
   return null;
 };
-
-/** 从规则中提取定时计划，供编辑页回填 */
-export const scheduleOfRule = (rule: RecurringRule): RecurringSchedule => rule.schedule;
 
 /** 设备 IANA 时区；取不到时回落到 Asia/Shanghai */
 export const deviceTimeZone = (): string => {

@@ -1,6 +1,5 @@
 import { dayKeyOf } from './dates';
 import {
-  periodDayCount,
   periodFromCustom,
   periodFromMonth,
   periodFromPreset,
@@ -77,10 +76,5 @@ describe('自定义周期', () => {
       '2024-05-13',
     ]);
     expect(recentYears(3, NOW)).toEqual([2024, 2023, 2022]);
-  });
-
-  it('periodDayCount 至少为 1', () => {
-    expect(periodDayCount(periodFromMonth({ year: 2024, month: 2 }))).toBe(29);
-    expect(periodDayCount({ start: NOW.toISOString(), end: NOW.toISOString() })).toBe(1);
   });
 });

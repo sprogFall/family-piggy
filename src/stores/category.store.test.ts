@@ -4,7 +4,6 @@ jest.mock('@/services/category.service', () => ({
     create: jest.fn(),
     update: jest.fn(),
     remove: jest.fn(),
-    maxSortOrder: jest.fn(),
   },
 }));
 
