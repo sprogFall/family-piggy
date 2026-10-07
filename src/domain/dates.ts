@@ -88,11 +88,33 @@ export const entryDateLabel = (iso: string, now: Date = new Date()): string => {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
 };
 
-/** 解析 "yyyy-MM-dd HH:mm"（本地时区），失败返回 null */
+/**
+ * 解析 "yyyy-MM-dd HH:mm"（本地时区），失败返回 null。
+ *
+ * 正则只约束位数，`new Date(...)` 会把 `2026-13-01` / `2026-02-30` / `99:99`
+ * 静默进位到相邻月 / 年 / 日，也会把 0-99 年映射成 1900+。这里解析后逐字段回查，
+ * 只要与输入不一致就判为非法，避免导入的错写日期悄悄落到错误月份。
+ */
 export const parseDateTimeCN = (value: string): Date | null => {
   const m = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::\d{2})?)?$/.exec(value.trim());
   if (!m) return null;
   const [, y, mo, d, h = '0', mi = '0'] = m;
-  const date = new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi));
-  return Number.isNaN(date.getTime()) ? null : date;
+  const year = Number(y);
+  const month = Number(mo);
+  const day = Number(d);
+  const hour = Number(h);
+  const minute = Number(mi);
+
+  const date = new Date(year, month - 1, day, hour, minute);
+  if (Number.isNaN(date.getTime())) return null;
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day ||
+    date.getHours() !== hour ||
+    date.getMinutes() !== minute
+  ) {
+    return null;
+  }
+  return date;
 };

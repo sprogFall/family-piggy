@@ -102,7 +102,25 @@ describe('parseDateTimeCN', () => {
   });
 
   it('非法输入返回 null', () => {
-    expect(parseDateTimeCN('abc')).toBeNull();
-    expect(parseDateTimeCN('2024-13-01')).not.toBeNull();
+    const invalid = [
+      'abc',
+      '2024-13-01', // 月份溢出到次年 1 月
+      '2024-00-10', // 月份为 0
+      '2024-02-30', // 2 月没有 30 号
+      '2024-04-31', // 4 月没有 31 号
+      '2024-05-20 24:00', // 小时溢出到次日
+      '2024-05-20 12:60', // 分钟溢出到下一小时
+      '2024-05-20 99:99',
+      '0026-01-01', // 0-99 年会被 Date 静默映射到 1926 年
+    ];
+    for (const value of invalid) {
+      expect(parseDateTimeCN(value)).toBeNull();
+    }
+  });
+
+  it('接受合法边界日期', () => {
+    expect(parseDateTimeCN('2024-02-29')?.getDate()).toBe(29); // 闰年 2 月 29 日
+    expect(parseDateTimeCN('2024-12-31 23:59')?.getMinutes()).toBe(59);
+    expect(parseDateTimeCN('2024-01-01 00:00')?.getHours()).toBe(0);
   });
 });
