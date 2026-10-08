@@ -49,11 +49,14 @@ type IoniconName = ComponentProps<typeof Ionicons>['name'];
 type TabIconRoute = 'Home' | 'Bills' | 'Stats' | 'Profile';
 
 const TAB_ICONS: Record<TabIconRoute, { name: IoniconName; label: string }> = {
-  Home: { name: 'home', label: '首页' },
+  Home: { name: 'home', label: '概览' },
   Bills: { name: 'list', label: '账单' },
   Stats: { name: 'bar-chart', label: '统计' },
   Profile: { name: 'person', label: '我的' },
 };
+
+/** 打开 App 默认落在账单页；概览 Tab 仍保留，只是不再是默认路由 */
+const DEFAULT_TAB: keyof TabParamList = 'Bills';
 
 const AddTabPlaceholder = () => null;
 
@@ -82,6 +85,7 @@ const TabNavigator = () => {
   const styles = useStyles();
   return (
     <Tab.Navigator
+      initialRouteName={DEFAULT_TAB}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.primary,

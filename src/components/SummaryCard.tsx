@@ -1,11 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { budgetProgress } from '@/domain/budget';
 import type { CurrencyCode } from '@/domain/currency';
 import { formatMoney } from '@/domain/money';
+import { useSettingsStore } from '@/stores/settings.store';
 import { makeStyles, useColors, fontSize, space } from '@/theme';
+
+/** 隐藏金额时的占位：星号而非圆点，避免与货币符号混淆 */
+const AMOUNT_MASK = '****';
 
 interface Props {
   expense: number;
@@ -28,9 +31,11 @@ export const SummaryCard = ({
 }: Props) => {
   const styles = useStyles();
   const colors = useColors();
-  const [amountsHidden, setAmountsHidden] = useState(false);
+  // 隐藏状态是本地设置：重启 App 后依然保持
+  const amountsHidden = useSettingsStore((state) => state.amountsHidden);
+  const setAmountsHidden = useSettingsStore((state) => state.setAmountsHidden);
   const progress = budgetProgress(expense, budget);
-  const mask = (value: string): string => (amountsHidden ? '••••' : value);
+  const mask = (value: string): string => (amountsHidden ? AMOUNT_MASK : value);
 
   return (
     <View style={styles.card}>
@@ -40,7 +45,7 @@ export const SummaryCard = ({
           accessibilityRole="button"
           accessibilityLabel={amountsHidden ? '显示金额' : '隐藏金额'}
           hitSlop={8}
-          onPress={() => setAmountsHidden((value) => !value)}
+          onPress={() => setAmountsHidden(!amountsHidden)}
         >
           <Ionicons
             name={amountsHidden ? 'eye-off-outline' : 'eye-outline'}
