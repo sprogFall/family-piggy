@@ -17,6 +17,7 @@
 
 <p align="center">
   <a href="#overview">项目简介</a> ·
+  <a href="#screenshots">界面预览</a> ·
   <a href="#highlights">核心亮点</a> ·
   <a href="#feature-matrix">功能矩阵</a> ·
   <a href="#architecture">架构总览</a> ·
@@ -44,6 +45,51 @@
 - GitHub Release 应用内检查、镜像下载回退、大小校验与拉起安装器。
 
 UI 以根目录 [`记账原型.png`](./记账原型.png) 为设计原型，设计令牌统一收敛在 `src/theme`。
+
+<a id="screenshots"></a>
+## 界面预览
+
+截图为开发环境中真实运行的界面（Expo Web，390 × 844 手机视口；浅色主题），其中账本、流水与金额为演示数据。
+
+<div align="center">
+
+<table>
+  <tr>
+    <td align="center" width="25%">
+      <img src="screenshots/01-账单-默认打开页.png" width="180" alt="账单页" /><br />
+      <sub><b>账单</b><br />打开 App 的默认页面：按天分组、日月汇总、筛选与搜索</sub>
+    </td>
+    <td align="center" width="25%">
+      <img src="screenshots/02-概览.png" width="180" alt="概览页" /><br />
+      <sub><b>概览</b><br />本月支出 / 收入 / 结余 + 预算进度、收支趋势与支出占比</sub>
+    </td>
+    <td align="center" width="25%">
+      <img src="screenshots/03-概览-金额已隐藏.png" width="180" alt="概览页隐藏金额" /><br />
+      <sub><b>一键隐藏金额</b><br />点眼睛图标后所有金额变为 <code>****</code></sub>
+    </td>
+    <td align="center" width="25%">
+      <img src="screenshots/04-概览-刷新后仍隐藏.png" width="180" alt="概览页重开后仍隐藏" /><br />
+      <sub><b>隐藏状态可记忆</b><br />重开 App（刷新）后依然保持隐藏</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="25%">
+      <img src="screenshots/05-统计.png" width="180" alt="统计页" /><br />
+      <sub><b>统计</b><br />多周期汇总、收支趋势（柱状 / 曲线）与分类分布</sub>
+    </td>
+    <td align="center" width="25%">
+      <img src="screenshots/06-我的.png" width="180" alt="我的页" /><br />
+      <sub><b>我的</b><br />家庭 / 账单 / 分类 / 定时记账 / 导入导出 / 设置入口</sub>
+    </td>
+    <td align="center" width="25%">
+      <img src="screenshots/07-记一笔.png" width="180" alt="记一笔" /><br />
+      <sub><b>记一笔</b><br />币种 + 表达式金额 + 日期、分类九宫格、报销与定时、备注</sub>
+    </td>
+    <td align="center" width="25%"></td>
+  </tr>
+</table>
+
+</div>
 
 <a id="highlights"></a>
 ## 核心亮点
