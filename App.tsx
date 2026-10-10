@@ -36,7 +36,19 @@ export default function App() {
 
   useEffect(() => {
     if (status === 'signedIn') {
-      void useLedgerStore.getState().load().catch(() => undefined);
+      const userId = useAuthStore.getState().session?.user.id;
+      if (!userId) return;
+      // 先用本地快照铺界面（纯本地读取，毫秒级），再发起网络刷新。顺序不可颠倒：
+      // 若网络结果先到、快照后写入，会把刚拿到的远端数据覆盖成本地旧数据
+      void Promise.all([
+        useLedgerStore.getState().hydrate(userId),
+        useCategoryStore.getState().hydrate(userId),
+        useTagStore.getState().hydrate(userId),
+        useTransactionStore.getState().hydrate(userId),
+      ])
+        // 快照读取失败不能把网络加载一起挡掉，故两段各自兜底
+        .catch(() => undefined)
+        .then(() => useLedgerStore.getState().load().catch(() => undefined));
     }
     if (status === 'signedOut') {
       useLedgerStore.getState().reset();

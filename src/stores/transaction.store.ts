@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 
 import { monthKey, monthRangeISO, type MonthRef } from '@/domain/dates';
+import { recentMonthBuckets } from '@/domain/snapshot';
+import { readSnapshot, removeSnapshot, writeSnapshot } from '@/lib/snapshot';
 import {
   subscribeTransactions,
   transactionService,
@@ -26,10 +28,18 @@ export interface PeriodBucket {
   end: string;
 }
 
+/** 流水快照：只存月份桶，统计页的任意区间桶按需重拉即可 */
+interface TransactionSnapshot {
+  buckets: Record<string, MonthBucket>;
+}
+
 interface TransactionState {
+  /** 当前数据与快照归属的账号：登出后 session 已清空，靠它定位要清理的缓存 key */
+  ownerId: string | null;
   buckets: Record<string, MonthBucket>;
   /** 统计页按任意时间区间缓存的流水；key 由 PeriodRange.key 决定 */
   periodBuckets: Record<string, PeriodBucket>;
+  hydrate: (userId: string) => Promise<void>;
   loadMonth: (ledgerId: string, month: MonthRef) => Promise<void>;
   loadPeriod: (ledgerId: string, periodKey: string, start: string, end: string) => Promise<void>;
   add: (input: CreateTransactionInput) => Promise<Transaction>;
@@ -40,6 +50,12 @@ interface TransactionState {
   subscribe: (ledgerId: string) => () => void;
   reset: () => void;
 }
+
+/** 记名快照 key：带 userId，避免同设备切换账号读到别人的流水 */
+export const transactionSnapshotKey = (userId: string): string => `transactions:${userId}`;
+
+/** 每个账本最多缓存最近 3 个月：首屏几乎只用到当月，超出部分重拉成本可接受 */
+const SNAPSHOT_MONTH_LIMIT = 3;
 
 const bucketKey = (ledgerId: string, month: MonthRef): string =>
   `${ledgerId}::${monthKey(month)}`;
@@ -71,6 +87,30 @@ const bucketIncludesTransaction = (key: string, transaction: Transaction): boole
   contains(transaction.occurredAt, monthOfKey(key));
 
 export const useTransactionStore = create<TransactionState>((set, get) => {
+  /**
+   * 落盘月份桶快照（每个账本裁剪到最近几个月）。
+   *
+   * 只落有流水的桶：空桶渲染出来与「加载中」无法区分，刷新时反而会退回全屏加载态。
+   * 整个快照都为空时不写，避免用空结果覆盖掉可用缓存（真正的清理只在 reset 时发生）。
+   */
+  const persistSnapshot = (): void => {
+    const { ownerId, buckets } = get();
+    if (!ownerId) return;
+    const nonEmpty = Object.fromEntries(
+      Object.entries(buckets).filter(([, bucket]) => bucket.transactions.length > 0),
+    );
+    if (Object.keys(nonEmpty).length === 0) return;
+    writeSnapshot(transactionSnapshotKey(ownerId), {
+      buckets: recentMonthBuckets(nonEmpty, SNAPSHOT_MONTH_LIMIT),
+    });
+  };
+
+  /** 记下当前数据归属的账号，保证后续写入落在正确的快照 key 上 */
+  const syncOwner = (): void => {
+    const userId = useAuthStore.getState().session?.user.id;
+    if (userId && get().ownerId !== userId) set({ ownerId: userId });
+  };
+
   const patchLedgerBuckets = (
     ledgerId: string,
     transform: (transactions: Transaction[]) => Transaction[],
@@ -92,10 +132,26 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
   };
 
   return {
+    ownerId: null,
     buckets: {},
     periodBuckets: {},
 
+    hydrate: async (userId) => {
+      set({ ownerId: userId });
+      const snapshot = await readSnapshot<TransactionSnapshot>(transactionSnapshotKey(userId));
+      // 读取期间可能已登出或切换账号：丢弃过期快照，避免把别人的流水铺到界面上
+      if (get().ownerId !== userId) return;
+      if (!snapshot || Object.keys(snapshot.buckets).length === 0) return;
+      // 只缓存过 ready 的桶，这里再兜一层，避免异常写入把 loading / error 态带回来
+      const buckets: Record<string, MonthBucket> = {};
+      for (const [key, bucket] of Object.entries(snapshot.buckets)) {
+        buckets[key] = { status: 'ready', transactions: bucket.transactions };
+      }
+      set({ buckets });
+    },
+
     loadMonth: async (ledgerId, month) => {
+      syncOwner();
       const key = bucketKey(ledgerId, month);
       set({
         buckets: {
@@ -109,6 +165,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
         set({
           buckets: { ...get().buckets, [key]: { status: 'ready', transactions } },
         });
+        persistSnapshot();
       } catch {
         // 拉取失败时保留旧快照：清空会让账单页把「加载失败」显示成「本月暂无账单」
         set({
@@ -121,6 +178,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
     },
 
     loadPeriod: async (ledgerId, periodKey, start, end) => {
+      syncOwner();
       const key = periodBucketKey(ledgerId, periodKey);
       set({
         periodBuckets: {
@@ -164,6 +222,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
       patchLedgerBuckets(input.ledgerId, (list) =>
         sortByTimeDesc([...list.filter((t) => t.id !== tx.id), tx]),
       );
+      persistSnapshot();
       return tx;
     },
 
@@ -186,6 +245,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
     remove: async (id, ledgerId) => {
       await transactionService.remove(id);
       patchLedgerBuckets(ledgerId, (list) => list.filter((t) => t.id !== id));
+      persistSnapshot();
     },
 
     upsertLocal: (ledgerId, tx) => {
@@ -220,10 +280,12 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
         };
       }
       set({ buckets, periodBuckets });
+      persistSnapshot();
     },
 
     deleteLocal: (ledgerId, id) => {
       patchLedgerBuckets(ledgerId, (list) => list.filter((t) => t.id !== id));
+      persistSnapshot();
     },
 
     subscribe: (ledgerId) =>
@@ -232,7 +294,11 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
         onDelete: (id) => get().deleteLocal(ledgerId, id),
       }),
 
-    reset: () => set({ buckets: {}, periodBuckets: {} }),
+    reset: () => {
+      const { ownerId } = get();
+      if (ownerId) void removeSnapshot(transactionSnapshotKey(ownerId));
+      set({ ownerId: null, buckets: {}, periodBuckets: {} });
+    },
   };
 });
 

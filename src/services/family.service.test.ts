@@ -117,6 +117,41 @@ describe('familyService', () => {
     });
   });
 
+  describe('listFamilies', () => {
+    it('单次嵌入查询取回我加入的家庭', async () => {
+      const chain = createQueryChain({
+        data: [
+          { families: familyRow },
+          { families: { ...familyRow, id: 'f2' } },
+        ],
+        error: null,
+      });
+      fromMock.mockReturnValue(chain);
+
+      const families = await familyService.listFamilies('u1');
+
+      // 启动关键路径：必须是 1 个请求，且不再调用 auth.getUser()
+      expect(fromMock).toHaveBeenCalledTimes(1);
+      expect(fromMock).toHaveBeenCalledWith('family_members');
+      expect(chain.select).toHaveBeenCalledWith('families(*)');
+      expect(chain.eq).toHaveBeenCalledWith('user_id', 'u1');
+      expect(families.map((family) => family.id)).toEqual(['f1', 'f2']);
+      expect(families[0].inviteCode).toBe('ABCD12EF');
+    });
+
+    it('内嵌家庭被 RLS 过滤时跳过该行', async () => {
+      fromMock.mockReturnValue(createQueryChain({ data: [{ families: null }], error: null }));
+
+      await expect(familyService.listFamilies('u1')).resolves.toEqual([]);
+    });
+
+    it('查询失败抛出面向用户的文案', async () => {
+      fromMock.mockReturnValue(createQueryChain(queryError('boom')));
+
+      await expect(familyService.listFamilies('u1')).rejects.toThrow('加载家庭失败');
+    });
+  });
+
   describe('listMembers', () => {
     it('合并成员与昵称', async () => {
       const chains: Record<string, any> = {

@@ -7,10 +7,13 @@ jest.mock('@/services/tag.service', () => ({
   },
 }));
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { tagService } from '@/services/tag.service';
+import { useAuthStore } from '@/stores/auth.store';
 import type { Tag } from '@/types/domain';
 
-import { selectTags, useTagStore } from './tag.store';
+import { selectTags, tagSnapshotKey, useTagStore } from './tag.store';
 
 const tagMock = tagService as jest.Mocked<typeof tagService>;
 
@@ -23,9 +26,11 @@ const tag = (id: string, categoryId: string, name: string): Tag => ({
 });
 
 describe('useTagStore', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
-    useTagStore.setState({ byLedger: {} });
+    await AsyncStorage.clear();
+    useAuthStore.setState({ status: 'signedIn', session: { user: { id: 'u1' } } as never, profile: null });
+    useTagStore.setState({ ownerId: null, byLedger: {} });
   });
 
   it('load 按分类分组且各自按名称排序', async () => {
@@ -77,10 +82,33 @@ describe('useTagStore', () => {
     expect(selectTags(state, 'l1', null)).toBe(selectTags(state, 'l1', null));
   });
 
-  it('reset 清空所有账本标签', async () => {
+  it('reset 清空所有账本标签并删除本账号快照', async () => {
     tagMock.list.mockResolvedValue([tag('g1', 'c1', '午饭')]);
     await useTagStore.getState().load('l1');
+
     useTagStore.getState().reset();
+    await Promise.resolve();
+
+    expect(useTagStore.getState().byLedger).toEqual({});
+    expect(await AsyncStorage.getItem(tagSnapshotKey('u1'))).toBeNull();
+  });
+
+  it('load 后写入快照，hydrate 无需网络即可渲染', async () => {
+    tagMock.list.mockResolvedValue([tag('g1', 'c1', '午饭')]);
+    await useTagStore.getState().load('l1');
+
+    useTagStore.setState({ ownerId: null, byLedger: {} });
+    await useTagStore.getState().hydrate('u1');
+
+    expect(selectTags(useTagStore.getState(), 'l1', 'c1').map((t) => t.name)).toEqual(['午饭']);
+    expect(tagMock.list).toHaveBeenCalledTimes(1);
+  });
+
+  it('快照按账号隔离：不会读到其他账号的标签', async () => {
+    await AsyncStorage.setItem(tagSnapshotKey('u2'), JSON.stringify({ l9: {} }));
+
+    await useTagStore.getState().hydrate('u1');
+
     expect(useTagStore.getState().byLedger).toEqual({});
   });
 });

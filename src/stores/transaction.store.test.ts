@@ -13,6 +13,8 @@ jest.mock('@/stores/auth.store', () => ({
   useAuthStore: { getState: () => ({ session: { user: { id: 'u1' } } }) },
 }));
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { transactionService } from '@/services/transaction.service';
 import type { Transaction } from '@/types/domain';
 
@@ -21,6 +23,7 @@ import {
   selectPeriodBucket,
   selectPeriodTransactions,
   selectTransactionById,
+  transactionSnapshotKey,
   useTransactionStore,
 } from './transaction.store';
 
@@ -45,9 +48,10 @@ const tx = (id: string, day: number, overrides: Partial<Transaction> = {}): Tran
 const MAY = { year: 2024, month: 5 };
 
 describe('useTransactionStore', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
-    useTransactionStore.setState({ buckets: {}, periodBuckets: {} });
+    await AsyncStorage.clear();
+    useTransactionStore.setState({ ownerId: 'u1', buckets: {}, periodBuckets: {} });
   });
 
   it('loadMonth 拉取并写入桶', async () => {
@@ -177,13 +181,80 @@ describe('useTransactionStore', () => {
     expect(typeof cleanup).toBe('function');
   });
 
-  it('reset 清空桶', () => {
-    useTransactionStore.setState({
-      buckets: { 'l1::2024-05': { status: 'ready', transactions: [] } },
-      periodBuckets: {},
-    });
+  it('reset 清空桶并删除本账号快照', async () => {
+    txMock.listMonth.mockResolvedValue([tx('t1', 20)]);
+    await useTransactionStore.getState().loadMonth('l1', MAY);
+
     useTransactionStore.getState().reset();
+    await Promise.resolve();
+
     expect(useTransactionStore.getState().buckets).toEqual({});
+    expect(await AsyncStorage.getItem(transactionSnapshotKey('u1'))).toBeNull();
+  });
+
+  it('月份快照只保留每个账本最近 3 个月', async () => {
+    txMock.listMonth.mockResolvedValue([tx('t1', 20)]);
+    for (const month of [1, 2, 3, 4]) {
+      await useTransactionStore.getState().loadMonth('l1', { year: 2024, month });
+    }
+
+    const stored = JSON.parse(
+      (await AsyncStorage.getItem(transactionSnapshotKey('u1'))) as string,
+    ) as { buckets: Record<string, unknown> };
+    expect(Object.keys(stored.buckets).sort()).toEqual([
+      'l1::2024-02',
+      'l1::2024-03',
+      'l1::2024-04',
+    ]);
+  });
+
+  it('hydrate 用本地快照直接渲染，无需网络', async () => {
+    txMock.listMonth.mockResolvedValue([tx('t1', 20)]);
+    await useTransactionStore.getState().loadMonth('l1', MAY);
+
+    useTransactionStore.setState({ ownerId: null, buckets: {}, periodBuckets: {} });
+    await useTransactionStore.getState().hydrate('u1');
+
+    const bucket = useTransactionStore.getState().buckets['l1::2024-05'];
+    expect(bucket.status).toBe('ready');
+    expect(bucket.transactions.map((t) => t.id)).toEqual(['t1']);
+    expect(txMock.listMonth).toHaveBeenCalledTimes(1);
+  });
+
+  it('hydrate 无快照时不写入空桶（保持首次安装的加载态）', async () => {
+    await useTransactionStore.getState().hydrate('u1');
+    expect(useTransactionStore.getState().buckets).toEqual({});
+  });
+
+  it('快照按账号隔离：不会读到其他账号的流水', async () => {
+    await AsyncStorage.setItem(
+      transactionSnapshotKey('u2'),
+      JSON.stringify({ buckets: { 'l9::2024-05': { status: 'ready', transactions: [tx('t9', 20)] } } }),
+    );
+
+    await useTransactionStore.getState().hydrate('u1');
+
+    expect(useTransactionStore.getState().buckets).toEqual({});
+  });
+
+  it('空月份桶不落盘：空桶渲染出来与「加载中」无法区分', async () => {
+    txMock.listMonth.mockResolvedValue([]);
+    await useTransactionStore.getState().loadMonth('l1', MAY);
+
+    expect(await AsyncStorage.getItem(transactionSnapshotKey('u1'))).toBeNull();
+  });
+
+  it('Realtime 写入本地后同步更新快照', async () => {
+    txMock.listMonth.mockResolvedValue([]);
+    await useTransactionStore.getState().loadMonth('l1', MAY);
+
+    useTransactionStore.getState().upsertLocal('l1', tx('t9', 15));
+    await Promise.resolve();
+
+    const stored = JSON.parse(
+      (await AsyncStorage.getItem(transactionSnapshotKey('u1'))) as string,
+    ) as { buckets: Record<string, { transactions: Transaction[] }> };
+    expect(stored.buckets['l1::2024-05'].transactions.map((t) => t.id)).toEqual(['t9']);
   });
 
   it('selectTransactionById 跨桶查找，未找到/无 id 返回 undefined', async () => {

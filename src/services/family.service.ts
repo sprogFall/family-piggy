@@ -74,37 +74,26 @@ export const familyService = {
     return { family, ledgerId: await findFamilyLedgerId(family.id) };
   },
 
-  /** 我加入的所有家庭及其家庭账本 */
-  async listMyFamilies(): Promise<FamilyWithLedger[]> {
-    const { data: memberRows, error: memberError } = await supabase
+  /**
+   * 我加入的所有家庭（不含家庭账本 ID）。
+   *
+   * 启动关键路径上的请求：刻意用一次 PostgREST 内嵌查询同时取回成员关系与家庭，
+   * 而不是 `auth.getUser()` + `family_members` + `families` + `ledgers` 四趟串行往返。
+   * 家庭账本 ID 交给调用方用已加载的账本列表本地关联（见 ledger.store.load）。
+   */
+  async listFamilies(userId: string): Promise<Family[]> {
+    const { data, error } = await supabase
       .from('family_members')
-      .select('family_id')
-      .eq('user_id', (await supabase.auth.getUser()).data.user?.id ?? '');
-    if (memberError) throw new Error('加载家庭失败');
-    const familyIds = (memberRows as { family_id: string }[]).map((r) => r.family_id);
-    if (familyIds.length === 0) return [];
+      .select('families(*)')
+      .eq('user_id', userId);
+    if (error) throw new Error('加载家庭失败');
 
-    const { data: familyRows, error: familyError } = await supabase
-      .from('families')
-      .select('*')
-      .in('id', familyIds);
-    if (familyError) throw new Error('加载家庭失败');
-
-    const { data: ledgerRows } = await supabase
-      .from('ledgers')
-      .select('*')
-      .in('family_id', familyIds);
-
-    const ledgerByFamily = new Map(
-      ((ledgerRows ?? []) as LedgerRow[]).map((row) => [row.family_id, row]),
-    );
-
-    return (familyRows as FamilyRow[]).map((row) => ({
-      family: toFamily(row),
-      ledgerId: ledgerByFamily.has(row.id)
-        ? toLedger(ledgerByFamily.get(row.id) as LedgerRow).id
-        : null,
-    }));
+    // 项目未接入类型生成：supabase-js 会把 to-one 内嵌关系推成数组，而运行时是对象
+    const rows = (data ?? []) as unknown as { families: FamilyRow | null }[];
+    // 内嵌的家庭行可能被 RLS 过滤为 null，跳过即可
+    return rows
+      .filter((row) => row.families !== null)
+      .map((row) => toFamily(row.families as FamilyRow));
   },
 
   async listMembers(familyId: string): Promise<FamilyMember[]> {
