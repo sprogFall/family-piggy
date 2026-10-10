@@ -413,6 +413,7 @@ Android 端「关于我们」页会自动检查新版本，并支持应用内下
 
 - [开发与测试规范 AGENTS.md](./AGENTS.md)
 - [项目手册：现状、数据流与模块说明](./docs/项目手册.md)
+- [启动性能优化：诊断、方案与落地记录](./docs/启动性能优化.md)
 - [环境变量模板 .env.example](./.env.example)
 - [数据库全量脚本 supabase/schema.sql](./supabase/schema.sql)
 - [CI 工作流 .github/workflows/ci.yml](./.github/workflows/ci.yml)
