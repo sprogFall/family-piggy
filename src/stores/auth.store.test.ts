@@ -1,6 +1,7 @@
 jest.mock('@/services/auth.service', () => ({
   authService: {
     getSession: jest.fn(),
+    readStoredSession: jest.fn(),
     signIn: jest.fn(),
     signUp: jest.fn(),
     signOut: jest.fn(),
@@ -24,10 +25,16 @@ const profileMock = profileService as jest.Mocked<typeof profileService>;
 
 const sessionOf = (userId: string) => ({ user: { id: userId } }) as never;
 
+/** 只推进微任务队列（不使用真实计时器） */
+const flushMicrotasks = async (): Promise<void> => {
+  for (let index = 0; index < 5; index += 1) await Promise.resolve();
+};
+
 describe('useAuthStore', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     useAuthStore.setState({ status: 'loading', session: null, profile: null });
+    authMock.readStoredSession.mockResolvedValue(null);
   });
 
   it('initialize：有会话则进入 signedIn 并拉取资料', async () => {
@@ -57,6 +64,10 @@ describe('useAuthStore', () => {
 
   it('initialize 先注册会话监听再读取会话（防 SIGNED_OUT 丢失）', async () => {
     const order: string[] = [];
+    authMock.readStoredSession.mockImplementation(() => {
+      order.push('readStoredSession');
+      return Promise.resolve(null);
+    });
     authMock.getSession.mockImplementation(() => {
       order.push('getSession');
       return Promise.resolve(null);
@@ -68,7 +79,79 @@ describe('useAuthStore', () => {
 
     await useAuthStore.getState().initialize();
 
-    expect(order).toEqual(['subscribe', 'getSession']);
+    expect(order).toEqual(['subscribe', 'readStoredSession', 'getSession']);
+  });
+
+  describe('会话续期不阻塞首屏', () => {
+    it('本地已有会话时立即进入 signedIn，不等网络续期返回', async () => {
+      authMock.readStoredSession.mockResolvedValue(sessionOf('u1'));
+      let resolveSession: (session: Session | null) => void = () => undefined;
+      authMock.getSession.mockImplementation(
+        () =>
+          new Promise<Session | null>((resolve) => {
+            resolveSession = resolve;
+          }),
+      );
+
+      const pending = useAuthStore.getState().initialize();
+      await flushMicrotasks();
+
+      // 续期请求尚未返回，界面已经可以进入主界面并渲染本地快照
+      expect(useAuthStore.getState().status).toBe('signedIn');
+      expect(useAuthStore.getState().session).toEqual(sessionOf('u1'));
+
+      resolveSession(sessionOf('u1'));
+      await pending;
+      expect(useAuthStore.getState().status).toBe('signedIn');
+      expect(profileMock.getProfile).toHaveBeenCalledWith('u1');
+    });
+
+    it('后台续期拿到刷新后的会话时以其为准', async () => {
+      authMock.readStoredSession.mockResolvedValue({
+        user: { id: 'u1' },
+        access_token: 'expired',
+      } as never);
+      authMock.getSession.mockResolvedValue({
+        user: { id: 'u1' },
+        access_token: 'fresh',
+      } as never);
+
+      await useAuthStore.getState().initialize();
+
+      expect(useAuthStore.getState().session).toEqual({
+        user: { id: 'u1' },
+        access_token: 'fresh',
+      });
+    });
+
+    it('续期确定失败（refresh_token 失效）时登出', async () => {
+      authMock.readStoredSession.mockResolvedValue(sessionOf('u1'));
+      authMock.getSession.mockResolvedValue(null);
+
+      await useAuthStore.getState().initialize();
+
+      expect(useAuthStore.getState().status).toBe('signedOut');
+      expect(useAuthStore.getState().session).toBeNull();
+    });
+
+    it('读会话异常时保留本地会话（交给请求层 401 重试兜底）', async () => {
+      authMock.readStoredSession.mockResolvedValue(sessionOf('u1'));
+      authMock.getSession.mockRejectedValue(new Error('boom'));
+
+      await useAuthStore.getState().initialize();
+
+      expect(useAuthStore.getState().status).toBe('signedIn');
+      expect(useAuthStore.getState().session).toEqual(sessionOf('u1'));
+    });
+
+    it('无本地会话且读会话异常时按未登录处理，不停在开屏', async () => {
+      authMock.readStoredSession.mockResolvedValue(null);
+      authMock.getSession.mockRejectedValue(new Error('boom'));
+
+      await useAuthStore.getState().initialize();
+
+      expect(useAuthStore.getState().status).toBe('signedOut');
+    });
   });
 
   it('getSession 之后到达的 SIGNED_OUT 事件同步为未登录', async () => {

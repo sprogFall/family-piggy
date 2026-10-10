@@ -1,8 +1,11 @@
-import { supabase } from '@/lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { authStorageKey, supabase } from '@/lib/supabase';
 
 import { authService } from './auth.service';
 
 const authMock = supabase.auth as unknown as Record<string, jest.Mock>;
+const authStorageKeyMock = authStorageKey as jest.Mock;
 
 describe('authService', () => {
   afterEach(() => jest.clearAllMocks());
@@ -69,5 +72,37 @@ describe('authService', () => {
     expect(seen).toEqual([{ user: { id: 'u1' } }]);
     off();
     expect(unsubscribe).toHaveBeenCalled();
+  });
+
+  describe('readStoredSession', () => {
+    beforeEach(async () => {
+      await AsyncStorage.clear();
+    });
+
+    it('直接读本地持久化的会话，不触发任何网络请求', async () => {
+      const session = { access_token: 'token', user: { id: 'u1' } };
+      await AsyncStorage.setItem('sb-test-auth-token', JSON.stringify(session));
+
+      await expect(authService.readStoredSession()).resolves.toEqual(session);
+      expect(authMock.getSession).not.toHaveBeenCalled();
+    });
+
+    it('本地没有会话时返回 null', async () => {
+      await expect(authService.readStoredSession()).resolves.toBeNull();
+    });
+
+    it('内容损坏或结构不完整时返回 null（按未登录处理）', async () => {
+      await AsyncStorage.setItem('sb-test-auth-token', '{不是 JSON');
+      await expect(authService.readStoredSession()).resolves.toBeNull();
+
+      await AsyncStorage.setItem('sb-test-auth-token', JSON.stringify({ access_token: 'token' }));
+      await expect(authService.readStoredSession()).resolves.toBeNull();
+    });
+
+    it('storage key 无法推导时返回 null（调用方回落到等待 getSession）', async () => {
+      authStorageKeyMock.mockReturnValueOnce(null);
+
+      await expect(authService.readStoredSession()).resolves.toBeNull();
+    });
   });
 });

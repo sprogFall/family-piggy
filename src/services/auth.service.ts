@@ -1,6 +1,7 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session } from '@supabase/supabase-js';
 
-import { supabase } from '@/lib/supabase';
+import { authStorageKey, supabase } from '@/lib/supabase';
 
 const mapAuthError = (message: string): string => {
   if (/invalid login credentials/i.test(message)) return '邮箱或密码错误';
@@ -19,6 +20,27 @@ export const authService = {
   async getSession(): Promise<Session | null> {
     const { data } = await supabase.auth.getSession();
     return data.session;
+  },
+
+  /**
+   * 直接从本地存储读取上次的会话，不触碰网络（用途见 auth.store.initialize）。
+   *
+   * auth-js 在 createClient 时就已开始恢复会话：access_token 过期时它会先发一趟续期请求，
+   * 而 `getSession()` 会一直等到那趟请求结束。启动时用本地会话先进入已登录态，
+   * 才不会把开屏卡在海外网络往返上。key 与内容格式均与 supabase-js 的持久化一致；
+   * 读不到或格式不符时返回 null，调用方回落到等待 getSession()。
+   */
+  async readStoredSession(): Promise<Session | null> {
+    const key = authStorageKey();
+    if (!key) return null;
+    try {
+      const raw = await AsyncStorage.getItem(key);
+      if (!raw) return null;
+      const session = JSON.parse(raw) as Session | null;
+      return session?.access_token && session.user ? session : null;
+    } catch {
+      return null;
+    }
   },
 
   async signIn(email: string, password: string): Promise<void> {

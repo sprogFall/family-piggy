@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { SplashView } from '@/components/SplashView';
 import { DialogHost } from '@/components/ui/DialogHost';
 import { Toast } from '@/components/ui/Toast';
+import { watchAuthAutoRefresh } from '@/lib/supabase';
 import { AuthNavigator, MainNavigator, navigationRef } from '@/navigation';
 import { useAuthStore } from '@/stores/auth.store';
 import { useLedgerStore } from '@/stores/ledger.store';
@@ -27,11 +28,16 @@ export default function App() {
     void useAuthStore.getState().initialize();
     void useSettingsStore.getState().hydrate();
     void useThemeStore.getState().hydrate();
+    // 回前台恢复 token 自动续期、进后台停掉（RN 后台会冻结定时器，见 watchAuthAutoRefresh）
+    const stopWatchingAuth = watchAuthAutoRefresh();
     // 系统深浅色变化：仅「跟随系统」档位会随之切换
     const subscription = Appearance.addChangeListener(({ colorScheme }) => {
       useThemeStore.getState().setSystemScheme(toColorScheme(colorScheme));
     });
-    return () => subscription.remove();
+    return () => {
+      subscription.remove();
+      stopWatchingAuth();
+    };
   }, []);
 
   useEffect(() => {

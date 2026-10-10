@@ -47,7 +47,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     authService.onAuthChange((next) => {
       void syncSession(next, set, get);
     });
-    const session = await authService.getSession().catch(() => null);
+
+    // 再用本地持久化的会话立即进入已登录态：access_token 过期时 auth-js 会先走一趟续期请求，
+    // 而 getSession() 必须等它结束——开屏不能卡在这趟海外网络往返上。本地会话只负责先渲染，
+    // 真正的校验/续期结果随后由 syncSession 覆盖（含续期失败被登出）。
+    const storedSession = await authService.readStoredSession().catch(() => null);
+    if (storedSession) set({ session: storedSession, status: 'signedIn' });
+
+    const session = await authService.getSession().catch(() => undefined);
+    if (session === undefined) {
+      // 读会话异常：已有本地会话时保持现状（请求层会用 401 续期重试兜底），
+      // 否则按未登录处理，避免界面一直停在开屏
+      if (!storedSession) set({ session: null, profile: null, status: 'signedOut' });
+      return;
+    }
     await syncSession(session, set, get);
   },
 

@@ -87,6 +87,9 @@ jest.mock('@/lib/supabase', () => {
         signInWithPassword: jest.fn(async () => ({ data: {}, error: null })),
         signUp: jest.fn(async () => ({ data: {}, error: null })),
         signOut: jest.fn(async () => ({ error: null })),
+        refreshSession: jest.fn(async () => ({ data: { session: null }, error: null })),
+        startAutoRefresh: jest.fn(async () => undefined),
+        stopAutoRefresh: jest.fn(async () => undefined),
         onAuthStateChange: jest.fn(() => ({
           data: { subscription: { unsubscribe: jest.fn() } },
         })),
@@ -97,5 +100,8 @@ jest.mock('@/lib/supabase', () => {
       removeChannel: jest.fn(async () => 'ok'),
       storage: { from: jest.fn() },
     },
+    // 会话持久化 key：测试里固定为可预期的值，供 authService.readStoredSession 使用
+    authStorageKey: jest.fn(() => 'sb-test-auth-token'),
+    watchAuthAutoRefresh: jest.fn(() => jest.fn()),
   };
 });
