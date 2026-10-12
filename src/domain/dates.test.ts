@@ -75,8 +75,8 @@ describe('标签', () => {
     expect(dayKeyOf(iso)).toBe('2024-05-20');
   });
 
-  it('dayLabelOf 含星期', () => {
-    expect(dayLabelOf(iso)).toBe('5月20日 星期一');
+  it('dayLabelOf 含周几', () => {
+    expect(dayLabelOf(iso)).toBe('5月20日 周一');
   });
 
   it('timeLabelOf', () => {

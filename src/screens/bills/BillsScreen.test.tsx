@@ -126,8 +126,8 @@ describe('BillsScreen', () => {
 
     renderScreen();
 
-    expect(screen.getByText('2 笔')).toBeTruthy();
-    expect(screen.getByText('支出 ¥12.30')).toBeTruthy();
+    expect(screen.getByText('2笔')).toBeTruthy();
+    expect(screen.getByText('支 ¥12.30')).toBeTruthy();
   });
 
   it('点击重试会重新拉取并恢复正常列表', async () => {

@@ -49,10 +49,10 @@ export const dayKeyOf = (iso: string): string => {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 };
 
-/** ISO -> "5月20日 星期二" */
+/** ISO -> "5月20日 周二" */
 export const dayLabelOf = (iso: string): string => {
   const d = new Date(iso);
-  return `${d.getMonth() + 1}月${d.getDate()}日 星期${WEEKDAYS[d.getDay()]}`;
+  return `${d.getMonth() + 1}月${d.getDate()}日 周${WEEKDAYS[d.getDay()]}`;
 };
 
 /** ISO -> "2024年5月20日 14:30"（含年份，不带星期） */

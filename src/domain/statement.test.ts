@@ -84,7 +84,7 @@ describe('groupByDay', () => {
     expect(groups[0].transactions).toHaveLength(2);
     expect(groups[0].expense).toBe(300);
     expect(groups[1].expense).toBe(500);
-    expect(groups[0].label).toBe('5月20日 星期一');
+    expect(groups[0].label).toBe('5月20日 周一');
     expect(groups[0].currency).toBe('CNY');
   });
 
