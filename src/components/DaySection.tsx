@@ -36,6 +36,7 @@ export const DaySection = ({
       <View style={styles.header}>
         <Text style={styles.day}>{group.label}</Text>
         <View style={styles.headerRight}>
+          <Text style={styles.sum}>{group.count} 笔</Text>
           {group.expense > 0 ? (
             <Text style={styles.sum}>支出 {formatMoney(group.expense, group.currency)}</Text>
           ) : null}

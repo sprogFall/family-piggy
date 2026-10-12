@@ -46,6 +46,8 @@ export interface DayGroup {
   currency: CurrencyCode;
   expense: number;
   income: number;
+  /** 当天全部流水笔数(不区分币种) */
+  count: number;
 }
 
 /** 按天分组，最新日期在前 */
@@ -63,10 +65,12 @@ export const groupByDay = (transactions: Transaction[]): DayGroup[] => {
         currency: tx.currency,
         expense: 0,
         income: 0,
+        count: 0,
       };
       map.set(key, group);
     }
     group.transactions.push(tx);
+    group.count += 1;
     if (tx.occurredAt > group.occurredAt) group.occurredAt = tx.occurredAt;
   }
   for (const group of map.values()) {

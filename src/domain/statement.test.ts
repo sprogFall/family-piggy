@@ -105,6 +105,17 @@ describe('groupByDay', () => {
     expect(groups[0].expense).toBe(10049);
   });
 
+  it('笔数统计当天全部流水,不受币种汇总口径影响', () => {
+    const groups = groupByDay([
+      tx({ id: '1', occurredAt: new Date(2024, 4, 20, 8).toISOString(), amount: 100 }),
+      tx({ id: '2', occurredAt: new Date(2024, 4, 20, 9).toISOString(), amount: 9999, currency: 'USD' }),
+      tx({ id: '3', occurredAt: new Date(2024, 4, 19, 9).toISOString(), amount: 500 }),
+    ]);
+
+    expect(groups[0].count).toBe(2);
+    expect(groups[1].count).toBe(1);
+  });
+
   it('空数据返回空数组', () => {
     expect(groupByDay([])).toEqual([]);
   });

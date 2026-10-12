@@ -110,6 +110,26 @@ describe('BillsScreen', () => {
     expect(screen.getByText('餐饮')).toBeTruthy();
   });
 
+  it('每日分组标题在金额合计旁展示当天笔数', () => {
+    useTransactionStore.setState({
+      buckets: {
+        [BUCKET_KEY]: {
+          status: 'ready',
+          transactions: [
+            transaction({ id: 't1', amount: 1000 }),
+            transaction({ id: 't2', amount: 230 }),
+          ],
+        },
+      },
+      periodBuckets: {},
+    });
+
+    renderScreen();
+
+    expect(screen.getByText('2 笔')).toBeTruthy();
+    expect(screen.getByText('支出 ¥12.30')).toBeTruthy();
+  });
+
   it('点击重试会重新拉取并恢复正常列表', async () => {
     useTransactionStore.setState({
       buckets: { [BUCKET_KEY]: { status: 'error', transactions: [] } },
