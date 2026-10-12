@@ -7,16 +7,17 @@ import { barRects, lineGeometryRange, nearestPointIndex, seriesBounds, tooltipPl
 import type { CurrencyCode } from '@/domain/currency';
 import { formatCompactMoney, formatMoney } from '@/domain/money';
 import type { RangeTrendPoint } from '@/domain/statement';
-import { makeStyles, CHART_PALETTE, useColors, fontSize, radius, space } from '@/theme';
+import { trendAxisLayout } from '@/domain/trendAxis';
+import { makeStyles, CHART_PALETTE, useColors, fontSize, space } from '@/theme';
 
 import { StatsTrendTooltip, type TooltipSize } from './StatsTrendTooltip';
+import { TrendXAxis } from './TrendXAxis';
 
 const VIEW_WIDTH = 320;
 const PADDING = 14;
 const GRID_LINES = [0.25, 0.5, 0.75] as const;
 const GUIDE_DASH = '3 3';
 const TOOLTIP_ESTIMATE: TooltipSize = { width: 120, height: 72 };
-const X_LABEL_WIDTH = 60;
 
 export type TrendSeriesMode = 'expense' | 'income' | 'balance' | 'both';
 export type TrendChartType = 'bar' | 'line';
@@ -36,17 +37,6 @@ interface Props {
   accessibilityLabel?: string;
   height?: number;
 }
-
-const xLabelIndexes = (count: number): number[] => {
-  if (count <= 0) return [];
-  if (count <= 7) return Array.from({ length: count }, (_, index) => index);
-  const last = count - 1;
-  const step = Math.ceil(last / 3);
-  const indexes = [0, step, step * 2, last].filter(
-    (value, index, list) => value <= last && list.indexOf(value) === index,
-  );
-  return indexes;
-};
 
 export const StatsTrendChart = ({
   points,
@@ -179,7 +169,12 @@ export const StatsTrendChart = ({
   if (points.length === 0) return null;
 
   const yLabels = [bounds.max, (bounds.max + bounds.min) / 2, bounds.min];
-  const labels = xLabelIndexes(points.length);
+  const pxPerViewUnit = containerWidth / VIEW_WIDTH;
+  const axis = trendAxisLayout(
+    points.map((point) => point.key),
+    (lineGeometry[0]?.coords ?? []).map((coord) => coord.x * pxPerViewUnit),
+    fontSize.xs,
+  );
 
   return (
     <View style={styles.chartRow}>
@@ -309,22 +304,7 @@ export const StatsTrendChart = ({
           ) : null}
         </View>
 
-        <View style={[styles.xAxis, { height: 18 }]}>
-          {labels.map((index) => {
-            const coord = lineGeometry[0]?.coords[index];
-            const rawX = coord ? (coord.x / VIEW_WIDTH) * containerWidth : 0;
-            const left = Math.max(0, Math.min(containerWidth - X_LABEL_WIDTH, rawX - X_LABEL_WIDTH / 2));
-            return (
-              <Text
-                key={points[index].key}
-                style={[styles.xLabel, { left, width: X_LABEL_WIDTH }]}
-                numberOfLines={1}
-              >
-                {points[index].label}
-              </Text>
-            );
-          })}
-        </View>
+        <TrendXAxis height={axis.height} labels={axis.ticks} keyPrefix={`${mode}-`} />
       </View>
     </View>
   );
@@ -339,16 +319,6 @@ const useStyles = makeStyles((colors) => ({
   },
   plotWrap: {
     flex: 1,
-  },
-  xAxis: {
-    marginTop: space(1),
-    position: 'relative',
-  },
-  xLabel: {
-    color: colors.textTertiary,
-    fontSize: fontSize.xs,
-    position: 'absolute',
-    textAlign: 'center',
   },
   yAxis: {
     justifyContent: 'space-between',

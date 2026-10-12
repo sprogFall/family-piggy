@@ -67,8 +67,19 @@ describe('StatsTrendChart', () => {
   it('展示横轴日期与纵轴金额刻度', () => {
     mountChart('expense', 'bar');
     expect(screen.getByText('2月1日')).toBeTruthy();
-    expect(screen.getByText('2月3日')).toBeTruthy();
+    expect(screen.getByText('2日')).toBeTruthy();
+    expect(screen.getByText('3日')).toBeTruthy();
     expect(screen.getByText('¥3')).toBeTruthy();
     expect(screen.getByText('¥0')).toBeTruthy();
+  });
+
+  it('横轴标签旋转 -45°,同月日期只显示日', () => {
+    mountChart('expense', 'bar');
+    const label = screen.getByText('3日');
+    const style = [label.props.style].flat(Infinity).reduce<Record<string, unknown>>(
+      (acc, item) => ({ ...acc, ...(item ?? {}) }),
+      {},
+    );
+    expect(style.transform).toEqual([{ rotate: '-45deg' }]);
   });
 });
