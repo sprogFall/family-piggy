@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 
 import type { Transaction } from '@/types/domain';
 
@@ -127,5 +128,40 @@ describe('TransactionRow', () => {
     render(<TransactionRow transaction={tx} categoryName="餐饮" iconKey="restaurant" showTime />);
     expect(screen.getByText('14:30')).toBeTruthy();
     expect(screen.queryByText(/·/)).toBeNull();
+  });
+
+  it('已报销的支出金额加删除线且副标题标注已报销', () => {
+    render(
+      <TransactionRow
+        transaction={{
+          ...tx,
+          note: '和客户吃饭',
+          attributes: { reimbursement: true, reimbursed: true },
+        }}
+        categoryName="餐饮"
+        iconKey="restaurant"
+        showTime
+      />,
+    );
+
+    const amount = screen.getByText('¥2,368.00');
+    expect(StyleSheet.flatten(amount.props.style)).toMatchObject({
+      textDecorationLine: 'line-through',
+    });
+    // 已报销后不再是「可报销」待办，文案切换为已报销
+    expect(screen.getByText('14:30 · 和客户吃饭 · 已报销')).toBeTruthy();
+  });
+
+  it('可报销但未报销的金额不加删除线', () => {
+    render(
+      <TransactionRow
+        transaction={{ ...tx, attributes: { reimbursement: true } }}
+        categoryName="餐饮"
+        iconKey="restaurant"
+      />,
+    );
+
+    const amount = screen.getByText('¥2,368.00');
+    expect(StyleSheet.flatten(amount.props.style).textDecorationLine).toBeUndefined();
   });
 });

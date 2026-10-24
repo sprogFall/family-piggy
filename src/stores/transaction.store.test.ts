@@ -172,6 +172,87 @@ describe('useTransactionStore', () => {
     expect(selectMonthTransactions(useTransactionStore.getState(), 'l1', JUNE).map((t) => t.id)).toEqual(['t1']);
   });
 
+  it('编辑已报销流水时保留 reimbursed 标记（记账页按属性合并提交）', async () => {
+    // 记账页编辑时提交的是 { ...editing.attributes, reimbursement }，
+    // 这里模拟同一份 payload，确认已报销状态不会在编辑后被清掉
+    const existing = tx('t1', 20, { attributes: { reimbursement: true, reimbursed: true } });
+    txMock.listMonth.mockResolvedValue([existing]);
+    await useTransactionStore.getState().loadMonth('l1', MAY);
+
+    txMock.update.mockResolvedValue(undefined);
+    await useTransactionStore.getState().update('t1', 'l1', {
+      amount: 999,
+      attributes: { ...existing.attributes, reimbursement: true },
+    });
+
+    expect(
+      selectMonthTransactions(useTransactionStore.getState(), 'l1', MAY)[0].attributes,
+    ).toEqual({ reimbursement: true, reimbursed: true });
+  });
+
+  it('setReimbursed 本地改属性并同步月份桶，不触发重拉', async () => {
+    txMock.listMonth.mockResolvedValue([
+      tx('t1', 20, { attributes: { reimbursement: true } }),
+      tx('t2', 20),
+    ]);
+    await useTransactionStore.getState().loadMonth('l1', MAY);
+    txMock.update.mockResolvedValue(undefined);
+
+    await useTransactionStore.getState().setReimbursed('t1', 'l1', true);
+
+    const list = selectMonthTransactions(useTransactionStore.getState(), 'l1', MAY);
+    expect(list.find((t) => t.id === 't1')?.attributes).toEqual({
+      reimbursement: true,
+      reimbursed: true,
+    });
+    expect(list.find((t) => t.id === 't2')?.attributes).toEqual({ reimbursement: false });
+    // 只改属性：不应像 update 那样重拉所有月份桶
+    expect(txMock.listMonth).toHaveBeenCalledTimes(1);
+    expect(txMock.update).toHaveBeenCalledWith('t1', {
+      attributes: { reimbursement: true, reimbursed: true },
+    });
+  });
+
+  it('setReimbursed 取消报销时删除 reimbursed 字段', async () => {
+    txMock.listMonth.mockResolvedValue([
+      tx('t1', 20, { attributes: { reimbursement: true, reimbursed: true } }),
+    ]);
+    await useTransactionStore.getState().loadMonth('l1', MAY);
+    txMock.update.mockResolvedValue(undefined);
+
+    await useTransactionStore.getState().setReimbursed('t1', 'l1', false);
+
+    expect(
+      selectMonthTransactions(useTransactionStore.getState(), 'l1', MAY)[0].attributes,
+    ).toEqual({ reimbursement: true });
+  });
+
+  it('setReimbursed 只影响目标流水的月份桶与周期桶', async () => {
+    txMock.listMonth.mockResolvedValue([tx('t1', 20, { attributes: { reimbursement: true } })]);
+    await useTransactionStore.getState().loadMonth('l1', MAY);
+    await useTransactionStore.getState().loadMonth('l2', MAY);
+    txMock.update.mockResolvedValue(undefined);
+
+    await useTransactionStore.getState().setReimbursed('t1', 'l1', true);
+
+    const l2List = selectMonthTransactions(useTransactionStore.getState(), 'l2', MAY);
+    expect(l2List[0].attributes).toEqual({ reimbursement: true });
+  });
+
+  it('setReimbursed 请求失败时不落地本地状态', async () => {
+    txMock.listMonth.mockResolvedValue([tx('t1', 20, { attributes: { reimbursement: true } })]);
+    await useTransactionStore.getState().loadMonth('l1', MAY);
+    txMock.update.mockRejectedValue(new Error('offline'));
+
+    await expect(
+      useTransactionStore.getState().setReimbursed('t1', 'l1', true),
+    ).rejects.toThrow('offline');
+
+    expect(
+      selectMonthTransactions(useTransactionStore.getState(), 'l1', MAY)[0].attributes,
+    ).toEqual({ reimbursement: true });
+  });
+
   it('subscribe 委托 realtime 服务', () => {
     const { subscribeTransactions } = jest.requireMock('@/services/transaction.service') as {
       subscribeTransactions: jest.Mock;

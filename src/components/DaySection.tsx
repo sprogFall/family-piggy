@@ -14,6 +14,8 @@ interface Props {
   onRowPress?: (transaction: Transaction) => void;
   onEdit?: (transaction: Transaction) => void;
   onDelete?: (transaction: Transaction) => void;
+  /** 右滑确认报销 / 取消报销；不传则不提供右滑报销操作 */
+  onReimburse?: (transaction: Transaction, reimbursed: boolean) => void;
   /** 记录人标注（家庭账本由调用方提供；返回 null 则不展示） */
   creatorNameOf?: (transaction: Transaction) => string | null;
   /** 只读模式：不展示左滑编辑 / 删除，仅保留点击预览 */
@@ -26,6 +28,7 @@ export const DaySection = ({
   onRowPress,
   onEdit,
   onDelete,
+  onReimburse,
   creatorNameOf,
   readOnly = false,
 }: Props) => {
@@ -66,6 +69,9 @@ export const DaySection = ({
             {...commonProps}
             onEdit={() => onEdit?.(tx)}
             onDelete={() => onDelete?.(tx)}
+            onReimburse={
+              onReimburse ? (reimbursed) => onReimburse(tx, reimbursed) : undefined
+            }
           />
         );
       })}

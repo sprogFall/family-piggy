@@ -150,9 +150,13 @@ const toTransactionAttributes = (value: unknown): TransactionAttributes => {
   const attributes: TransactionAttributes = {
     reimbursement: source.reimbursement === true,
   };
+  // reimbursed 只在确认报销时写入，未报销时不落 false（保留 undefined 语义）
+  if (source.reimbursed === true) attributes.reimbursed = true;
   // 预留扩展：未知的布尔字段原样透传，后续新增记账类型无需改表
   for (const [key, item] of Object.entries(source)) {
-    if (key !== 'reimbursement' && typeof item === 'boolean') attributes[key] = item;
+    if (key !== 'reimbursement' && key !== 'reimbursed' && typeof item === 'boolean') {
+      attributes[key] = item;
+    }
   }
   return attributes;
 };

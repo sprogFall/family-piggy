@@ -20,6 +20,7 @@ import { TransactionTypeFilter } from '@/components/ui/TransactionTypeFilter';
 import { dominantCurrency } from '@/domain/currency';
 import { currentMonth, monthKey, type MonthRef } from '@/domain/dates';
 import { formatMoney } from '@/domain/money';
+import { reimburseExcludedTotal } from '@/domain/reimbursement';
 import { groupByDay, monthSummary, scopeToCurrency } from '@/domain/statement';
 import {
   filterTransactions,
@@ -88,6 +89,7 @@ export const BillsScreen = ({ navigation }: Props) => {
   const loadTags = useTagStore((state) => state.load);
   const createPersonalLedger = useLedgerStore((state) => state.createPersonalLedger);
   const removeTransaction = useTransactionStore((state) => state.remove);
+  const setReimbursed = useTransactionStore((state) => state.setReimbursed);
 
   const recorderOptions = useMemo(
     () =>
@@ -147,6 +149,18 @@ export const BillsScreen = ({ navigation }: Props) => {
     ]);
   };
 
+  /**
+   * 右滑确认报销 / 取消报销：直接写服务端，成功后本地改属性。
+   * 不做二次确认——报销是可逆操作，误触后再次右滑即可撤销，
+   * 每次都弹确认反而让高频操作变重。
+   */
+  const handleReimburse = (transaction: Transaction, reimbursed: boolean) => {
+    if (!ledger) return;
+    void setReimbursed(transaction.id, ledger.id, reimbursed).catch((error: unknown) =>
+      showAlert('报销失败', getErrorMessage(error)),
+    );
+  };
+
   const monthKeyValue = monthKey(month);
   const loadingInitial =
     ledger !== null &&
@@ -174,6 +188,8 @@ export const BillsScreen = ({ navigation }: Props) => {
   /** 顶部汇总只统计主币种：不同币种的最小单位不可直接相加 */
   const currency = dominantCurrency(transactions);
   const summary = monthSummary(transactions, currency);
+  /** 已报销支出不计入总消费，单独提示被剔除的金额，避免用户以为统计漏算 */
+  const reimbursedTotal = reimburseExcludedTotal(transactions, currency);
   const foreignCount = transactions.length - scopeToCurrency(transactions, currency).length;
   const activeFilterCount =
     (typeFilter !== 'all' ? 1 : 0) +
@@ -276,6 +292,11 @@ export const BillsScreen = ({ navigation }: Props) => {
             value={formatMoney(summary.balance, currency, { signed: true })}
           />
         </View>
+        {reimbursedTotal > 0 ? (
+          <Text style={styles.foreignHint}>
+            已报销 {formatMoney(reimbursedTotal, currency)} 未计入支出与结余
+          </Text>
+        ) : null}
         {foreignCount > 0 ? (
           <Text style={styles.foreignHint}>另有 {foreignCount} 笔外币记录未计入上方汇总</Text>
         ) : null}
@@ -304,6 +325,7 @@ export const BillsScreen = ({ navigation }: Props) => {
                   }
                   onEdit={(tx) => navigation.navigate('AddTransaction', { transactionId: tx.id })}
                   onDelete={confirmDeleteTransaction}
+                  onReimburse={handleReimburse}
                 />
               ))}
             </>

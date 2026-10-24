@@ -35,6 +35,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { currentMonth, monthKey } from '@/domain/dates';
+import { dismissDialog, getDialogRequest } from '@/lib/alert';
 import { transactionService } from '@/services/transaction.service';
 import { useTransactionStore } from '@/stores/transaction.store';
 import type { Transaction } from '@/types/domain';
@@ -77,6 +78,7 @@ const renderScreen = () =>
 describe('BillsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    dismissDialog();
     useTransactionStore.setState({ buckets: {}, periodBuckets: {} });
   });
 
@@ -143,5 +145,81 @@ describe('BillsScreen', () => {
     await waitFor(() => expect(screen.getByText('餐饮')).toBeTruthy());
     expect(txMock.listMonth).toHaveBeenCalledWith('l1', expect.any(String), expect.any(String));
     expect(useTransactionStore.getState().buckets[BUCKET_KEY].status).toBe('ready');
+  });
+
+  it('已报销的支出不计入总消费，并在金额上加删除线', () => {
+    useTransactionStore.setState({
+      buckets: {
+        [BUCKET_KEY]: {
+          status: 'ready',
+          transactions: [
+            transaction({ id: 't1', amount: 1230 }),
+            transaction({
+              id: 't2',
+              amount: 5000,
+              attributes: { reimbursement: true, reimbursed: true },
+            }),
+          ],
+        },
+      },
+      periodBuckets: {},
+    });
+
+    renderScreen();
+
+    // 支出合计只含未报销的 12.30（列表行里也有同样的金额，故取全部再断言）
+    expect(screen.getAllByText('¥12.30')).toHaveLength(2);
+    // 已报销的 5.00 仍展示但加删除线
+    expect(screen.getByText('¥50.00')).toBeTruthy();
+    expect(screen.getByText('已报销 ¥50.00 未计入支出与结余')).toBeTruthy();
+    // 两笔都计入当天笔数
+    expect(screen.getByText('2笔')).toBeTruthy();
+  });
+
+  it('可报销账单提供右滑报销入口，确认后写回已报销', async () => {
+    useTransactionStore.setState({
+      buckets: {
+        [BUCKET_KEY]: {
+          status: 'ready',
+          transactions: [
+            transaction({ id: 't1', amount: 1230, attributes: { reimbursement: true } }),
+          ],
+        },
+      },
+      periodBuckets: {},
+    });
+    txMock.update.mockResolvedValue(undefined);
+
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('报销'));
+
+    await waitFor(() =>
+      expect(txMock.update).toHaveBeenCalledWith('t1', {
+        attributes: { reimbursement: true, reimbursed: true },
+      }),
+    );
+  });
+
+  it('报销失败时提示错误且不改动本地金额', async () => {
+    useTransactionStore.setState({
+      buckets: {
+        [BUCKET_KEY]: {
+          status: 'ready',
+          transactions: [
+            transaction({ id: 't1', amount: 1230, attributes: { reimbursement: true } }),
+          ],
+        },
+      },
+      periodBuckets: {},
+    });
+    txMock.update.mockRejectedValue(new Error('修改账单失败'));
+
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('报销'));
+
+    await waitFor(() => expect(getDialogRequest()?.title).toBe('报销失败'));
+    expect(useTransactionStore.getState().buckets[BUCKET_KEY].transactions[0].attributes).toEqual({
+      reimbursement: true,
+    });
   });
 });

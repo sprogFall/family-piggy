@@ -6,6 +6,7 @@ import type { Transaction, TxKind } from '@/types/domain';
 
 import { dominantCurrency, type CurrencyCode } from './currency';
 import { dayKeyOf, dayLabelOf, daysInMonth, type MonthRef } from './dates';
+import { isReimbursed } from './reimbursement';
 
 export interface Summary {
   expense: number;
@@ -30,8 +31,13 @@ export const monthSummary = (
   let income = 0;
   for (const tx of transactions) {
     if (tx.currency !== currency) continue;
-    if (tx.kind === 'expense') expense += tx.amount;
-    else income += tx.amount;
+    if (tx.kind === 'expense') {
+      // 已报销的支出由公司 / 他人承担，不属于自己的消费，不计入总消费与结余
+      if (isReimbursed(tx)) continue;
+      expense += tx.amount;
+    } else {
+      income += tx.amount;
+    }
   }
   return { expense, income, balance: income - expense };
 };
@@ -78,8 +84,13 @@ export const groupByDay = (transactions: Transaction[]): DayGroup[] => {
     // 不跨币种相加：当日汇总只统计主币种，其余币种仍按各自符号展示在明细行
     for (const tx of group.transactions) {
       if (tx.currency !== group.currency) continue;
-      if (tx.kind === 'expense') group.expense += tx.amount;
-      else group.income += tx.amount;
+      if (tx.kind === 'expense') {
+        // 与月度汇总同口径：已报销支出不计入当天小计，但笔数仍照常统计
+        if (isReimbursed(tx)) continue;
+        group.expense += tx.amount;
+      } else {
+        group.income += tx.amount;
+      }
     }
   }
   return [...map.values()].sort((a, b) => (a.key < b.key ? 1 : -1));

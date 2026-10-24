@@ -66,13 +66,18 @@ export interface Tag {
 
 /**
  * 记账类型扩展属性：数据库以 JSONB 保存，后续新增类型无需改表。
- * 当前仅支持 reimbursement（是否报销），新增布尔类型时在此追加字段即可。
+ * 当前仅支持 reimbursement（可报销）与 reimbursed（已报销），新增布尔类型时在此追加字段即可。
  */
 export interface TransactionAttributes {
-  /** 是否报销 */
+  /** 是否可报销（记账时标记；只有可报销的支出才能被右滑确认报销） */
   reimbursement: boolean;
+  /**
+   * 是否已报销。仅在账单页右滑确认时写入，取消报销时删除该字段（而非留 false）。
+   * 已报销的支出不计入总消费金额。
+   */
+  reimbursed?: boolean;
   /** 预留扩展：后续记账类型均以布尔值追加 */
-  [key: string]: boolean;
+  [key: string]: boolean | undefined;
 }
 
 export interface Transaction {

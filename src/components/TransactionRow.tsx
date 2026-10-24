@@ -4,6 +4,7 @@ import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { timeLabelOf } from '@/domain/dates';
 import { MAX_TRANSACTION_IMAGES } from '@/domain/transaction-images';
 import { formatMoney } from '@/domain/money';
+import { isReimbursed } from '@/domain/reimbursement';
 import type { Transaction } from '@/types/domain';
 import { makeStyles, fontSize, space } from '@/theme';
 
@@ -31,10 +32,11 @@ export const TransactionRow = ({
 }: Props) => {
   const styles = useStyles();
   const isIncome = transaction.kind === 'income';
+  const reimbursed = isReimbursed(transaction);
   const sub = [
     showTime ? timeLabelOf(transaction.occurredAt) : '',
     transaction.note,
-    transaction.attributes.reimbursement ? '可报销' : '',
+    reimbursed ? '已报销' : transaction.attributes.reimbursement ? '可报销' : '',
     createdByName ?? '',
   ]
     .filter((part) => part !== '')
@@ -65,7 +67,13 @@ export const TransactionRow = ({
           </View>
         ) : null}
       </View>
-      <Text style={[styles.amount, isIncome ? styles.income : null]}>
+      <Text
+        style={[
+          styles.amount,
+          isIncome ? styles.income : null,
+          reimbursed ? styles.reimbursedAmount : null,
+        ]}
+      >
         {formatMoney(transaction.amount, transaction.currency, { signed: isIncome })}
       </Text>
     </Pressable>
@@ -98,6 +106,11 @@ const useStyles = makeStyles((colors) => ({
   name: {
     color: colors.text,
     fontSize: fontSize.md,
+  },
+  /** 已报销金额：加删除线并弱化，表示不再计入消费 */
+  reimbursedAmount: {
+    color: colors.textTertiary,
+    textDecorationLine: 'line-through',
   },
   row: {
     alignItems: 'center',

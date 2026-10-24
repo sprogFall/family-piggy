@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { monthKey, monthRangeISO, type MonthRef } from '@/domain/dates';
+import { markReimbursed } from '@/domain/reimbursement';
 import { recentMonthBuckets } from '@/domain/snapshot';
 import { readSnapshot, removeSnapshot, writeSnapshot } from '@/lib/snapshot';
 import {
@@ -44,6 +45,7 @@ interface TransactionState {
   loadPeriod: (ledgerId: string, periodKey: string, start: string, end: string) => Promise<void>;
   add: (input: CreateTransactionInput) => Promise<Transaction>;
   update: (id: string, ledgerId: string, patch: UpdateTransactionInput) => Promise<void>;
+  setReimbursed: (id: string, ledgerId: string, reimbursed: boolean) => Promise<void>;
   remove: (id: string, ledgerId: string) => Promise<void>;
   upsertLocal: (ledgerId: string, tx: Transaction) => void;
   deleteLocal: (ledgerId: string, id: string) => void;
@@ -240,6 +242,19 @@ export const useTransactionStore = create<TransactionState>((set, get) => {
         if (!key.startsWith(`${ledgerId}${PERIOD_MARKER}`)) continue;
         await state.loadPeriod(ledgerId, periodKeyOfBucket(key), bucket.start, bucket.end);
       }
+    },
+
+    setReimbursed: async (id, ledgerId, reimbursed) => {
+      // 先读当前流水再写服务端：attributes 是整体覆盖，必须带上原有扩展属性
+      const current = selectTransactionById(get(), id);
+      if (!current) throw new Error('账单不存在');
+      const attributes = markReimbursed(current, reimbursed).attributes;
+      await transactionService.update(id, { attributes });
+      // 只更新属性、不改变月份归属，直接本地改写即可，无需像 update 那样重拉所有桶
+      patchLedgerBuckets(ledgerId, (list) =>
+        list.map((item) => (item.id === id ? { ...item, attributes } : item)),
+      );
+      persistSnapshot();
     },
 
     remove: async (id, ledgerId) => {

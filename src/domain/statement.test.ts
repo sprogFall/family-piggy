@@ -62,6 +62,23 @@ describe('monthSummary', () => {
     expect(monthSummary(list)).toEqual({ expense: 1200, income: 0, balance: -1200 });
     expect(monthSummary(list, 'USD')).toEqual({ expense: 0, income: 9999, balance: 9999 });
   });
+
+  it('已报销的支出不计入总消费与结余', () => {
+    const list = [
+      tx({ id: '1', amount: 1000 }),
+      tx({ id: '2', amount: 5000, attributes: { reimbursement: true, reimbursed: true } }),
+      tx({ id: '3', amount: 200, attributes: { reimbursement: true } }),
+    ];
+    // 5000 已报销被剔除，200 只是「可报销」仍计入
+    expect(monthSummary(list)).toEqual({ expense: 1200, income: 0, balance: -1200 });
+  });
+
+  it('已报销的收入不参与剔除：只有支出会因报销而移出统计', () => {
+    const list = [
+      tx({ id: '1', kind: 'income', amount: 3000, attributes: { reimbursement: true, reimbursed: true } }),
+    ];
+    expect(monthSummary(list)).toEqual({ expense: 0, income: 3000, balance: 3000 });
+  });
 });
 
 describe('scopeToCurrency', () => {
@@ -114,6 +131,22 @@ describe('groupByDay', () => {
 
     expect(groups[0].count).toBe(2);
     expect(groups[1].count).toBe(1);
+  });
+
+  it('当天小计剔除已报销支出，笔数仍统计全部流水', () => {
+    const groups = groupByDay([
+      tx({ id: '1', occurredAt: new Date(2024, 4, 20, 8).toISOString(), amount: 100 }),
+      tx({
+        id: '2',
+        occurredAt: new Date(2024, 4, 20, 9).toISOString(),
+        amount: 5000,
+        attributes: { reimbursement: true, reimbursed: true },
+      }),
+    ]);
+
+    expect(groups[0].expense).toBe(100);
+    expect(groups[0].count).toBe(2);
+    expect(groups[0].transactions).toHaveLength(2);
   });
 
   it('空数据返回空数组', () => {
