@@ -11,7 +11,6 @@ import { watchAuthAutoRefresh } from '@/lib/supabase';
 import { AuthNavigator, MainNavigator, navigationRef } from '@/navigation';
 import { useAuthStore } from '@/stores/auth.store';
 import { useLedgerStore } from '@/stores/ledger.store';
-import { useMemoStore } from '@/stores/memo.store';
 import { useRecurringRuleStore } from '@/stores/recurring-rule.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { useTagStore } from '@/stores/tag.store';
@@ -59,7 +58,6 @@ export default function App() {
     }
     if (status === 'signedOut') {
       useLedgerStore.getState().reset();
-      useMemoStore.getState().reset();
       useTransactionStore.getState().reset();
       useCategoryStore.getState().reset();
       useRecurringRuleStore.getState().reset();

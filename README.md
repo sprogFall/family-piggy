@@ -38,7 +38,6 @@
 - 邮箱注册 / 登录，注册后自动创建用户资料、个人账本与默认分类；
 - 个人账本 + 家庭账本自由切换，按账号记住上次打开的账本；
 - 完整的「记一笔」体验：金额表达式、币种、日期、分类、多标签、备注、报销标记与账单图片；金额下方、支出/收入选择上方提供「再记一笔 / 完成」操作，再记一笔会沿用上一笔日期；可选择「定时记账」按月 / 周自动生成流水；
-- 概览首页提供个人 / 家庭备忘录，支持共享完成、重要程度与拖拽排序；
 - 账单按天 / 月分组汇总，支持筛选、搜索、下拉刷新、预览、编辑与左滑删除；
 - 多周期统计（本月、本周、本年、最近 30 天等快捷周期，也可按周 / 月 / 年 / 自定义日期查询）、收支趋势柱状/曲线、分类分布与金额排行、家庭账本成员筛选、按账本月度预算；
 - Excel / CSV 导入导出、记录人映射、多标签解析与系统分享；
@@ -117,7 +116,6 @@ UI 以根目录 [`记账原型.png`](./记账原型.png) 为设计原型，设�
 | 统计与预算 | ✅ | 支持本月、本周、本年、最近 30 天等快捷周期，也可按周 / 月 / 年或自定义日期区间查询；家庭账本可按成员筛选；收支趋势支持支出 / 收入 / 结余 / 收支切换与柱状 / 曲线切换，图表带横纵坐标且可触摸查看金额；分类分布支持支出 / 收入 / 收支三种口径，展示金额、占比与笔数，点击分类可下钻当前周期 / 成员条件下的明细；底部保留金额排行并分页加载，可点击查看详情；按账本设置月度预算与超支提醒 |
 | 分类与标签 | ✅ | 分类增删改、图标选择、拖拽排序（草稿保存 + 未保存退出确认）；标签隶属于分类、可多选复用，流水保存标签名快照，删除标签不影响历史账单 |
 | 家庭协作 | ✅ | 创建 / 改名家庭、邀请码加入、成员头像与成员管理、退出 / 解散；家庭账本全员可记账，账单展示记录人昵称 |
-| 备忘录 | ✅ | 「概览」首页顶部切换个人或所属家庭；个人条目仅本人可见和维护，家庭条目由该家庭成员共同维护，任一成员完成或取消完成后状态共享同步；可新增、编辑、删除并设置重要 / 一般 / 较低；默认按重要程度排序，长按拖拽可保存自定义顺序，右滑切换完成、左滑删除（需确认） |
 | 导入 / 导出 | ✅ | 导入 Excel / CSV：目标账本选择、来源记录人映射、前 20 条确认预览、标签自动创建；导出当月 `.xlsx` / `.csv` 并系统分享 |
 | 个性化 | ✅ | 深色模式三档（跟随系统 / 浅色 / 深色）、全局字体大小四档（小 / 标准 / 大 / 超大）、头像上传与昵称修改 |
 | 应用内更新 | ✅ | 检查 GitHub Release（仅正式版）→ 镜像回退下载 → 资产大小校验（默认跳过全量 SHA-256，由 Android 安装器校验 APK 签名）→ 拉起系统安装器；支持忽略指定版本 |
@@ -199,8 +197,7 @@ family-piggy
 
 1. 在 [supabase.com](https://supabase.com) 创建项目。
 2. 打开 Dashboard → SQL Editor，整体执行 [`supabase/schema.sql`](./supabase/schema.sql)。该脚本是幂等的，可重复执行，包含表结构、索引、函数、触发器、RLS 策略、Realtime publication 与 Storage 桶。
-3. **使用备忘录功能前，必须先执行** [`supabase/migrations/20261108090000_memos.sql`](./supabase/migrations/20261108090000_memos.sql)；旧库应先按下表顺序执行此前尚未执行的迁移。
-4. 复制环境变量模板并填写项目 URL 与 Anon Key：
+3. 复制环境变量模板并填写项目 URL 与 Anon Key：
 
 ```bash
 cp .env.example .env
@@ -225,9 +222,8 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
 | `20260930110000_family_management.sql` | 家庭改名与重新生成邀请码 RPC |
 | `20260930120000_transaction_tag_names.sql` | 流水标签由关联改为 `tag_names text[]` 快照，删除标签不影响历史账单 |
 | `20261001090000_recurring_rules.sql` | 新增定时记账规则表、流水防重约束与 Supabase Cron 调度 |
-| [`20261108090000_memos.sql`](./supabase/migrations/20261108090000_memos.sql) | 创建个人 / 家庭备忘录表、RLS 策略、排序函数及 Realtime 发布；使用备忘录前必须执行 |
 
-`schema.sql` 会创建 9 张核心表：`profiles`、`families`、`family_members`、`ledgers`、`categories`、`tags`、`transactions`、`recurring_rules`、`memos`，并处理注册自动建档、新账本默认分类播种、邀请码加入、Realtime 发布与 Storage 策略。定时记账还需要 Supabase Cron 每小时调用 `public.generate_due_recurring_transactions()`。
+`schema.sql` 会创建 8 张核心表：`profiles`、`families`、`family_members`、`ledgers`、`categories`、`tags`、`transactions`、`recurring_rules`，并处理注册自动建档、新账本默认分类播种、邀请码加入、Realtime 发布与 Storage 策略。定时记账还需要 Supabase Cron 每小时调用 `public.generate_due_recurring_transactions()`。
 
 > 定时记账依赖 `pg_cron`。`schema.sql` / 迁移会尝试自动启用并创建每小时任务；如果当前项目没有权限，请在 Supabase Dashboard → Database → Extensions 启用 `pg_cron` 后手动执行：
 >
@@ -306,7 +302,7 @@ CI 工作流：
 ## 数据库与安全
 
 - 所有表启用 **RLS**；家庭共享数据以 `family_members` 为权限边界。
-- `transactions` 和 `memos` 加入 `supabase_realtime` publication；流水按 `ledger_id` 过滤订阅，备忘录按个人或家庭范围同步。
+- `transactions` 加入 `supabase_realtime` publication，按 `ledger_id` 过滤订阅。
 - `supabase/schema.sql` 为幂等全量脚本；新表 / 新字段必须新增 migration，并同步 schema 与中文注释。
 - `profiles.avatar_url` 与账单图片分别使用 `avatars` / `transaction-images` Storage 桶。
 - Supabase 连接信息通过 `EXPO_PUBLIC_*` 注入；`EXPO_PUBLIC_*` 会被内联进客户端 bundle，属公开信息，**真正需要保密的是 keystore 与其密码**。
