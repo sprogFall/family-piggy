@@ -6,6 +6,8 @@ import type {
   Category,
   Family,
   Ledger,
+  MemoItem,
+  MemoImportance,
   Profile,
   RecurringRule,
   RecurringSchedule,
@@ -13,6 +15,30 @@ import type {
   Transaction,
   TransactionAttributes,
 } from './domain';
+
+export interface MemoRow {
+  id: string;
+  family_id: string | null;
+  owner_id: string | null;
+  content: string;
+  importance: MemoImportance;
+  is_completed: boolean;
+  sort_order: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const toMemo = (row: MemoRow): MemoItem => ({
+  id: row.id,
+  scope: row.family_id ? { type: 'family', familyId: row.family_id } : { type: 'personal' },
+  ownerId: row.owner_id,
+  content: row.content,
+  importance: row.importance,
+  isCompleted: row.is_completed,
+  sortOrder: row.sort_order,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
 
 export interface ProfileRow {
   id: string;

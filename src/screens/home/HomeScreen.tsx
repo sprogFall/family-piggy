@@ -12,6 +12,7 @@ import { TrendChart } from '@/components/charts/TrendChart';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorBanner, ErrorState } from '@/components/ErrorState';
 import { LedgerSwitcherSheet } from '@/components/LedgerSwitcherSheet';
+import { MemoPanel } from '@/components/MemoPanel';
 import { SummaryCard } from '@/components/SummaryCard';
 import { LoadingView } from '@/components/ui/LoadingView';
 import { MonthPickerSheet } from '@/components/ui/MonthPickerSheet';
@@ -108,13 +109,13 @@ export const HomeScreen = ({ navigation }: Props) => {
         </Pressable>
       </ScreenTopBar>
 
-      {ledger && loadingInitial ? (
-        <LoadingView message="正在加载账单…" />
-      ) : ledger && loadFailed && transactions.length === 0 ? (
-        <ErrorState message="账单加载失败，请检查网络后重试" onRetry={handleRetry} />
-      ) : (
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {ledger ? (
+        <MemoPanel />
+        {ledger && loadingInitial ? (
+          <LoadingView message="正在加载账单…" />
+        ) : ledger && loadFailed && transactions.length === 0 ? (
+          <ErrorState message="账单加载失败，请检查网络后重试" onRetry={handleRetry} />
+        ) : ledger ? (
           <>
             {loadFailed ? <ErrorBanner onRetry={handleRetry} /> : null}
             <SummaryCard
@@ -159,7 +160,6 @@ export const HomeScreen = ({ navigation }: Props) => {
           <EmptyState icon="wallet-outline" message="暂无账本，下拉切换账本以创建" />
         )}
       </ScrollView>
-      )}
 
       <LedgerSwitcherSheet
         visible={showLedgerSheet}

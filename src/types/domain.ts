@@ -6,6 +6,22 @@ export type LedgerType = 'personal' | 'family';
 export type TxKind = 'expense' | 'income';
 export type FamilyRole = 'owner' | 'member';
 
+export type MemoScope = { type: 'personal' } | { type: 'family'; familyId: string };
+export type MemoImportance = 'high' | 'medium' | 'low';
+export interface MemoItem {
+  id: string;
+  scope: MemoScope;
+  ownerId: string | null;
+  content: string;
+  importance: MemoImportance;
+  isCompleted: boolean;
+  sortOrder: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface CreateMemoInput { content: string; importance: MemoImportance }
+export interface UpdateMemoInput { content?: string; importance?: MemoImportance; isCompleted?: boolean }
+
 export const KIND_LABEL: Record<TxKind, string> = {
   expense: '支出',
   income: '收入',

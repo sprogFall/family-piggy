@@ -13,6 +13,7 @@ export const createQueryChain = (result: unknown = { data: null, error: null }):
     'upsert',
     'delete',
     'eq',
+    'is',
     'neq',
     'in',
     'gte',
